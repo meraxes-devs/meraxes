@@ -16,6 +16,7 @@ extern "C"
 #if USE_MINI_HALOS
   double LTE_Mcool(double Temp, double nH);
   double Mcool_SV(double redshift, int n);
+  double Mcool_K21(double redshift, double LWbg, double SVvalue);
 #endif
 
 #ifdef __cplusplus

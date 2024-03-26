@@ -141,4 +141,30 @@ double Mcool_SV(double redshift, int n)
 
   return McoolSV;
 }
+
+double Mcool_K21(double redshift, double LWbg, double SVvalue)
+{
+  // Function to compute the minimum mass for MC when including the streaming velocities and self-shielding,
+  // SV value quantifies the strength of the SV (n* sigma(z)) with sigma being the rms streaming velocity (TH 2010)
+  // Computation from Kulkarni+21
+  double Hubble_h = run_globals.params.Hubble_h;
+
+  double Mz20 = 1.96e-5 * Hubble_h; // Internal units
+  double J0 = 1.0;
+  double v0 = 30.0;
+  double Jv0 = 3.0;
+
+  double Beta1 = 0.8;
+  double Beta2 = 1.83;
+  double Beta3 = -0.06;
+  double Alpha0 = 1.64;
+  double Gamma1 = 0.36;
+  double Gamma2 = -0.62;
+  double Gamma3 = 0.13;
+
+  return (Mz20 * pow((1 + LWbg / J0), Beta1) * pow((1 + SVvalue / v0), Beta2) * pow((1 + LWbg * SVvalue / Jv0), Beta3) *
+          pow((1 + redshift) / 21.0,
+              -Alpha0 * pow((1 + LWbg / J0), Gamma1) * pow((1 + SVvalue / v0), Gamma2) *
+                pow((1 + LWbg * SVvalue / Jv0), Gamma3)));
+}
 #endif

@@ -21,6 +21,7 @@ Flag_IncludeSpinTemp       : 0   # if 0 Ts>>Tg
 Flag_IncludePecVelsFor21cm : 0   # if 1 the computation of 21cm Tb accounts for peculiar velocities
 Flag_ConstructLightcone    : 0   # Construct reionization light cones
 Flag_IncludeLymanWerner    : 0   # if 1 Meraxes computes Lyman-Werner background (crucial for Minihalos)
+Flag_IncludeSelfShield     : 0   # if 1 Include H2 Self-shieling (Kulkarni+21). Requires LymanWerner = 1.
 Flag_IncludeMetalEvo       : 0   # if 1 Meraxes computes the metal enrichment of the IGM.
 Flag_IncludeStreamVel      : 0   # if 1 Meraxes computes Streaming Velocities (relevant only for Minihalos)
 
