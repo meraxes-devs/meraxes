@@ -55,6 +55,7 @@ set(N_HISTORY_SNAPS 5 CACHE STRING "Number of snapshots for delayed SN feedback"
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared library version (required for Mhysa)")
 option(CALC_MAGS "Calculate magnitude" OFF)
 option(USE_MINI_HALOS "Consider minihalos" OFF)
+option(USE_SCALING_REL "Use scaling relations" OFF)
 set(MAGS_N_SNAPS 3 CACHE STRING "Number of snapshots to compute magnitudes")
 set(MAGS_N_BANDS 6 CACHE STRING "Number of bands to compute")
 set(SECTOR_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src/sector" CACHE PATH "Base directory of sector library")
@@ -203,6 +204,11 @@ target_link_libraries(meraxes_lib PUBLIC MPI::MPI_C)
 # MINI_HALOS
 if(USE_MINI_HALOS)
 	add_definitions(-DUSE_MINI_HALOS)
+endif()
+
+# SCALING_RELATIONS
+if(USE_SCALING_REL)
+	add_definitions(-DUSE_SCALING_REL)
 endif()
 
 # MAGNITUDES

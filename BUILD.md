@@ -118,6 +118,9 @@ USE_CUDA
 USE_MINI_HALOS
 : Use mini-halos. Default is ON.
 
+USE_SCALING_REL
+: Use scaling-relations for Star formation in minihalos. Default is OFF.
+
 You can set these on the command line when running cmake, e.g.:
 
 ```sh
