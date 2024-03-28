@@ -394,7 +394,7 @@ typedef struct reion_grids_t
   fftwf_plan sfr_filtered_reverse_plan;
   fftwf_plan weighted_sfr_filtered_reverse_plan;
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   float* starsIII;
   fftwf_complex* starsIII_unfiltered;
   fftwf_complex* starsIII_filtered;
