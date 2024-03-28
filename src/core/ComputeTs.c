@@ -92,6 +92,7 @@ void _ComputeTs(int snapshot)
 
 #if USE_MINI_HALOS || USE_SCALING_REL
   double SFR_III[TsNumFilterSteps];
+  float* JLW_box = run_globals.reion_grids.JLW_box;
 #endif
 
   float* x_e_box = run_globals.reion_grids.x_e_box;
@@ -102,7 +103,6 @@ void _ComputeTs(int snapshot)
 #if USE_MINI_HALOS
   float* Tk_boxII = run_globals.reion_grids.Tk_boxII;
   float* TS_boxII = run_globals.reion_grids.TS_boxII;
-  float* JLW_box = run_globals.reion_grids.JLW_box;
   float* JLW_boxII = run_globals.reion_grids.JLW_boxII;
 #endif
 

@@ -442,7 +442,7 @@ typedef struct reion_grids_t
 #endif
 
   double* SMOOTHED_SFR_GAL;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   double* SMOOTHED_SFR_III;
 #endif
 
