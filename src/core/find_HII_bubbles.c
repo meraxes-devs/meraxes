@@ -131,7 +131,7 @@ void _find_HII_bubbles(const int snapshot)
   fftwf_complex* weighted_sfr_filtered = run_globals.reion_grids.weighted_sfr_filtered;
   fftwf_execute(run_globals.reion_grids.weighted_sfr_forward_plan);
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   fftwf_complex* starsIII_unfiltered = run_globals.reion_grids.starsIII_unfiltered;
   fftwf_complex* starsIII_filtered = run_globals.reion_grids.starsIII_filtered;
   fftwf_execute(run_globals.reion_grids.starsIII_forward_plan);
