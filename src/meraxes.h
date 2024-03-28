@@ -418,7 +418,7 @@ typedef struct reion_grids_t
   float* J_21_at_ionization;
   float* J_21;
   float* Mvir_crit;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   float* Mvir_crit_MC;
 #endif
   float* r_bubble;
