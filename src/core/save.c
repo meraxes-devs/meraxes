@@ -774,13 +774,18 @@ void create_master_file()
       H5LTset_attribute_string(file_id, group_name, "Sfr", "solMass/yr");
       H5LTset_attribute_string(file_id, group_name, "deltax", "None");
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
       if (run_globals.params.Flag_IncludeLymanWerner) {
         H5LTset_attribute_string(file_id, group_name, "JLW_box", "1e-21erg/s/Hz/cm/cm/sr");
-        H5LTset_attribute_string(file_id, group_name, "JLW_box_II", "1e-21erg/s/Hz/cm/cm/sr");
         H5LTset_attribute_string(file_id, group_name, "Mvir_crit_MC", "1e10 solMass");
       }
 #endif
+
+#if USE_MINI_HALOS
+      if (run_globals.params.Flag_IncludeLymanWerner) {
+        H5LTset_attribute_string(file_id, group_name, "JLW_box_II", "1e-21erg/s/Hz/cm/cm/sr");
+      }
+#endif  
 
       if (run_globals.params.Flag_ConstructLightcone) {
         H5LTset_attribute_string(file_id, group_name, "LightconeBox", "mK");
@@ -789,21 +794,27 @@ void create_master_file()
       if (run_globals.params.Flag_IncludeSpinTemp) {
         H5LTset_attribute_string(file_id, group_name, "Ts_box", "K");
         H5LTset_attribute_string(file_id, group_name, "Tk_box", "K");
+#if USE_MINI_HALOS
         H5LTset_attribute_string(file_id, group_name, "Ts_boxII", "K");
         H5LTset_attribute_string(file_id, group_name, "Tk_boxII", "K");
+#endif
         H5LTset_attribute_string(file_id, group_name, "x_e_box", "None");
       }
 
       if (run_globals.params.Flag_Compute21cmBrightTemp) {
         H5LTset_attribute_string(file_id, group_name, "delta_T", "mK");
+#if USE_MINI_HALOS
         H5LTset_attribute_string(file_id, group_name, "delta_TII", "mK");
+#endif
       }
 
       if (run_globals.params.Flag_ComputePS) {
         H5LTset_attribute_string(file_id, group_name, "PS_data", "mK2");
         H5LTset_attribute_string(file_id, group_name, "PS_error", "mK2");
+#if USE_MINI_HALOS
         H5LTset_attribute_string(file_id, group_name, "PSII_data", "mK2");
         H5LTset_attribute_string(file_id, group_name, "PSII_error", "mK2");
+#endif
       }
 
       H5Gclose(group_id);
@@ -822,11 +833,16 @@ void create_master_file()
       H5LTset_attribute_string(file_id, group_name, "Sfr", "None");
       H5LTset_attribute_string(file_id, group_name, "deltax", "None");
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
       if (run_globals.params.Flag_IncludeLymanWerner) {
         H5LTset_attribute_string(file_id, group_name, "JLW_box", "v");
-        H5LTset_attribute_string(file_id, group_name, "JLW_box_II", "v");
         H5LTset_attribute_string(file_id, group_name, "Mvir_crit_MC", "v/h");
+      }
+#endif
+
+#if USE_MINI_HALOS
+      if (run_globals.params.Flag_IncludeLymanWerner) {
+	H5LTset_attribute_string(file_id, group_name, "JLW_box_II", "v");
       }
 #endif
 
@@ -837,21 +853,27 @@ void create_master_file()
       if (run_globals.params.Flag_IncludeSpinTemp) {
         H5LTset_attribute_string(file_id, group_name, "Ts_box", "None");
         H5LTset_attribute_string(file_id, group_name, "Tk_box", "None");
+#if USE_MINI_HALOS
         H5LTset_attribute_string(file_id, group_name, "Ts_boxII", "None");
         H5LTset_attribute_string(file_id, group_name, "Tk_boxII", "None");
+#endif
         H5LTset_attribute_string(file_id, group_name, "x_e_box", "None");
       }
 
       if (run_globals.params.Flag_Compute21cmBrightTemp) {
         H5LTset_attribute_string(file_id, group_name, "delta_T", "None");
+#if USE_MINI_HALOS
         H5LTset_attribute_string(file_id, group_name, "delta_TII", "None");
+#endif
       }
 
       if (run_globals.params.Flag_ComputePS) {
         H5LTset_attribute_string(file_id, group_name, "PS_data", "None");
         H5LTset_attribute_string(file_id, group_name, "PS_error", "None");
+#if USE_MINI_HALOS
         H5LTset_attribute_string(file_id, group_name, "PSII_data", "None");
         H5LTset_attribute_string(file_id, group_name, "PSII_error", "None");
+#endif
       }
 
       H5Gclose(group_id);

@@ -13,7 +13,7 @@ extern "C"
 
   void read_cooling_functions(void);
   double interpolate_cooling_rate(double logTemp, double logZ);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   double LTE_Mcool(double Temp, double nH);
   double Mcool_SV(double redshift, int n);
   double Mcool_K21(double redshift, double LWbg, double SVvalue);

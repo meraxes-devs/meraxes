@@ -58,7 +58,7 @@ void calculate_Mvir_crit(double redshift)
   }
 }
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
 void calculate_Mvir_crit_MC(double redshift)
 {
   // Calculate the critical Mvir value in each grid cell (ala Visbal 2014)

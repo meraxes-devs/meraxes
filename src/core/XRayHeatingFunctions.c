@@ -49,7 +49,7 @@ int init_heat()
   sigma_Tmin = calloc(TsNumFilterSteps, sizeof(double));
   ST_over_PS = calloc(TsNumFilterSteps, sizeof(double));
   sum_lyn = calloc(TsNumFilterSteps, sizeof(double));
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   sum_lyn_III = calloc(TsNumFilterSteps, sizeof(double));
   if (run_globals.params.Flag_IncludeLymanWerner) {
     sum_lyn_LW = calloc(TsNumFilterSteps, sizeof(double));
@@ -89,7 +89,7 @@ void destruct_heat()
   free(sigma_atR);
   free(zpp_edge);
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   free(sum_lyn_III);
   if (run_globals.params.Flag_IncludeLymanWerner) {
     free(sum_lyn_LW);
@@ -303,7 +303,7 @@ double nu_tau_one(double zp, double zpp, double x_e, double HI_filling_factor_zp
 typedef struct
 {
   double nu_0, x_e, ion_eff;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   double ion_effIII;
 #endif
   int snap_i;
@@ -311,7 +311,7 @@ typedef struct
 double tauX_integrand(double zhat, void* params)
 {
   double n, drpropdz, nuhat, HI_filling_factor_zhat, sigma_tilde, fcoll;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   double fcollIII;
 #endif
   tauX_params* p = (tauX_params*)params;
@@ -320,7 +320,7 @@ double tauX_integrand(double zhat, void* params)
   n = N_b0 * pow(1 + zhat, 3);
   nuhat = p->nu_0 * (1 + zhat);
   fcoll = interpolate_fcoll(zhat, p->snap_i, 2);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   fcollIII = interpolate_fcoll(zhat, p->snap_i, 3);
   if (fcoll + fcollIII < 1e-20)
     HI_filling_factor_zhat = 1;
@@ -356,12 +356,12 @@ double tauX(double nu, double x_e, double zp, double zpp, double HI_filling_fact
   // effective efficiency for the PS (not ST) mass function; quicker to compute...
   if (HI_filling_factor_zp > FRACT_FLOAT_ERR) {
     p.ion_eff = run_globals.params.physics.ReionEfficiency;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     p.ion_effIII = run_globals.params.physics.ReionEfficiencyIII;
 #endif
   } else {
     p.ion_eff = run_globals.params.physics.ReionEfficiency;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     p.ion_effIII = run_globals.params.physics.ReionEfficiencyIII;
 #endif
   }
@@ -1290,7 +1290,7 @@ void evolveInt(float zp,
       // Units should be M_solar/s. Factor of (dt_dzp * dzpp) converts from per s to per z'
       zpp_integrand_GAL = SFR_GAL[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayGal);
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
       zpp_integrand_III = SFR_III[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayIII);
 #endif
 
@@ -1302,7 +1302,7 @@ void evolveInt(float zp,
       // Units should be M_solar/s. Factor of (dt_dzp * dzpp) converts from per s to per z'
       dstarlya_dt_GAL += SFR_GAL[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn[zpp_ct] * dt_dzpp * dzpp;
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
       dxheat_dt_III += dt_dzpp * dzpp * zpp_integrand_III *
                        freq_int_heat_III[zpp_ct]; // Integral in frequency must be computed for each TsNumFilterSteps
       dxion_source_dt_III += dt_dzpp * dzpp * zpp_integrand_III * freq_int_ion_III[zpp_ct];
@@ -1331,7 +1331,7 @@ void evolveInt(float zp,
 
     dstarlya_dt_GAL *= Conversion_factor;
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     dxheat_dt_III *= const_zp_prefactor_III;
     dxion_source_dt_III *= const_zp_prefactor_III;
     dxlya_dt_III *= const_zp_prefactor_III * n_b;
@@ -1350,7 +1350,7 @@ void evolveInt(float zp,
   // *** First let's do dxe_dzp *** //
 
   dxion_sink_dt = alpha_A(T) * CLUMPING_FACTOR * x_e * x_e * f_H * n_b;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   dxe_dzp = dt_dzp * ((dxion_source_dt_GAL + dxion_source_dt_III) - dxion_sink_dt);
 #else
   dxe_dzp = dt_dzp * (dxion_source_dt_GAL - dxion_sink_dt);
@@ -1396,29 +1396,38 @@ void evolveInt(float zp,
   deriv[1] = dxheat_dzp + dcomp_dzp + dspec_dzp + dadia_dzp;
 
   // *** Finally, if we are at the last redshift step, Lya *** //
-#if USE_MINI_HALOS
-  deriv[6] = dxheat_dzp_II + dcomp_dzp_II + dspec_dzp_II + dadia_dzp_II;
-
+#if USE_MINI_HALOS || USE_SCALING_REL
   deriv[2] = (dxlya_dt_GAL + dxlya_dt_III) + (dstarlya_dt_GAL + dstarlya_dt_III);
-  deriv[7] = dxlya_dt_GAL + dstarlya_dt_GAL;
 #else
   deriv[2] = dxlya_dt_GAL + dstarlya_dt_GAL;
 #endif
 
+#if USE_MINI_HALOS
+  deriv[6] = dxheat_dzp_II + dcomp_dzp_II + dspec_dzp_II + dadia_dzp_II;
+  deriv[7] = dxlya_dt_GAL + dstarlya_dt_GAL;
+#endif
+
   // stuff for marcos
   deriv[3] = dxheat_dzp;
+  
+#if USE_MINI_HALOS || USE_SCALING_REL
+  if (run_globals.params.Flag_IncludeLymanWerner) {
+    deriv[5] = (dstarlyLW_dt_GAL + dstarlyLW_dt_III) * (PLANCK * 1e21);
+  }
+  deriv[4] = dt_dzp * (dxion_source_dt_GAL + dxion_source_dt_III);
+#else
+  deriv[4] = dt_dzp * dxion_source_dt_GAL;
+  
+#endif
+
 #if USE_MINI_HALOS
   deriv[8] = dxheat_dzp_II;
 
   if (run_globals.params.Flag_IncludeLymanWerner) {
-    deriv[5] = (dstarlyLW_dt_GAL + dstarlyLW_dt_III) * (PLANCK * 1e21);
     deriv[10] = dstarlyLW_dt_GAL * (PLANCK * 1e21);
   }
 
-  deriv[4] = dt_dzp * (dxion_source_dt_GAL + dxion_source_dt_III);
   deriv[9] = dt_dzp * dxion_source_dt_GAL;
-#else
-  deriv[4] = dt_dzp * dxion_source_dt_GAL;
 #endif
 }
 

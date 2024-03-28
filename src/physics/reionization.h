@@ -9,7 +9,7 @@ extern "C"
 #endif
 
   void calculate_Mvir_crit(double redshift);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   void calculate_Mvir_crit_MC(double redshift);
 #endif
   double tocf_modifier(struct galaxy_t* gal, double Mvir);

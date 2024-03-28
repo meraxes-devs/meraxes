@@ -38,7 +38,7 @@ void _ComputeTs(int snapshot)
   int slab_n_complex = (int)(run_globals.reion_grids.slab_n_complex[run_globals.mpi_rank]);
   double ReionEfficiency = run_globals.params.physics.ReionEfficiency;
   run_units_t* units = &(run_globals.units);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   double ReionEfficiencyIII = run_globals.params.physics.ReionEfficiencyIII;
 #endif
 
@@ -56,7 +56,7 @@ void _ComputeTs(int snapshot)
     Luminosity_converstion_factor_GAL;
   double collapse_fraction, density_over_mean, collapse_fraction_in_cell;
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   double Luminosity_converstion_factor_III, collapse_fractionIII, collapse_fractionIII_in_cell;
 #endif
 
@@ -71,14 +71,14 @@ void _ComputeTs(int snapshot)
 
   double freq_int_heat_GAL[TsNumFilterSteps], freq_int_ion_GAL[TsNumFilterSteps], freq_int_lya_GAL[TsNumFilterSteps];
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   double freq_int_heat_III[TsNumFilterSteps], freq_int_ion_III[TsNumFilterSteps], freq_int_lya_III[TsNumFilterSteps];
 #endif
 
   double freq_int_heat_tbl_GAL[x_int_NXHII][TsNumFilterSteps], freq_int_ion_tbl_GAL[x_int_NXHII][TsNumFilterSteps],
     freq_int_lya_tbl_GAL[x_int_NXHII][TsNumFilterSteps];
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   double freq_int_heat_tbl_III[x_int_NXHII][TsNumFilterSteps], freq_int_ion_tbl_III[x_int_NXHII][TsNumFilterSteps],
     freq_int_lya_tbl_III[x_int_NXHII][TsNumFilterSteps];
 #endif
@@ -90,7 +90,7 @@ void _ComputeTs(int snapshot)
   double ans[3], dansdz[20], xHII_call;
   double SFR_GAL[TsNumFilterSteps];
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   double SFR_III[TsNumFilterSteps];
 #endif
 
@@ -110,7 +110,7 @@ void _ComputeTs(int snapshot)
   fftwf_complex* sfr_filtered = run_globals.reion_grids.sfr_filtered;
   fftwf_execute(run_globals.reion_grids.sfr_forward_plan);
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   fftwf_complex* sfrIII_unfiltered = run_globals.reion_grids.sfrIII_unfiltered;
   fftwf_complex* sfrIII_filtered = run_globals.reion_grids.sfrIII_filtered;
   fftwf_execute(run_globals.reion_grids.sfrIII_forward_plan);
@@ -121,13 +121,13 @@ void _ComputeTs(int snapshot)
   // TODO: Double check that looping over correct number of elements here
   for (int ii = 0; ii < slab_n_complex; ii++) {
     sfr_unfiltered[ii] /= (float)total_n_cells;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     sfrIII_unfiltered[ii] /= (float)total_n_cells;
 #endif
   }
 
   double* SMOOTHED_SFR_GAL = run_globals.reion_grids.SMOOTHED_SFR_GAL;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   double* SMOOTHED_SFR_III = run_globals.reion_grids.SMOOTHED_SFR_III;
 #endif
 
@@ -139,7 +139,7 @@ void _ComputeTs(int snapshot)
   double J_alpha_ave, xalpha_ave, Xheat_ave, Xion_ave, J_LW_ave;
   J_alpha_ave = xalpha_ave = Xheat_ave = Xion_ave = J_LW_ave = 0.0;
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS 
   double J_alpha_aveII, xalpha_aveII, Xheat_aveII, J_LW_aveII;
   J_alpha_aveII = xalpha_aveII = Xheat_aveII = J_LW_aveII = 0.0;
 #endif
@@ -180,7 +180,7 @@ void _ComputeTs(int snapshot)
     // much. Will look into this later.
 
     collapse_fraction = 0.;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     collapse_fractionIII = 0.;
 #endif
 
@@ -198,7 +198,7 @@ void _ComputeTs(int snapshot)
             run_globals.reion_grids.stars[i_padded] /
             (RtoM(R) * run_globals.params.Hubble_h * run_globals.params.Hubble_h * density_over_mean) * (4.0 / 3.0) *
             M_PI * pow(R, 3.0) / pixel_volume;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
           collapse_fractionIII_in_cell =
             run_globals.reion_grids.starsIII[i_padded] /
             (RtoM(R) * run_globals.params.Hubble_h * run_globals.params.Hubble_h * density_over_mean) * (4.0 / 3.0) *
@@ -210,7 +210,7 @@ void _ComputeTs(int snapshot)
           }
           collapse_fraction += collapse_fraction_in_cell;
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
           if (collapse_fractionIII_in_cell > 1.0) {
             collapse_fractionIII_in_cell = 1.0;
           }
@@ -220,7 +220,7 @@ void _ComputeTs(int snapshot)
 
     MPI_Allreduce(MPI_IN_PLACE, &collapse_fraction, 1, MPI_DOUBLE, MPI_SUM, run_globals.mpi_comm);
     collapse_fraction = collapse_fraction / total_n_cells;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     MPI_Allreduce(MPI_IN_PLACE, &collapse_fractionIII, 1, MPI_DOUBLE, MPI_SUM, run_globals.mpi_comm);
     collapse_fractionIII = collapse_fractionIII / total_n_cells;
 #endif
@@ -228,7 +228,7 @@ void _ComputeTs(int snapshot)
   } else {
 
     collapse_fraction = 0.;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     collapse_fractionIII = 0.;
 #endif
 
@@ -243,7 +243,7 @@ void _ComputeTs(int snapshot)
       R_values[R_ct] = R;
 
       memcpy(sfr_filtered, sfr_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
       memcpy(sfrIII_filtered, sfrIII_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
 #endif
 
@@ -251,7 +251,7 @@ void _ComputeTs(int snapshot)
         int local_ix_start = (int)(run_globals.reion_grids.slab_ix_start[run_globals.mpi_rank]);
 
         filter(sfr_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.TsHeatingFilterType);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         filter(
           sfrIII_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.TsHeatingFilterType);
 #endif
@@ -259,7 +259,7 @@ void _ComputeTs(int snapshot)
 
       // inverse fourier transform back to real space
       fftwf_execute(run_globals.reion_grids.sfr_filtered_reverse_plan);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
       fftwf_execute(run_globals.reion_grids.sfrIII_filtered_reverse_plan);
 #endif
 
@@ -279,7 +279,7 @@ void _ComputeTs(int snapshot)
               SMOOTHED_SFR_GAL[i_smoothedSFR] = (((float*)sfr_filtered)[i_padded] / pixel_volume) *
                                                 (units->UnitMass_in_g / units->UnitTime_in_s) *
                                                 pow(units->UnitLength_in_cm, -3.) / SOLAR_MASS;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
               ((float*)sfrIII_filtered)[i_padded] = fmaxf(((float*)sfrIII_filtered)[i_padded], 0.0);
 
               SMOOTHED_SFR_III[i_smoothedSFR] = (((float*)sfrIII_filtered)[i_padded] / pixel_volume) *
@@ -293,7 +293,7 @@ void _ComputeTs(int snapshot)
                 run_globals.reion_grids.stars[i_padded] /
                 (RtoM(R) * run_globals.params.Hubble_h * run_globals.params.Hubble_h * density_over_mean) *
                 (4.0 / 3.0) * M_PI * pow(R, 3.0) / pixel_volume;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
               collapse_fractionIII_in_cell =
                 run_globals.reion_grids.starsIII[i_padded] /
                 (RtoM(R) * run_globals.params.Hubble_h * run_globals.params.Hubble_h * density_over_mean) *
@@ -305,7 +305,7 @@ void _ComputeTs(int snapshot)
               }
               collapse_fraction += collapse_fraction_in_cell;
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
               if (collapse_fractionIII_in_cell > 1.0) {
                 collapse_fractionIII_in_cell = 1.0;
               }
@@ -322,7 +322,7 @@ void _ComputeTs(int snapshot)
 
         stored_fcoll[snapshot] = collapse_fraction;
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         MPI_Allreduce(MPI_IN_PLACE, &collapse_fractionIII, 1, MPI_DOUBLE, MPI_SUM, run_globals.mpi_comm);
         collapse_fractionIII = collapse_fractionIII / total_n_cells;
         stored_fcollIII[snapshot] = collapse_fractionIII;
@@ -339,14 +339,14 @@ void _ComputeTs(int snapshot)
               i_smoothedSFR = grid_index_smoothedSFR(R_ct, ix, iy, iz, TsNumFilterSteps, ReionGridDim);
 
               ((float*)sfr_filtered)[i_padded] = fmaxf(((float*)sfr_filtered)[i_padded], 0.0);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
               ((float*)sfrIII_filtered)[i_padded] = fmaxf(((float*)sfrIII_filtered)[i_padded], 0.0);
 #endif
 
               SMOOTHED_SFR_GAL[i_smoothedSFR] = (((float*)sfr_filtered)[i_padded] / pixel_volume) *
                                                 (units->UnitMass_in_g / units->UnitTime_in_s) *
                                                 pow(units->UnitLength_in_cm, -3.) / SOLAR_MASS;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
               SMOOTHED_SFR_III[i_smoothedSFR] = (((float*)sfrIII_filtered)[i_padded] / pixel_volume) *
                                                 (units->UnitMass_in_g / units->UnitTime_in_s) *
                                                 pow(units->UnitLength_in_cm, -3.) / SOLAR_MASS;
@@ -359,7 +359,7 @@ void _ComputeTs(int snapshot)
 
     // A condition (defined by whether or not there are stars) for evaluating the heating/ionisation integrals
     // if (collapse_fraction > 0.0) {
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     if ((collapse_fraction + collapse_fractionIII) > 0.0) {
 #else
     if (collapse_fraction > 0.0) {
@@ -385,7 +385,7 @@ void _ComputeTs(int snapshot)
 
       dt_dzpp_list[R_ct] = dtdz((float)zpp);
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
       filling_factor_of_HI_zp =
         1. - (ReionEfficiency * collapse_fraction + ReionEfficiencyIII * collapse_fractionIII) / (1.0 - x_e_ave);
 #else
@@ -419,7 +419,7 @@ void _ComputeTs(int snapshot)
                                                                run_globals.params.physics.SpecIndexXrayGal,
                                                                2);
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         freq_int_heat_tbl_III[x_e_ct][R_ct] = integrate_over_nu(zp,
                                                                 x_int_XHII[x_e_ct],
                                                                 lower_int_limit_GAL,
@@ -443,7 +443,7 @@ void _ComputeTs(int snapshot)
 
       // and create the sum over Lya transitions from direct Lyn flux
       sum_lyn[R_ct] = 0;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
       sum_lyn_III[R_ct] = 0;
       if (run_globals.params.Flag_IncludeLymanWerner) {
         sum_lyn_LW[R_ct] = 0;
@@ -457,7 +457,7 @@ void _ComputeTs(int snapshot)
 
         nuprime = nu_n(n_ct) * (1 + zpp) / (1.0 + zp);
         sum_lyn[R_ct] += frecycle(n_ct) * spectral_emissivity(nuprime, 0, 2);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         sum_lyn_III[R_ct] += frecycle(n_ct) * spectral_emissivity(nuprime, 0, 3);
         if (run_globals.params.Flag_IncludeLymanWerner) {
           if (nuprime < NU_LW / NU_LL)
@@ -513,7 +513,7 @@ void _ComputeTs(int snapshot)
         // Now add a non-zero contribution to the previously zero contribution
         // The amount is the weight, multplied by the contribution from the previous radii
         sum_lyn[R_ct] = weight * sum_lyn[R_ct - 1];
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         sum_lyn_III[R_ct] = weight * sum_lyn_III[R_ct - 1]; // I am not really sure about this line!
         if (run_globals.params.Flag_IncludeLymanWerner)
           sum_lyn_LW[R_ct] = weight * sum_lyn_LW[R_ct - 1];
@@ -554,7 +554,7 @@ void _ComputeTs(int snapshot)
 
     // Do the same for Pop III.
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     if (fabs(run_globals.params.physics.SpecIndexXrayIII - 1.0) < 0.000001) {
       Luminosity_converstion_factor_III =
         (run_globals.params.physics.NuXrayGalThreshold * NU_over_EV) *
@@ -581,7 +581,7 @@ void _ComputeTs(int snapshot)
     const_zp_prefactor_GAL = (run_globals.params.physics.LXrayGal * Luminosity_converstion_factor_GAL) /
                              (run_globals.params.physics.NuXrayGalThreshold * NU_over_EV) * SPEED_OF_LIGHT *
                              pow(1 + zp, run_globals.params.physics.SpecIndexXrayGal + 3);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     const_zp_prefactor_III = (run_globals.params.physics.LXrayGalIII * Luminosity_converstion_factor_III) /
                              (run_globals.params.physics.NuXrayGalThreshold * NU_over_EV) * SPEED_OF_LIGHT *
                              pow(1 + zp, run_globals.params.physics.SpecIndexXrayIII + 3);
@@ -607,7 +607,7 @@ void _ComputeTs(int snapshot)
 
           ans[0] = x_e_box_prev[i_padded];
           ans[1] = Tk_box[i_real];
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS 
           ans[2] = Tk_boxII[i_real];
 #endif
 
@@ -615,7 +615,7 @@ void _ComputeTs(int snapshot)
             i_smoothedSFR = grid_index_smoothedSFR(R_ct, ix, iy, iz, TsNumFilterSteps, ReionGridDim);
 
             SFR_GAL[R_ct] = SMOOTHED_SFR_GAL[i_smoothedSFR];
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
             SFR_III[R_ct] = SMOOTHED_SFR_III[i_smoothedSFR];
 #endif
             xHII_call = x_e_box_prev[i_padded];
@@ -653,7 +653,7 @@ void _ComputeTs(int snapshot)
             freq_int_lya_GAL[R_ct] *= (xHII_call - x_int_XHII[m_xHII_low]);
             freq_int_lya_GAL[R_ct] += freq_int_lya_tbl_GAL[m_xHII_low][R_ct];
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
             freq_int_heat_III[R_ct] =
               (freq_int_heat_tbl_III[m_xHII_high][R_ct] - freq_int_heat_tbl_III[m_xHII_low][R_ct]) /
               (x_int_XHII[m_xHII_high] - x_int_XHII[m_xHII_low]);
@@ -678,7 +678,7 @@ void _ComputeTs(int snapshot)
 
           // Perform the calculation of the heating/ionisation integrals, updating relevant quantities etc. GET BACK AT
           // THIS FOR USE_MINI_HALOS!!
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
           evolveInt((float)zp,
                     run_globals.reion_grids.deltax[i_padded],
                     SFR_GAL,
@@ -716,11 +716,16 @@ void _ComputeTs(int snapshot)
           if (Tk_box[i_real] < MAX_TK)
             Tk_box[i_real] += dansdz[1] * dzp;
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS  || USE_SCALING_REL
+          if (run_globals.params.Flag_IncludeLymanWerner) {
+            JLW_box[i_real] = dansdz[5];
+          }
+#endif
+
+#if USE_MINI_HALOS 
           if (Tk_boxII[i_real] < MAX_TK)
             Tk_boxII[i_real] += dansdz[6] * dzp;
           if (run_globals.params.Flag_IncludeLymanWerner) {
-            JLW_box[i_real] = dansdz[5];
             JLW_boxII[i_real] = dansdz[10];
           }
 #endif
@@ -754,11 +759,15 @@ void _ComputeTs(int snapshot)
           xalpha_ave += curr_xalpha; // Double check this! It might be saving the one from PopIII!
           Xheat_ave += dansdz[3];
           Xion_ave += dansdz[4];
+#if USE_MINI_HALOS  || USE_SCALING_REL
+          if (run_globals.params.Flag_IncludeLymanWerner) {
+            J_LW_ave += dansdz[5];
+          }
+#endif
 #if USE_MINI_HALOS
           J_alpha_aveII += dansdz[7];
           Xheat_aveII += dansdz[8];
           if (run_globals.params.Flag_IncludeLymanWerner) {
-            J_LW_ave += dansdz[5];
             J_LW_aveII += dansdz[10];
           }
 #endif
@@ -779,11 +788,15 @@ void _ComputeTs(int snapshot)
     xalpha_ave /= total_n_cells;
     Xheat_ave /= total_n_cells;
     Xion_ave /= total_n_cells;
+#if USE_MINI_HALOS  || USE_SCALING_REL
+    if (run_globals.params.Flag_IncludeLymanWerner) {
+      J_LW_ave /= total_n_cells;
+    }
+#endif   
 #if USE_MINI_HALOS
     J_alpha_aveII /= total_n_cells;
     Xheat_aveII /= total_n_cells;
     if (run_globals.params.Flag_IncludeLymanWerner) {
-      J_LW_ave /= total_n_cells;
       J_LW_aveII /= total_n_cells;
     }
 #endif
@@ -792,11 +805,15 @@ void _ComputeTs(int snapshot)
     run_globals.reion_grids.volume_ave_xalpha = xalpha_ave;
     run_globals.reion_grids.volume_ave_Xheat = Xheat_ave;
     run_globals.reion_grids.volume_ave_Xion = Xion_ave;
+#if USE_MINI_HALOS  || USE_SCALING_REL
+    if (run_globals.params.Flag_IncludeLymanWerner) {
+      run_globals.reion_grids.volume_ave_J_LW = J_LW_ave;
+    }
+#endif
 #if USE_MINI_HALOS
     run_globals.reion_grids.volume_ave_J_alphaII = J_alpha_aveII;
     run_globals.reion_grids.volume_ave_XheatII = Xheat_aveII;
-    if (run_globals.params.Flag_IncludeLymanWerner) {
-      run_globals.reion_grids.volume_ave_J_LW = J_LW_ave;
+    if (run_globals.params.Flag_IncludeLymanWerner) {     
       run_globals.reion_grids.volume_ave_J_LWII = J_LW_aveII;
     }
 #endif

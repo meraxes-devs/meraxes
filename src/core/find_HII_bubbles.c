@@ -67,7 +67,7 @@ void _find_HII_bubbles(const int snapshot)
   double f_coll_stars;
   double neutral_fraction;
   double Gamma_R_prefactor;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   const double ReionEfficiencyIII = run_globals.params.physics.ReionEfficiencyIII;
   const double ReionNionPhotPerBaryIII = run_globals.params.physics.ReionNionPhotPerBaryIII;
   float J_21_auxIII = 0;
@@ -171,7 +171,7 @@ void _find_HII_bubbles(const int snapshot)
     deltax_unfiltered[ii] /= total_n_cells;
     stars_unfiltered[ii] /= total_n_cells;
     weighted_sfr_unfiltered[ii] /= total_n_cells;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     starsIII_unfiltered[ii] /= total_n_cells;
     weighted_sfrIII_unfiltered[ii] /= total_n_cells;
 #endif
@@ -216,7 +216,7 @@ void _find_HII_bubbles(const int snapshot)
     memcpy(deltax_filtered, deltax_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
     memcpy(stars_filtered, stars_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
     memcpy(weighted_sfr_filtered, weighted_sfr_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     memcpy(starsIII_filtered, starsIII_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
     memcpy(weighted_sfrIII_filtered, weighted_sfrIII_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
 #endif
@@ -235,7 +235,7 @@ void _find_HII_bubbles(const int snapshot)
       filter(stars_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.ReionFilterType);
       filter(
         weighted_sfr_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.ReionFilterType);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
       filter(starsIII_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.ReionFilterType);
       filter(weighted_sfrIII_filtered,
              local_ix_start,
@@ -257,7 +257,7 @@ void _find_HII_bubbles(const int snapshot)
     fftwf_execute(run_globals.reion_grids.deltax_filtered_reverse_plan);
     fftwf_execute(run_globals.reion_grids.stars_filtered_reverse_plan);
     fftwf_execute(run_globals.reion_grids.weighted_sfr_filtered_reverse_plan);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     fftwf_execute(run_globals.reion_grids.starsIII_filtered_reverse_plan);
     fftwf_execute(run_globals.reion_grids.weighted_sfrIII_filtered_reverse_plan);
 #endif
@@ -285,7 +285,7 @@ void _find_HII_bubbles(const int snapshot)
             ((float*)weighted_sfr_filtered)[i_padded] = 0;
           }
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
           ((float*)starsIII_filtered)[i_padded] = fmaxf(((float*)starsIII_filtered)[i_padded], 0.0);
           if (((float*)starsIII_filtered)[i_padded] < ABS_TOL) {
             ((float*)starsIII_filtered)[i_padded] = 0;
@@ -320,7 +320,7 @@ void _find_HII_bubbles(const int snapshot)
                         PLANCK * 1e21 // * run_globals.params.physics.ReionEscapeFrac
                         * R * units->UnitLength_in_cm * ReionNionPhotPerBary / PROTONMASS * units->UnitMass_in_g /
                         pow(units->UnitLength_in_cm, 3) / units->UnitTime_in_s;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     J_21_auxIII_constant = J_21_aux_constant / ReionNionPhotPerBary * ReionNionPhotPerBaryIII;
 #endif
 
@@ -333,7 +333,7 @@ void _find_HII_bubbles(const int snapshot)
       Gamma_R_prefactor *= (units->UnitMass_in_g / units->UnitTime_in_s) *
                            pow(units->UnitLength_in_cm / run_globals.params.Hubble_h, -3.) * ReionNionPhotPerBary /
                            PROTONMASS; // Convert pixel volume (Mpc/h)^3 -> (cm)^3
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
       Gamma_R_prefactorIII = Gamma_R_prefactor / ReionNionPhotPerBary * ReionNionPhotPerBaryIII;
 #endif
     }
@@ -352,7 +352,7 @@ void _find_HII_bubbles(const int snapshot)
           f_coll_stars = (double)((float*)stars_filtered)[i_padded] / (M_mean * density_over_mean) * (4.0 / 3.0) *
                          M_PI * R_cubed / pixel_volume;
           weighted_sfr_density = (double)((float*)weighted_sfr_filtered)[i_padded] / pixel_volume; // In internal units
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
           f_coll_starsIII = (double)((float*)starsIII_filtered)[i_padded] / (M_mean * density_over_mean) * (4.0 / 3.0) *
                             M_PI * R_cubed / pixel_volume;
           weighted_sfr_densityIII =
@@ -373,7 +373,7 @@ void _find_HII_bubbles(const int snapshot)
 
           if (flag_ReionUVBFlag) {
             J_21_aux = (float)(weighted_sfr_density * J_21_aux_constant);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
             J_21_auxIII = (float)(weighted_sfr_densityIII * J_21_auxIII_constant);
 #endif
           }
@@ -381,7 +381,7 @@ void _find_HII_bubbles(const int snapshot)
           // Modified reionisation condition, including recombinations and partial ionisations from X-rays
           // Check if ionised!
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
           if ((f_coll_stars * ReionEfficiency + f_coll_starsIII * ReionEfficiencyIII) >
               neutral_fraction * (1. + rec)) // IONISED!!!!
 #else
@@ -391,14 +391,14 @@ void _find_HII_bubbles(const int snapshot)
             // If it is the first crossing of the ionisation barrier for this cell (largest R), let's record J_21
             if (xH[i_real] > REL_TOL) {
               if (flag_ReionUVBFlag)
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
                 J_21[i_real] = J_21_aux + J_21_auxIII;
 #else
                 J_21[i_real] = J_21_aux;
 #endif
               // Store the ionisation background and the reionisation redshift for each cell
               if (run_globals.params.Flag_IncludeRecombinations) {
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
                 Gamma12[i_real] =
                   (float)(Gamma_R_prefactor * weighted_sfr_density + Gamma_R_prefactorIII * weighted_sfr_densityIII);
 #else
@@ -416,7 +416,7 @@ void _find_HII_bubbles(const int snapshot)
           // Check if this is the last filtering step.
           // If so, assign partial ionisations to those cells which aren't fully ionised
           else if (flag_last_filter_step && (xH[i_real] > REL_TOL)) {
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
             xH[i_real] =
               (float)(neutral_fraction - (f_coll_stars * ReionEfficiency + f_coll_starsIII * ReionEfficiencyIII));
 #else
@@ -435,7 +435,7 @@ void _find_HII_bubbles(const int snapshot)
           {
             z_in[i_real] = (float)redshift;
             if (flag_ReionUVBFlag)
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
               run_globals.reion_grids.J_21_at_ionization[i_real] =
                 (J_21_aux + J_21_auxIII) * (float)ReionGammaHaloBias; // Is HaloBias the same for PopIII / Pop II?
 #else

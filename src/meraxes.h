@@ -448,8 +448,11 @@ typedef struct reion_grids_t
 
   // Grids necessary for LW background and future disentangling between MC/AC Pop3/Pop2 stuff
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   float* JLW_box;
+#endif
+
+#if USE_MINI_HALOS
   float* JLW_boxII;
 #endif
 
@@ -504,9 +507,12 @@ typedef struct reion_grids_t
   double volume_ave_TK;
   double volume_ave_xe;
   double volume_ave_Tb;
+#if USE_MINI_HALOS || USE_SCALING_REL  
+  double volume_ave_J_LW;
+#endif
+  
 #if USE_MINI_HALOS
   double volume_ave_J_alphaII;
-  double volume_ave_J_LW;
   double volume_ave_J_LWII;
   double volume_ave_XheatII;
   double volume_ave_TSII;
