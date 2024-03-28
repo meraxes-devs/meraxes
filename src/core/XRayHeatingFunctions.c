@@ -1246,7 +1246,7 @@ void evolveInt(float zp,
   int zpp_ct;
   double T, TII, x_e, zpp_integrand_GAL;
   double dxe_dzp, n_b, dspec_dzp, dxheat_dzp, dxlya_dt_GAL, dstarlya_dt_GAL, dstarlyLW_dt_GAL;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   // Do this to differentiate between Pop III and Pop II contribution
   double dxlya_dt_III, dstarlya_dt_III, dstarlyLW_dt_III, dxheat_dt_III, dxion_source_dt_III, zpp_integrand_III;
   double dspec_dzp_II, dxheat_dzp_II;
