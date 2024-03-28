@@ -121,7 +121,9 @@ double LTE_Mcool(double Temp, double nH)
 
   return LTEtot;
 }
+#endif
 
+#if USE_MINI_HALOS || USE_SCALING_REL
 double Mcool_SV(double redshift, int n)
 {
   // Function to compute the minimum mass for MC when including the streaming velocities,
