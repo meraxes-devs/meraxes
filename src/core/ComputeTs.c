@@ -889,6 +889,16 @@ void _ComputeTs(int snapshot)
        Xion_ave,
        J_LW_ave,
        J_LW_aveII);
+#else if USE_SCALING_REL
+  mlog("zp = %e Ts_ave = %e Tk_ave = %e x_e_ave = %e", MLOG_MESG, zp, Ave_Ts, Ave_Tk, Ave_x_e);
+  mlog("zp = %e J_alpha_ave = %e xalpha_ave = %e Xheat_ave = %e Xion_ave = %e JLW_ave = %e",
+       MLOG_MESG,
+       zp,
+       J_alpha_ave,
+       xalpha_ave,
+       Xheat_ave,
+       Xion_ave,
+       J_LW_ave);
 #else
   mlog("zp = %e Ts_ave = %e Tk_ave = %e x_e_ave = %e", MLOG_MESG, zp, Ave_Ts, Ave_Tk, Ave_x_e);
   mlog("zp = %e J_alpha_ave = %e xalpha_ave = %e Xheat_ave = %e Xion_ave = %e",

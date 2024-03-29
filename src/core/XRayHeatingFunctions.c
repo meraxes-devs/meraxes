@@ -1266,7 +1266,7 @@ void evolveInt(float zp,
   dstarlya_dt_GAL = 0;
   dstarlyLW_dt_GAL = 0;
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   dxheat_dt_III = 0;
   dxion_source_dt_III = 0;
   dxlya_dt_III = 0;
