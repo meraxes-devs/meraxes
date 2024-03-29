@@ -608,7 +608,7 @@ void malloc_reionization_grids()
 
   grids->SMOOTHED_SFR_GAL = NULL;
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS 
   grids->Tk_boxII = NULL;
   grids->TS_boxII = NULL;
 #endif
@@ -629,7 +629,7 @@ void malloc_reionization_grids()
   // Grids required for 21cm brightness temperature
   grids->delta_T = NULL;
   grids->delta_T_prev = NULL;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS 
   grids->delta_TII = NULL;
   grids->delta_TII_prev = NULL;
 #endif
@@ -646,7 +646,7 @@ void malloc_reionization_grids()
   grids->PS_data = NULL;
   grids->PS_error = NULL;
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS 
   grids->PSII_data = NULL;
   grids->PSII_error = NULL;
 #endif
@@ -738,7 +738,7 @@ void malloc_reionization_grids()
                                                                           (float*)grids->weighted_sfr_filtered,
                                                                           run_globals.mpi_comm,
                                                                           plan_flags);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     grids->starsIII = fftwf_alloc_real((size_t)slab_n_complex * 2);
     grids->starsIII_unfiltered = fftwf_alloc_complex((size_t)slab_n_complex);
     grids->starsIII_filtered = fftwf_alloc_complex((size_t)slab_n_complex);
