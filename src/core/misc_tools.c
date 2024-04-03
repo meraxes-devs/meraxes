@@ -400,9 +400,9 @@ void initialize_ScalingRel()
       double a3_III = PopIIIParams[i_delta * 6 + 2];
       double a4_III = PopIIIParams[i_delta * 6 + 1];
       double a5_III = PopIIIParams[i_delta * 6 + 0];
-      for (int snap = 0; snap < SnapListLength; snap++) {
-        NormIII[i_delta, snap] = NormFitting_Function(snap, a0_III, a1_III, a2_III, a3_III, a4_III, a5_III, z0_III);
-        NormII[i_delta, snap] = NormFitting_Function(snap, a0_II, a1_II, a2_II, a3_II, a4_II, a5_II, z0_II);
+      for (int snap = 0; snap < n_snaps; snap++) {
+        run_globals.NormIII[i_delta, snap] = NormFitting_Function(snap, a0_III, a1_III, a2_III, a3_III, a4_III, a5_III, z0_III);
+        run_globals.NormII[i_delta, snap] = NormFitting_Function(snap, a0_II, a1_II, a2_II, a3_II, a4_II, a5_II, z0_II);
       }
     }
   }
