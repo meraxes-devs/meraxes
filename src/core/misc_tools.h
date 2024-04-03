@@ -44,6 +44,18 @@ extern "C"
   double interp(double xp, double* x, double* y, int nPts);
   double trapz_table(double* y, double* x, int nPts, double a, double b);
   bool check_for_flag(int flag, int tree_flags);
+  
+#if USE_SCALING_REL
+
+#define NDelta 9
+#define NPopIIIPars 6
+#define NPopIIPars 6
+
+  void read_scaling_rel_tables(void);
+  void initialize_ScalingRel();
+  void initialize_NormValues();
+  double NormFitting_Function(double x, double a0, double a1, double a2, double a3, double a4, double a5, double x0);
+#endif
 
 #ifdef __cplusplus
 }

@@ -268,6 +268,12 @@ void init_meraxes()
 
   // read in the stellar feedback tables
   read_stellar_feedback_tables();
+  
+#if USE_SCALING_REL
+  // read in the scaling relation tables
+  read_scaling_rel_tables();
+  initialize_ScalingRel();
+#endif
 
 #ifdef USE_MINI_HALOS
   // initialize Pop III tables

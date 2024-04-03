@@ -225,7 +225,8 @@ typedef struct run_params_t
   double BirthCloudLifetime;
   double DeltaT; // New Parameter added to consider different time of observation! Very important for Pop. III
   char CoolingFuncsDir[STRLEN];
-  char StellarFeedbackDir[STRLEN];
+  char StellarFeedbackDir[STRLEN]; 
+  char ScalingRelDir[STRLEN];
   char TablesForXHeatingDir[STRLEN];
   char IMF[STRLEN];
   char MagSystem[STRLEN];
@@ -275,6 +276,7 @@ typedef struct run_params_t
   int FlagInteractive;
   int FlagMCMC;
   int Flag_PatchyReion;
+  int ScalingRelModel;
   int Flag_IncludeSpinTemp;
   int Flag_IncludeLymanWerner;
   int Flag_IncludeSelfShield;
@@ -792,6 +794,18 @@ typedef struct run_globals_t
 
 #ifdef CALC_MAGS
   struct mag_params_t mag_params;
+#endif
+
+// adding stuff for scaling relation
+
+#if USE_SCALING_REL
+  double mu_MCIII;
+  double sigma_MCIII;
+  double mu_MCII;
+  double sigma_MCII;
+  
+  float* NormIII; // (array 9x119)
+  float* NormII;
 #endif
 
   int NOutputSnaps;

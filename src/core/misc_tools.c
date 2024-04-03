@@ -328,3 +328,121 @@ bool check_for_flag(int flag, int tree_flags)
   else
     return false;
 }
+
+#if USE_SCALING_REL
+static double Delta[NDelta];
+static double PopIIIz0[NDelta];
+static double PopIIz0[NDelta];
+static double PopIIIParams[NDelta * NPopIIIPars];
+static double PopIIParams[NDelta * NPopIIPars];
+
+void read_scaling_rel_tables(void)
+{
+  if (run_globals.mpi_rank == 0) {
+    hid_t fdd;
+    char fname[STRLEN];
+    
+    sprintf(fname, "%s/ScalingParameter_%d.hdf5", run_globals.params.ScalingRelDir,run_globals.params.ScalingRelModel);
+    fd = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
+    // Read Delta [Overdensity]
+    H5LTread_dataset_double(fdd, "Delta", Delta);
+    // Polinomial parameters for Pop. III
+    H5LTread_dataset_double(fdd, "PopIIIPar", PopIIIParams);
+    // z0 for Pop. III
+    H5LTread_dataset_double(fdd, "PopIIIz0", PopIIIz0);
+    // Polinomial parameters for Pop. II
+    H5LTread_dataset_double(fdd, "PopIIPar", PopIIParams);
+    // z0 for Pop. II
+    H5LTread_dataset_double(fdd, "PopIIz0", PopIIz0);
+    H5Fclose(fd);
+  }
+
+  // Broadcast the values to all cores
+  MPI_Bcast(Delta, sizeof(Delta), MPI_BYTE, 0, run_globals.mpi_comm);
+  MPI_Bcast(PopIIIParams, sizeof(PopIIIParams), MPI_BYTE, 0, run_globals.mpi_comm);
+  MPI_Bcast(PopIIParams, sizeof(PopIIParams), MPI_BYTE, 0, run_globals.mpi_comm);
+  MPI_Bcast(PopIIIz0, sizeof(PopIIIz0), MPI_BYTE, 0, run_globals.mpi_comm);
+  MPI_Bcast(PopIIz0, sizeof(PopIIz0), MPI_BYTE, 0, run_globals.mpi_comm);
+}
+
+void initialize_ScalingRel()
+// A bit hardcoding now, it might be better to upload a table and do
+// things in a nicer way.
+{
+  int Scaling_Model = run_globals.params.ScalingRelModel;
+  int n_snaps = run_globals.params.SnaplistLength;
+  
+  double MuIII;
+  double SigmaIII;
+  double MuII;
+  double SigmaII;
+  
+  run_globals.NormIII = malloc(sizeof(float) * (NDelta * n_snaps));
+  run_globals.NormII = malloc(sizeof(float) * (NDelta * n_snaps));
+  
+  // ARRIVED HERE! YOU RE READ EVERYTHING YOU HAVE DONE AND FINISH THE INIZIALIZATION OF THIS FUNCTION
+  // THEN CALL IT IN init.c! ADD ALSO SOME LOG MESSAGES!
+
+  if (run_globals.mpi_rank == 0) {
+    for (int i_delta = 0; i_delta < NDelta; ++i_delta) {
+      double z0_II = PopIIz0[i_delta];
+      double a0_II = PopIIParams[i_delta * 6 + 5];
+      double a1_II = PopIIParams[i_delta * 6 + 4];
+      double a2_II = PopIIParams[i_delta * 6 + 3];
+      double a3_II = PopIIParams[i_delta * 6 + 2];
+      double a4_II = PopIIParams[i_delta * 6 + 1];
+      double a5_II = PopIIParams[i_delta * 6 + 0];
+  
+      double z0_III = PopIIIz0[i_delta];
+      double a0_III = PopIIIParams[i_delta * 6 + 5];
+      double a1_III = PopIIIParams[i_delta * 6 + 4];
+      double a2_III = PopIIIParams[i_delta * 6 + 3];
+      double a3_III = PopIIIParams[i_delta * 6 + 2];
+      double a4_III = PopIIIParams[i_delta * 6 + 1];
+      double a5_III = PopIIIParams[i_delta * 6 + 0];
+      for (int snap = 0; snap < SnapListLength; snap++ {
+        NormIII[i_delta, snap] = NormFitting_Function(snap, a0_III, a1_III, a2_III, a3_III, a4_III, a5_III, z0_III);
+        NormII[i_delta, snap] = NormFitting_Function(snap, a0_II, a1_II, a2_II, a3_II, a4_II, a5_II, z0_II);
+      }
+    }
+  }
+  
+  MPI_Bcast(run_globals.NormIII, NDelta * n_snaps, MPI_FLOAT, 0, run_globals.mpi_comm); // MAYBE NDelta * SnaplistLength???
+  MPI_Bcast(run_globals.NormII, NDelta * n_snaps, MPI_FLOAT, 0, run_globals.mpi_comm);
+  
+  switch (Scaling_Model) { 
+    case 1:
+      MuIII = -5.0;
+      SigmaIII = 0.6;
+      MuII = -3.5;
+      SigmaII = 0.6;
+      break;
+    default:
+      mlog_error("Unrecognised value for ScalingModel! Defaulting to 1.");
+      MuIII = -5.0;
+      SigmaIII = 0.6;
+      MuII = -3.5;
+      SigmaII = 0.6;
+      break;
+  }
+  
+  run_globals.mu_MCIII = MuIII;
+  run_globals.mu_MCII = MuII;
+  run_globals.sigma_MCIII = SigmaIII;
+  run_globals.sigma_MCII = SigmaII;
+  mlog("Init Scaling Rel quantities: muIII = %f, muII = %f, SigmaIII = %f, SigmaII = %f",
+       MLOG_MESG,
+       run_globals.mu_MCIII,
+       run_globals.mu_MCII,
+       run_globals.sigma_MCIII,
+       run_globals.sigma_MCII);
+}
+
+double NormFitting_Function(double x, double a0, double a1, double a2, double a3, double a4, double a5, double x0)
+{
+  if (x > x0)
+    return 0.0;
+  else
+    return a5 * pow(x,5) + a4 * pow(x,4) + a3 * pow(x,3) + a2 * pow(x,2) + a1 * x + a0;
+}
+#endif

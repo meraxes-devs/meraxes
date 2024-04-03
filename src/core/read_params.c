@@ -228,6 +228,15 @@ void read_parameter_file(char* fname, int mode)
       params_addr[n_param] = run_params->StellarFeedbackDir;
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_STRING;
+      
+      strcpy(params_tag[n_param], "ScalingRelDir");
+      params_addr[n_param] = run_params->ScalingRelDir;
+#if USE_SCALING_REL
+      required_tag[n_param] = 1;
+#else
+      required_tag[n_param] = 0;
+#endif
+      params_type[n_param++] = PARAM_TYPE_STRING;
 
       strncpy(params_tag[n_param], "FileNameGalaxies", tag_length);
       params_addr[n_param] = run_params->FileNameGalaxies;
@@ -861,6 +870,17 @@ void read_parameter_file(char* fname, int mode)
       strncpy(params_tag[n_param], "Flag_IncludeMetalEvo", tag_length); // New for MetalEvo
       params_addr[n_param] = &(run_params->Flag_IncludeMetalEvo);
 #if USE_MINI_HALOS
+      required_tag[n_param] = 1;
+#else
+      required_tag[n_param] = 0;
+#endif
+      params_type[n_param++] = PARAM_TYPE_INT;
+   
+      // Each model corresponds to a combination of AstroParameter for Pop. III 
+      // So far only testing the fiducial (1).   
+      strncpy(params_tag[n_param], "ScalingRelModel", tag_length); 
+      params_addr[n_param] = &(run_params->ScalingRelModel);
+#if USE_SCALING_REL
       required_tag[n_param] = 1;
 #else
       required_tag[n_param] = 0;
