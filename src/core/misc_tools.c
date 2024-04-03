@@ -343,7 +343,7 @@ void read_scaling_rel_tables(void)
     char fname[STRLEN];
     
     sprintf(fname, "%s/ScalingParameter_%d.hdf5", run_globals.params.ScalingRelDir,run_globals.params.ScalingRelModel);
-    fd = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
+    fdd = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
     // Read Delta [Overdensity]
     H5LTread_dataset_double(fdd, "Delta", Delta);
     // Polinomial parameters for Pop. III
@@ -354,7 +354,7 @@ void read_scaling_rel_tables(void)
     H5LTread_dataset_double(fdd, "PopIIPar", PopIIParams);
     // z0 for Pop. II
     H5LTread_dataset_double(fdd, "PopIIz0", PopIIz0);
-    H5Fclose(fd);
+    H5Fclose(fdd);
   }
 
   // Broadcast the values to all cores
@@ -400,7 +400,7 @@ void initialize_ScalingRel()
       double a3_III = PopIIIParams[i_delta * 6 + 2];
       double a4_III = PopIIIParams[i_delta * 6 + 1];
       double a5_III = PopIIIParams[i_delta * 6 + 0];
-      for (int snap = 0; snap < SnapListLength; snap++ {
+      for (int snap = 0; snap < SnapListLength; snap++) {
         NormIII[i_delta, snap] = NormFitting_Function(snap, a0_III, a1_III, a2_III, a3_III, a4_III, a5_III, z0_III);
         NormII[i_delta, snap] = NormFitting_Function(snap, a0_II, a1_II, a2_II, a3_II, a4_II, a5_II, z0_II);
       }
