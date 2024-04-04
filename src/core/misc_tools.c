@@ -436,6 +436,14 @@ void initialize_ScalingRel()
        run_globals.mu_MCII,
        run_globals.sigma_MCIII,
        run_globals.sigma_MCII);
+  // THIS IS JUST A TEST!
+#ifdef DEBUG
+    mlog("Init Norm Scaling at snap = 10 = [", MLOG_MESG);
+    for (int ii = 0; ii < NDelta; ++ii) {
+      mlog(" %d", MLOG_CONT, run_globals.NormIII[ii, 10]);
+    }
+    mlog(" ]", MLOG_CONT);
+#endif
 }
 
 double NormFitting_Function(double x, double a0, double a1, double a2, double a3, double a4, double a5, double x0)
