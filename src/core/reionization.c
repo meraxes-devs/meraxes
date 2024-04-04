@@ -269,7 +269,7 @@ void call_find_HII_bubbles(int snapshot, int nout_gals, timer_info* timer)
 
 #if USE_SCALING_REL    
     // Estimate MC star formation using scaling relations
-    construct_scaling_sfr(int snapshot)
+    construct_scaling_sfr(snapshot);
 #endif
 
     // save the grids prior to doing FFTs to avoid precision loss and aliasing etc.
@@ -317,7 +317,7 @@ void call_ComputeTs(int snapshot, int nout_gals, timer_info* timer)
   
 #if USE_SCALING_REL    
   // Estimate MC star formation using scaling relations
-  construct_scaling_sfr(int snapshot)
+  construct_scaling_sfr(snapshot);
 #endif
 
   // read in the velocity grids (only works for GBPTREES_TREES at the moment)
