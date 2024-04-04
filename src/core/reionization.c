@@ -2178,8 +2178,7 @@ void construct_scaling_sfr(int snapshot)
   float* sfrIII_grid = run_globals.reion_grids.sfrIII;
   float* weighted_sfrIII_grid = run_globals.reion_grids.weighted_sfrIII;
   float* Delta_grid = run_globals.reion_grids.deltax;
-  
-  float McritMC_grid = run_globals.reion_grids.Mvir_crit_MC;
+  float* McritMC_grid = run_globals.reion_grids.Mvir_crit_MC;
   
   int local_n_complex = (int)(run_globals.reion_grids.slab_n_complex[run_globals.mpi_rank]);
   
@@ -2232,7 +2231,7 @@ void construct_scaling_sfr(int snapshot)
       for (int iy = 0; iy < ReionGridDim; iy++)
         for (int iz = 0; iz < ReionGridDim; iz++) {
           // If the LW is already too strong there is no SF coming from MC halos
-          if (McritMC_grid < MatoLim) {
+          if (McritMC_grid[ix, iy, iz] < MatoLim) {
             float RandomUni = gsl_rng_uniform(run_globals.random_generator);
             double DeltaVal = Delta_grid[ix, iy, iz];
             int DeltaIndex = Find_DeltaIndex(DeltaVal);
