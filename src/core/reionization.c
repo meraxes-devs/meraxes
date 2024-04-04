@@ -2223,7 +2223,7 @@ void construct_scaling_sfr(int snapshot)
   double fesc = params->EscapeFracNorm;
   double fescIII = params->EscapeFracNormIII;
   
-  double ConvUnit = UnitMass_in_g / UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS // Unit of mu and sigma of your scaling rel
+  double ConvUnit = UnitMass_in_g / UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS; // Unit of mu and sigma of your scaling rel
 
   // redshift, maybe add a log message that you can't use Dependency > 1!
   if ((params->EscapeFracDependency > 0) && (params->EscapeFracDependency <= 1)) {
