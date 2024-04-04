@@ -2235,8 +2235,8 @@ void construct_scaling_sfr(int snapshot)
             double RandomUni = gsl_rng_uniform(run_globals.random_generator);
             double DeltaVal = Delta_grid[ix, iy, iz];
             int DeltaIndex = Find_DeltaIndex(DeltaVal);
-            NormIII = run_globals.NormIII[DeltaIndex, snapshot]
-            NormII = run_globals.NormII[DeltaIndex, snapshot]
+            NormIII = run_globals.NormIII[DeltaIndex, snapshot];
+            NormII = run_globals.NormII[DeltaIndex, snapshot];
             if (RandomUni <= run_globals.NormIII) {
               double valIII = NormalRandNum(MuMCIII, SigmaMCIII);
               if (run_globals.params.Flag_IncludeSpinTemp) {
