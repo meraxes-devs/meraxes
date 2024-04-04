@@ -55,6 +55,8 @@ extern "C"
   void initialize_ScalingRel();
   void initialize_NormValues();
   double NormFitting_Function(double x, double a0, double a1, double a2, double a3, double a4, double a5, double x0);
+  double NormalRandNum(double ave, double std);
+  int Find_DeltaIndex(double DeltaVal);
 #endif
 
 #ifdef __cplusplus

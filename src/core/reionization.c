@@ -1366,7 +1366,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
   float* weighted_sfr_grid = run_globals.reion_grids.weighted_sfr;
   int ReionGridDim = run_globals.params.ReionGridDim;
   double sfr_timescale = run_globals.params.ReionSfrTimescale * hubble_time(snapshot);
-#if USE_MINI_HALOS || USE_SCALING_REL
+#if USE_MINI_HALOS 
   float* stellarIII_grid = run_globals.reion_grids.starsIII;
   float* sfrIII_grid = run_globals.reion_grids.sfrIII;
   float* weighted_sfrIII_grid = run_globals.reion_grids.weighted_sfrIII;
@@ -1382,7 +1382,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
   for (int ii = 0; ii < local_n_complex * 2; ii++) {
     stellar_grid[ii] = 0.0;
     weighted_sfr_grid[ii] = 0.0;
-#if USE_MINI_HALOS || USE_SCALING_REL
+#if USE_MINI_HALOS 
     stellarIII_grid[ii] = 0.0;
     weighted_sfrIII_grid[ii] = 0.0;
 #endif
@@ -1391,7 +1391,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
   if (run_globals.params.Flag_IncludeSpinTemp) { // For this duplicate the background
     for (int ii = 0; ii < local_n_complex * 2; ii++) {
       sfr_grid[ii] = 0.0;
-#if USE_MINI_HALOS || USE_SCALING_REL
+#if USE_MINI_HALOS 
       sfrIII_grid[ii] = 0.0;
 #endif
     }
@@ -2163,3 +2163,97 @@ void velocity_gradient(fftwf_complex* box, int local_ix_start, int slab_nx, int 
     }
   } // End looping through k box
 }
+
+#if USE_SCALING_REL
+
+void construct_scaling_sfr(int snapshot)
+{
+  double box_size = run_globals.params.BoxSize;
+  float* stellar_grid = run_globals.reion_grids.stars;
+  float* sfr_grid = run_globals.reion_grids.sfr;
+  float* weighted_sfr_grid = run_globals.reion_grids.weighted_sfr;
+  int ReionGridDim = run_globals.params.ReionGridDim;
+  double sfr_timescale = run_globals.params.ReionSfrTimescale * hubble_time(snapshot);
+  float* stellarIII_grid = run_globals.reion_grids.starsIII;
+  float* sfrIII_grid = run_globals.reion_grids.sfrIII;
+  float* weighted_sfrIII_grid = run_globals.reion_grids.weighted_sfrIII;
+  float* Delta_grid = run_globals.reion_grids.deltax;
+  float* McritMC_grid = run_globals.reion_grids.Mvir_crit_MC;
+  
+  double zplus1 = run_globals.ZZ[snapshot] + 1;
+  double MatoLim = 5.4 * 1e-3 * 0.6751 * pow(zplus1 / 11.0, -1.5);
+  
+  double NormIII;
+  double NormII;
+  
+  double MuMCIII = run_globals.mu_MCIII;
+  double MuMCII = run_globals.mu_MCII;
+  double SigmaMCIII = run_globals.sigma_MCIII;
+  double SigmaMCII = run_globals.sigma_MCII;
+  
+  mlog("Adding sfr grids with Scaling rel...", MLOG_OPEN | MLOG_TIMERSTART);
+
+  // init the grid, only for Pop.III (the one from Pop.II have already been
+  // initialized in construct_baryon_grids
+  for (int ii = 0; ii < local_n_complex * 2; ii++) {
+    stellarIII_grid[ii] = 0.0;
+    weighted_sfrIII_grid[ii] = 0.0;
+  }
+
+  if (run_globals.params.Flag_IncludeSpinTemp) { 
+    for (int ii = 0; ii < local_n_complex * 2; ii++) {
+      sfrIII_grid[ii] = 0.0;
+    }
+  }
+  
+  double fesc = params->EscapeFracNorm;
+  double fescIII = params->EscapeFracNormIII;
+
+  // redshift, maybe add a log message that you can't use Dependency > 1!
+  if ((params->EscapeFracDependency > 0) && (params->EscapeFracDependency <= 1)) {
+    if (params->EscapeFracRedshiftScaling != 0.0) {
+      fesc *=
+        pow((1.0 + run_globals.ZZ[snapshot]) / params->EscapeFracRedshiftOffset, params->EscapeFracRedshiftScaling); 
+      fescIII *=
+        pow((1.0 + run_globals.ZZ[snapshot]) / params->EscapeFracRedshiftOffset, params->EscapeFracRedshiftScaling);
+    }
+  }
+  
+  ptrdiff_t* slab_nix = run_globals.reion_grids.slab_nix; // Parallelization
+  
+  for (int i_r = 0; i_r < run_globals.mpi_size; i_r++) {
+  
+    for (int ix = 0; ix < slab_nix[i_r]; ix++)
+      for (int iy = 0; iy < ReionGridDim; iy++)
+        for (int iz = 0; iz < ReionGridDim; iz++) {
+          // If the LW is already too strong there is no SF coming from MC halos
+          if (McritMC_grid < MatoLim) {
+            double RandomUni = gsl_rng_uniform(run_globals.random_generator);
+            DeltaVal = Delta_grid[ix, iy, iz];
+            DeltaIndex = Find_DeltaIndex(DeltaVal);
+            NormIII = run_globals.NormIII[DeltaIndex, snapshot]
+            NormII = run_globals.NormII[DeltaIndex, snapshot]
+            if (RandomUni <= run_globals.NormIII) {
+              double valIII = NormalRandNum(MuMCIII, SigmaMCIII);
+              if (run_globals.params.Flag_IncludeSpinTemp) {
+                sfrIII_grid[ix, iy, iz] += valIII;
+              }
+              stellarIII_grid[ix, iy, iz] += valIII * sfr_timescale * run_globals.params.Hubble_h;
+              weighted_sfrIII_grid[ix, iy, iz] += valIII * fescIII;
+              if (RandomUni <= run_globals.NormII) {
+                double valII = NormalRandNum(MuMCII, SigmaMCII);
+                if (run_globals.params.Flag_IncludeSpinTemp) {
+                  sfr_grid[ix, iy, iz] += valII;
+                }
+                stellar_grid[ix, iy, iz] += valII * sfr_timescale * run_globals.params.Hubble_h;
+                weighted_sfr_grid[ix, iy, iz] += valII * fesc;
+              }
+            }
+          }
+        }
+    break;
+  
+  }
+  mlog("done", MLOG_CLOSE | MLOG_TIMERSTOP);
+}
+#endif

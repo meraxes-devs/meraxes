@@ -382,9 +382,6 @@ void initialize_ScalingRel()
   
   run_globals.NormIII = malloc(sizeof(float) * (NDelta * n_snaps));
   run_globals.NormII = malloc(sizeof(float) * (NDelta * n_snaps));
-  
-  // ARRIVED HERE! YOU RE READ EVERYTHING YOU HAVE DONE AND FINISH THE INIZIALIZATION OF THIS FUNCTION
-  // THEN CALL IT IN init.c! ADD ALSO SOME LOG MESSAGES!
 
   if (run_globals.mpi_rank == 0) {
     for (int i_delta = 0; i_delta < NDelta; ++i_delta) {
@@ -447,5 +444,45 @@ double NormFitting_Function(double x, double a0, double a1, double a2, double a3
     return 0.0;
   else
     return a5 * pow(x,5) + a4 * pow(x,4) + a3 * pow(x,3) + a2 * pow(x,2) + a1 * x + a0;
+}
+
+double NormalRandNum(double ave, double std) // Generate normal random number
+{
+
+  double U1 = gsl_rng_uniform(run_globals.random_generator);
+  double U2 = gsl_rng_uniform(run_globals.random_generator);
+
+  double RanNorm = sqrt(-2*log(U1)) * cos(2*M_PI*U2);
+  
+  return ave + std * RanNorm;
+}
+
+int Find_DeltaIndex(double DeltaVal)
+{
+  int DeltaIndex;
+  double DDelta = Delta[1] - Delta[0];
+  for (int i = 0; i < NDelta; i++) {
+    if (i == 0) {
+      if (DeltaVal < Delta[i] + DDelta / 2.0); {
+        DeltaIndex = i;
+        break;
+      }
+    }
+    else if (i == NDelta - 1) {
+      if (DeltaVal >= Delta[i] - DDelta / 2.0) {
+        DeltaIndex = i;
+        break;
+      }
+      else
+        mlog_error("Haven't found the Delta index");
+    }
+    else {
+      if (fabs(DeltaVal - Delta[i]) < DDelta / 2.0) {
+        DeltaIndex = i;
+        break;
+      }
+    }
+  }
+  return DeltaIndex;  
 }
 #endif
