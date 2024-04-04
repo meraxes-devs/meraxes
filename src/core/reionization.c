@@ -2248,14 +2248,14 @@ void construct_scaling_sfr(int snapshot)
             NormIII = run_globals.NormIII[DeltaIndex, snapshot];
             NormII = run_globals.NormII[DeltaIndex, snapshot];
             if (RandomUni <= NormIII) {
-              double valIII = NormalRandNum(MuMCIII, SigmaMCIII);
+              double valIII = pow(10, NormalRandNum(MuMCIII, SigmaMCIII));
               if (run_globals.params.Flag_IncludeSpinTemp) {
                 sfrIII_grid[ix, iy, iz] += valIII;
               }
               stellarIII_grid[ix, iy, iz] += valIII * sfr_timescale * run_globals.params.Hubble_h;
               weighted_sfrIII_grid[ix, iy, iz] += valIII * fescIII;
               if (RandomUni <= NormII) {
-                double valII = NormalRandNum(MuMCII, SigmaMCII);
+                double valII = pow(10,NormalRandNum(MuMCII, SigmaMCII));
                 if (run_globals.params.Flag_IncludeSpinTemp) {
                   sfr_grid[ix, iy, iz] += valII;
                 }
