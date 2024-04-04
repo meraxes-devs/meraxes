@@ -2178,7 +2178,8 @@ void construct_scaling_sfr(int snapshot)
   float* sfrIII_grid = run_globals.reion_grids.sfrIII;
   float* weighted_sfrIII_grid = run_globals.reion_grids.weighted_sfrIII;
   float* Delta_grid = run_globals.reion_grids.deltax;
-  float* McritMC_grid = run_globals.reion_grids.Mvir_crit_MC;
+  
+  float McritMC_grid = run_globals.reion_grids.Mvir_crit_MC;
   
   int local_n_complex = (int)(run_globals.reion_grids.slab_n_complex[run_globals.mpi_rank]);
   
@@ -2208,7 +2209,7 @@ void construct_scaling_sfr(int snapshot)
     }
   }
   
-  physics_params_t* params = &(run_globals.params.physics)
+  physics_params_t* params = &(run_globals.params.physics);
   
   double fesc = params->EscapeFracNorm;
   double fescIII = params->EscapeFracNormIII;
@@ -2232,19 +2233,19 @@ void construct_scaling_sfr(int snapshot)
         for (int iz = 0; iz < ReionGridDim; iz++) {
           // If the LW is already too strong there is no SF coming from MC halos
           if (McritMC_grid < MatoLim) {
-            double RandomUni = gsl_rng_uniform(run_globals.random_generator);
+            float RandomUni = gsl_rng_uniform(run_globals.random_generator);
             double DeltaVal = Delta_grid[ix, iy, iz];
             int DeltaIndex = Find_DeltaIndex(DeltaVal);
             NormIII = run_globals.NormIII[DeltaIndex, snapshot];
             NormII = run_globals.NormII[DeltaIndex, snapshot];
-            if (RandomUni <= run_globals.NormIII) {
+            if (RandomUni <= NormIII) {
               double valIII = NormalRandNum(MuMCIII, SigmaMCIII);
               if (run_globals.params.Flag_IncludeSpinTemp) {
                 sfrIII_grid[ix, iy, iz] += valIII;
               }
               stellarIII_grid[ix, iy, iz] += valIII * sfr_timescale * run_globals.params.Hubble_h;
               weighted_sfrIII_grid[ix, iy, iz] += valIII * fescIII;
-              if (RandomUni <= run_globals.NormII) {
+              if (RandomUni <= NormII) {
                 double valII = NormalRandNum(MuMCII, SigmaMCII);
                 if (run_globals.params.Flag_IncludeSpinTemp) {
                   sfr_grid[ix, iy, iz] += valII;
