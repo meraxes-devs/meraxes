@@ -400,7 +400,7 @@ void initialize_ScalingRel()
       double a3_III = PopIIIParams[i_delta * 6 + 2];
       double a4_III = PopIIIParams[i_delta * 6 + 1];
       double a5_III = PopIIIParams[i_delta * 6 + 0];
-      mlog("Init Params = %f", MLOG_MESG, a0_III);
+      mlog("Init Params = %f, %f", MLOG_MESG, a0_III, z0_III);
       for (int snap = 0; snap < n_snaps; snap++) {
         run_globals.NormIII[i_delta, snap] = NormFitting_Function(run_globals.ZZ[snap], a0_III, a1_III, a2_III, a3_III, a4_III, a5_III, z0_III);
         run_globals.NormII[i_delta, snap] = NormFitting_Function(run_globals.ZZ[snap], a0_II, a1_II, a2_II, a3_II, a4_II, a5_II, z0_II);
@@ -442,6 +442,12 @@ void initialize_ScalingRel()
     mlog("Init Norm Scaling at snap 10 = [", MLOG_MESG);
     for (int ii = 0; ii < NDelta; ++ii) {
       mlog(" %f", MLOG_CONT, run_globals.NormIII[ii, 10]);
+    }
+    mlog(" ]", MLOG_CONT);
+    
+    mlog("Init Norm Scaling at snap 5 = [", MLOG_MESG);
+    for (int ii = 0; ii < NDelta; ++ii) {
+      mlog(" %f", MLOG_CONT, run_globals.NormIII[ii, 5]);
     }
     mlog(" ]", MLOG_CONT);
 #endif
