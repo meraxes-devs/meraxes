@@ -2259,7 +2259,7 @@ void construct_scaling_sfr(int snapshot)
               stellarIII_grid[ix, iy, iz] += valIII * sfr_timescale * run_globals.params.Hubble_h * fescIII;
               weighted_sfrIII_grid[ix, iy, iz] += valIII * fescIII;
               if (RandomUni <= NormII) {
-                double valII = pow(10,NormalRandNum(MuMCII, SigmaMCII));
+                double valII = pow(10,NormalRandNum(MuMCII, SigmaMCII)) / ConvUnit;
                 if (run_globals.params.Flag_IncludeSpinTemp) {
                   sfr_grid[ix, iy, iz] += valII;
                 }

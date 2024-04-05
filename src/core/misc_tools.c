@@ -400,17 +400,17 @@ void initialize_ScalingRel()
       double a3_III = PopIIIParams[i_delta * 6 + 2];
       double a4_III = PopIIIParams[i_delta * 6 + 1];
       double a5_III = PopIIIParams[i_delta * 6 + 0];
-      mlog("Init Params = %f, %f", MLOG_MESG, a0_III, z0_III);
+      //mlog("Init Params = %f, %f", MLOG_MESG, a0_III, z0_III);
       for (int snap = 0; snap < n_snaps; snap++) {
         run_globals.NormIII[i_delta, snap] = NormFitting_Function(run_globals.ZZ[snap], a0_III, a1_III, a2_III, a3_III, a4_III, a5_III, z0_III);
         run_globals.NormII[i_delta, snap] = NormFitting_Function(run_globals.ZZ[snap], a0_II, a1_II, a2_II, a3_II, a4_II, a5_II, z0_II);
-        if (snap == 10)
-          mlog("Init Norm Scaling at Delta = %f and snap 10 = %f ", MLOG_MESG, Delta[i_delta], run_globals.NormIII[i_delta, snap]);
+        //if (snap == 10)
+        //  mlog("Init Norm Scaling at Delta = %f and snap 10 = %f ", MLOG_MESG, Delta[i_delta], run_globals.NormIII[i_delta, snap]);
       }
     }
   }
   
-  MPI_Bcast(run_globals.NormIII, NDelta * n_snaps, MPI_FLOAT, 0, run_globals.mpi_comm); // MAYBE NDelta * SnaplistLength???
+  MPI_Bcast(run_globals.NormIII, NDelta * n_snaps, MPI_FLOAT, 0, run_globals.mpi_comm); 
   MPI_Bcast(run_globals.NormII, NDelta * n_snaps, MPI_FLOAT, 0, run_globals.mpi_comm);
   
   switch (Scaling_Model) { 
@@ -440,7 +440,7 @@ void initialize_ScalingRel()
        run_globals.sigma_MCIII,
        run_globals.sigma_MCII);
   // THIS IS JUST A TEST!
-#ifdef DEBUG
+/*#ifdef DEBUG
     mlog("Init Norm Scaling at snap 10 = [", MLOG_MESG);
     for (int ii = 0; ii < NDelta; ++ii) {
       mlog(" %f", MLOG_CONT, run_globals.NormIII[ii, 10]); 
@@ -452,7 +452,7 @@ void initialize_ScalingRel()
       mlog(" %f", MLOG_CONT, run_globals.NormIII[ii, 5]);
     }
     mlog(" ]", MLOG_CONT);
-#endif
+#endif*/
 }
 
 double NormFitting_Function(double x, double a0, double a1, double a2, double a3, double a4, double a5, double x0)
