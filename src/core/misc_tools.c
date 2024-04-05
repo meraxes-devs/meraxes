@@ -404,6 +404,8 @@ void initialize_ScalingRel()
       for (int snap = 0; snap < n_snaps; snap++) {
         run_globals.NormIII[i_delta, snap] = NormFitting_Function(run_globals.ZZ[snap], a0_III, a1_III, a2_III, a3_III, a4_III, a5_III, z0_III);
         run_globals.NormII[i_delta, snap] = NormFitting_Function(run_globals.ZZ[snap], a0_II, a1_II, a2_II, a3_II, a4_II, a5_II, z0_II);
+        if (snap == 10)
+          mlog("Init Norm Scaling at Delta = %f and snap 10 = %f ", MLOG_MESG, Delta[i_delta] run_globals.NormIII[i_delta, snap]);
       }
     }
   }
@@ -440,8 +442,8 @@ void initialize_ScalingRel()
   // THIS IS JUST A TEST!
 #ifdef DEBUG
     mlog("Init Norm Scaling at snap 10 = [", MLOG_MESG);
-    for (int ii = 0; ii < NDelta + 5; ++ii) {
-      mlog(" %f", MLOG_CONT, run_globals.NormIII[ii, 10]); // Test to make it fail!
+    for (int ii = 0; ii < NDelta; ++ii) {
+      mlog(" %f", MLOG_CONT, run_globals.NormIII[ii, 10]); 
     }
     mlog(" ]", MLOG_CONT);
     
