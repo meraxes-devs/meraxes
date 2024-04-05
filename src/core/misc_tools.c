@@ -405,7 +405,7 @@ void initialize_ScalingRel()
         run_globals.NormIII[i_delta, snap] = NormFitting_Function(run_globals.ZZ[snap], a0_III, a1_III, a2_III, a3_III, a4_III, a5_III, z0_III);
         run_globals.NormII[i_delta, snap] = NormFitting_Function(run_globals.ZZ[snap], a0_II, a1_II, a2_II, a3_II, a4_II, a5_II, z0_II);
         if (snap == 10)
-          mlog("Init Norm Scaling at Delta = %f and snap 10 = %f ", MLOG_MESG, Delta[i_delta] run_globals.NormIII[i_delta, snap]);
+          mlog("Init Norm Scaling at Delta = %f and snap 10 = %f ", MLOG_MESG, Delta[i_delta], run_globals.NormIII[i_delta, snap]);
       }
     }
   }
