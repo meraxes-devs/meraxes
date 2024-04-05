@@ -440,14 +440,14 @@ void initialize_ScalingRel()
   // THIS IS JUST A TEST!
 #ifdef DEBUG
     mlog("Init Norm Scaling at snap 10 = [", MLOG_MESG);
-    for (int ii = 0; ii < NDelta; ++ii) {
-      mlog(" %f", MLOG_CONT, run_globals.NormIII[ii + 1, 10]); // Test to make it fail!
+    for (int ii = 0; ii < NDelta + 5; ++ii) {
+      mlog(" %f", MLOG_CONT, run_globals.NormIII[ii, 10]); // Test to make it fail!
     }
     mlog(" ]", MLOG_CONT);
     
     mlog("Init Norm Scaling at snap 5 = [", MLOG_MESG);
     for (int ii = 0; ii < NDelta; ++ii) {
-      mlog(" %f", MLOG_CONT, run_globals.NormIII[ii + 1, 5]);
+      mlog(" %f", MLOG_CONT, run_globals.NormIII[ii, 5]);
     }
     mlog(" ]", MLOG_CONT);
 #endif
