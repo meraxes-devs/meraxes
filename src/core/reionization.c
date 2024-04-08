@@ -2246,9 +2246,9 @@ void construct_scaling_sfr(int snapshot)
         for (int iy = 0; iy < ReionGridDim; iy++)
           for (int iz = 0; iz < ReionGridDim; iz++) {*/
   int slab_nix = run_globals.reion_grids.slab_nix[run_globals.mpi_rank];
-    for (int ii = 0; ii < slab_nix; ii++)
-      for (int jj = 0; jj < ReionGridDim; jj++)
-        for (int kk = 0; kk < ReionGridDim; kk++) {
+    for (int ix = 0; ix < slab_nix; ix++)
+      for (int iy = 0; iy < ReionGridDim; iy++)
+        for (int iz = 0; iz < ReionGridDim; iz++) {
             // If the LW is already too strong there is no SF coming from MC halos
             if (McritMC_grid[ix, iy, iz] < MatoLim) {
               float RandomUni = gsl_rng_uniform(run_globals.random_generator);
