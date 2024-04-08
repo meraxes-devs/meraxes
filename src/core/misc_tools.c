@@ -470,30 +470,27 @@ double NormalRandNum(double ave, double std) // Generate normal random number
 
 int Find_DeltaIndex(double DeltaVal)
 {
-  int DeltaIndex;
+  int delta_index;
   double DDelta = Delta[1] - Delta[0];
   for (int i = 0; i < NDelta; i++) {
     if (i == 0) {
       if (DeltaVal < Delta[i] + DDelta / 2.0); {
-        DeltaIndex = i;
-        break;
+        delta_index = i;
       }
     }
     else if (i == NDelta - 1) {
       if (DeltaVal >= Delta[i] - DDelta / 2.0) {
-        DeltaIndex = i;
-        break;
+        delta_index = i; 
       }
       else
         mlog_error("Haven't found the Delta index");
     }
     else {
       if (fabs(DeltaVal - Delta[i]) < DDelta / 2.0) {
-        DeltaIndex = i;
-        break;
+        delta_index = i;
       }
     }
   }
-  return DeltaIndex;  
+  return delta_index;  
 }
 #endif
