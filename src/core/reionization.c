@@ -2237,29 +2237,33 @@ void construct_scaling_sfr(int snapshot)
     }
   }
   
-  ptrdiff_t* slab_nix = run_globals.reion_grids.slab_nix; // Parallelization
+  /*ptrdiff_t* slab_nix = run_globals.reion_grids.slab_nix; // Parallelization
   
   for (int i_r = 0; i_r < run_globals.mpi_size; i_r++) {
   
     if (run_globals.mpi_rank == i_r) {
       for (int ix = 0; ix < slab_nix[i_r]; ix++)
         for (int iy = 0; iy < ReionGridDim; iy++)
-          for (int iz = 0; iz < ReionGridDim; iz++) {
+          for (int iz = 0; iz < ReionGridDim; iz++) {*/
+  int slab_nix = run_globals.reion_grids.slab_nix[run_globals.mpi_rank];
+    for (int ii = 0; ii < slab_nix; ii++)
+      for (int jj = 0; jj < ReionGridDim; jj++)
+        for (int kk = 0; kk < ReionGridDim; kk++) {
             // If the LW is already too strong there is no SF coming from MC halos
             if (McritMC_grid[ix, iy, iz] < MatoLim) {
               float RandomUni = gsl_rng_uniform(run_globals.random_generator);
               double DeltaVal = Delta_grid[ix, iy, iz];
               int DeltaIndex = Find_DeltaIndex(DeltaVal);
-              if (DeltaVal > 0.375)
-                mlog("DeltaIndex = %d, for Delta = %f", MLOG_MESG, DeltaIndex, DeltaVal);
               NormIII = run_globals.NormIII[DeltaIndex, snapshot];
+              if (DeltaVal > 0.375)
+                mlog("DeltaIndex = %d, for Delta = %f, NormIII = %f", MLOG_MESG, DeltaIndex, DeltaVal, NormIII);
               //mlog("NormIII is = %f", MLOG_MESG, NormIII);
               NormII = run_globals.NormII[DeltaIndex, snapshot];
               if (RandomUni <= NormIII) {
                 double valIII = pow(10, NormalRandNum(MuMCIII, SigmaMCIII)) / ConvUnit;
                 //mlog("valIII is = %f", MLOG_MESG, valIII * ConvUnit);
                 if (run_globals.params.Flag_IncludeSpinTemp) {
-                  sfrIII_grid[ix, iy, iz] = valIII;
+                  sfrIII_grid[ix, iy, iz] += valIII;
                 }
                 stellarIII_grid[ix, iy, iz] += valIII * sfr_timescale * run_globals.params.Hubble_h * fescIII; // Probably there is no hubble_h!
                 weighted_sfrIII_grid[ix, iy, iz] += valIII * fescIII;
@@ -2273,8 +2277,8 @@ void construct_scaling_sfr(int snapshot)
                 }
               }
             }
-          }
         }
+        //}
     break;
   
   }
