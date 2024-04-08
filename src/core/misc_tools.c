@@ -481,10 +481,10 @@ void ComputeNormTables(int snapshot)
 double get_NormValue(int i_delta, int snapshot, int flag)
 {
   if (flag == 3)
-    return NormIIITable[i_delta][snap];
+    return NormIIITable[i_delta][snapshot];
   
   else if (flag == 2)
-    return NormIITable[i_delta][snap];
+    return NormIITable[i_delta][snapshot];
 }
 
 double NormFitting_Function(double x, double a0, double a1, double a2, double a3, double a4, double a5, double x0)
