@@ -2240,16 +2240,16 @@ void construct_scaling_sfr(int snapshot)
     }
   }
   
-  ptrdiff_t* slab_nix = run_globals.reion_grids.slab_nix; // Parallelization
+  /*ptrdiff_t* slab_nix = run_globals.reion_grids.slab_nix; // Parallelization
   
   for (int i_r = 0; i_r < run_globals.mpi_size; i_r++) {
   
     if (run_globals.mpi_rank == i_r) {
       for (int ix = 0; ix < slab_nix[i_r]; ix++)
         for (int iy = 0; iy < ReionGridDim; iy++)
-          for (int iz = 0; iz < ReionGridDim; iz++) {
-  /*int slab_nix = run_globals.reion_grids.slab_nix[run_globals.mpi_rank];
-    for (int ix = 0; ix < slab_nix; ix++)
+          for (int iz = 0; iz < ReionGridDim; iz++) {*/
+  int local_nix = (int)(run_globals.reion_grids.slab_nix[run_globals.mpi_rank]);
+    for (int ix = 0; ix < local_nix; ix++)
       for (int iy = 0; iy < ReionGridDim; iy++)
         for (int iz = 0; iz < ReionGridDim; iz++) {*/
             // If the LW is already too strong there is no SF coming from MC halos
@@ -2281,10 +2281,10 @@ void construct_scaling_sfr(int snapshot)
               }
             }
           }
-        }
-        break;
+        //}
+        //break;
   
-  }
+  //}
   mlog("done", MLOG_CLOSE | MLOG_TIMERSTOP);
 }
 #endif
