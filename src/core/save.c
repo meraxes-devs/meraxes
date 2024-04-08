@@ -771,6 +771,9 @@ void create_master_file()
       H5LTset_attribute_string(file_id, group_name, "r_bubble", "Mpc");
       H5LTset_attribute_string(file_id, group_name, "Mvir_crit", "1e10 solMass");
       H5LTset_attribute_string(file_id, group_name, "StellarMass", "1e10 solMass");
+#if USE_MINI_HALOS || USE_SCALING_REL
+      H5LTset_attribute_string(file_id, group_name, "StellarMassIII", "1e10 solMass");
+#endif
       H5LTset_attribute_string(file_id, group_name, "Sfr", "solMass/yr");
       H5LTset_attribute_string(file_id, group_name, "deltax", "None");
 
@@ -830,6 +833,9 @@ void create_master_file()
       H5LTset_attribute_string(file_id, group_name, "r_bubble", "v/h");
       H5LTset_attribute_string(file_id, group_name, "Mvir_crit", "v/h");
       H5LTset_attribute_string(file_id, group_name, "StellarMass", "v/h");
+#if USE_MINI_HALOS || USE_SCALING_REL
+      H5LTset_attribute_string(file_id, group_name, "StellarMassIII", "v/h");
+#endif
       H5LTset_attribute_string(file_id, group_name, "Sfr", "None");
       H5LTset_attribute_string(file_id, group_name, "deltax", "None");
 
