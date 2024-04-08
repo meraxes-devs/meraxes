@@ -2276,12 +2276,12 @@ void construct_scaling_sfr(int snapshot)
                   weighted_sfr_grid[ix, iy, iz] += valII * fesc;
                 }
               }
-            }
+             }
         }
         //}
-    break;
+        break;
   
-  }
+  //}
   mlog("done", MLOG_CLOSE | MLOG_TIMERSTOP);
 }
 #endif
