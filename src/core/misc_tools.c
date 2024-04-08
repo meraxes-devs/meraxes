@@ -440,19 +440,13 @@ void initialize_ScalingRel()
        run_globals.sigma_MCIII,
        run_globals.sigma_MCII);
   // THIS IS JUST A TEST!
-/*#ifdef DEBUG
-    mlog("Init Norm Scaling at snap 10 = [", MLOG_MESG);
+#ifdef DEBUG
+    mlog("Init Delta = [", MLOG_MESG);
     for (int ii = 0; ii < NDelta; ++ii) {
-      mlog(" %f", MLOG_CONT, run_globals.NormIII[ii, 10]); 
+      mlog(" %f", MLOG_CONT, Delta[ii]); 
     }
     mlog(" ]", MLOG_CONT);
-    
-    mlog("Init Norm Scaling at snap 5 = [", MLOG_MESG);
-    for (int ii = 0; ii < NDelta; ++ii) {
-      mlog(" %f", MLOG_CONT, run_globals.NormIII[ii, 5]);
-    }
-    mlog(" ]", MLOG_CONT);
-#endif*/
+#endif
 }
 
 double NormFitting_Function(double x, double a0, double a1, double a2, double a3, double a4, double a5, double x0)
