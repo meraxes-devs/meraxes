@@ -338,6 +338,8 @@ static double PopIIIz0[NDelta];
 static double PopIIz0[NDelta];
 static double PopIIIParams[NDelta * NPopIIIPars];
 static double PopIIParams[NDelta * NPopIIPars];
+static double NormIIITable[NDelta][119]; //substitute 119 with snap_length
+static double NormIITable[NDelta][119];
 
 void read_scaling_rel_tables(void)
 {
@@ -373,17 +375,17 @@ void initialize_ScalingRel()
 // things in a nicer way.
 {
   int Scaling_Model = run_globals.params.ScalingRelModel;
-  int n_snaps = run_globals.params.SnaplistLength;
+  //int n_snaps = run_globals.params.SnaplistLength;
   
   double MuIII;
   double SigmaIII;
   double MuII;
   double SigmaII;
   
-  run_globals.NormIII = malloc(sizeof(float) * (NDelta * n_snaps));
-  run_globals.NormII = malloc(sizeof(float) * (NDelta * n_snaps));
+  //run_globals.NormIII = malloc(sizeof(float) * (NDelta * n_snaps));
+  //run_globals.NormII = malloc(sizeof(float) * (NDelta * n_snaps));
 
-  if (run_globals.mpi_rank == 0) {
+  /*if (run_globals.mpi_rank == 0) {
     for (int i_delta = 0; i_delta < NDelta; ++i_delta) {
       double z0_II = PopIIz0[i_delta];
       double a0_II = PopIIParams[i_delta * 6 + 5];
@@ -408,10 +410,10 @@ void initialize_ScalingRel()
           mlog("Init Norm Scaling at Delta = %f and snap 10 = %f ", MLOG_MESG, Delta[i_delta], run_globals.NormIII[i_delta, snap]);
       }
     }
-  }
+  }*/
   
-  MPI_Bcast(run_globals.NormIII, NDelta * n_snaps, MPI_FLOAT, 0, run_globals.mpi_comm); 
-  MPI_Bcast(run_globals.NormII, NDelta * n_snaps, MPI_FLOAT, 0, run_globals.mpi_comm);
+  //MPI_Bcast(run_globals.NormIII, NDelta * n_snaps, MPI_FLOAT, 0, run_globals.mpi_comm); 
+  //MPI_Bcast(run_globals.NormII, NDelta * n_snaps, MPI_FLOAT, 0, run_globals.mpi_comm);
   
   switch (Scaling_Model) { 
     case 1:
@@ -447,6 +449,42 @@ void initialize_ScalingRel()
     }
     mlog(" ]", MLOG_CONT);
 #endif
+}
+
+void ComputeNormTables(int snapshot)
+{
+  for (int i_delta = 0; i_delta < NDelta; ++i_delta) {
+    double z0_II = PopIIz0[i_delta];
+    double a0_II = PopIIParams[i_delta * 6 + 5];
+    double a1_II = PopIIParams[i_delta * 6 + 4];
+    double a2_II = PopIIParams[i_delta * 6 + 3];
+    double a3_II = PopIIParams[i_delta * 6 + 2];
+    double a4_II = PopIIParams[i_delta * 6 + 1];
+    double a5_II = PopIIParams[i_delta * 6 + 0];
+  
+    double z0_III = PopIIIz0[i_delta];
+    double a0_III = PopIIIParams[i_delta * 6 + 5];
+    double a1_III = PopIIIParams[i_delta * 6 + 4];
+    double a2_III = PopIIIParams[i_delta * 6 + 3];
+    double a3_III = PopIIIParams[i_delta * 6 + 2];
+    double a4_III = PopIIIParams[i_delta * 6 + 1];
+    double a5_III = PopIIIParams[i_delta * 6 + 0];
+    //mlog("Init Params = %f, %f", MLOG_MESG, a0_III, z0_III);
+    
+    NormIIITable[i_delta][snapshot] = NormFitting_Function(run_globals.ZZ[snapshot], a0_III, a1_III, a2_III, a3_III, a4_III, a5_III, z0_III);
+    NormIITable[i_delta][snapshot] = NormFitting_Function(run_globals.ZZ[snapshot], a0_II, a1_II, a2_II, a3_II, a4_II, a5_II, z0_II);
+    if (snapshot == 2)
+      mlog("Init Norm Scaling at Delta = %f and snap 2 = %f ", MLOG_MESG, Delta[i_delta], NormIIITable[i_delta][snapshot]);
+  }
+}
+
+double get_NormValue(int i_delta, int snapshot, int flag)
+{
+  if (flag == 3)
+    return NormIIITable[i_delta][snap];
+  
+  else if (flag == 2)
+    return NormIITable[i_delta][snap];
 }
 
 double NormFitting_Function(double x, double a0, double a1, double a2, double a3, double a4, double a5, double x0)

@@ -2195,6 +2195,9 @@ void construct_scaling_sfr(int snapshot)
   double zplus1 = run_globals.ZZ[snapshot] + 1;
   float MatoLim = 5.4 * 1e-3 * 0.6751 * pow(zplus1 / 11.0, -1.5);
   
+  // Compute Norm Table at that snapshot
+  ComputeNormTables(snapshot);
+  
   double NormIII;
   double NormII;
   
@@ -2254,11 +2257,11 @@ void construct_scaling_sfr(int snapshot)
               float RandomUni = gsl_rng_uniform(run_globals.random_generator);
               double DeltaVal = Delta_grid[ix, iy, iz];
               int DeltaIndex = Find_DeltaIndex(DeltaVal);
-              NormIII = run_globals.NormIII[DeltaIndex, snapshot];
+              NormIII = get_NormValue(DeltaIndex, snapshot, 3);
               if (DeltaVal > 0.375)
                 mlog("DeltaIndex = %d, for Delta = %f, NormIII = %f", MLOG_MESG, DeltaIndex, DeltaVal, NormIII);
               //mlog("NormIII is = %f", MLOG_MESG, NormIII);
-              NormII = run_globals.NormII[DeltaIndex, snapshot];
+              NormII = get_NormValue(DeltaIndex, snapshot, 2);
               if (RandomUni <= NormIII) {
                 double valIII = pow(10, NormalRandNum(MuMCIII, SigmaMCIII)) / ConvUnit;
                 //mlog("valIII is = %f", MLOG_MESG, valIII * ConvUnit);

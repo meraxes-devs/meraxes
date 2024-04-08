@@ -52,6 +52,8 @@ extern "C"
 #define NPopIIPars 6
 
   void read_scaling_rel_tables(void);
+  void ComputeNormTables(int snapshot);
+  double get_NormValue(int i_delta, int snapshot, int flag);
   void initialize_ScalingRel();
   void initialize_NormValues();
   double NormFitting_Function(double x, double a0, double a1, double a2, double a3, double a4, double a5, double x0);
