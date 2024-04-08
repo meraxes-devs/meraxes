@@ -2266,20 +2266,20 @@ void construct_scaling_sfr(int snapshot)
                 double valIII = pow(10, NormalRandNum(MuMCIII, SigmaMCIII)) / ConvUnit;
                 //mlog("valIII is = %f", MLOG_MESG, valIII * ConvUnit);
                 if (run_globals.params.Flag_IncludeSpinTemp) {
-                  sfrIII_grid[ix, iy, iz] = valIII; // += doesn't work but it should!
+                  sfrIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = valIII; // += doesn't work but it should!
                 }
-                stellarIII_grid[ix, iy, iz] += valIII * sfr_timescale * run_globals.params.Hubble_h * fescIII; // Probably there is no hubble_h!
-                weighted_sfrIII_grid[ix, iy, iz] += valIII * fescIII;
+                stellarIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valIII * sfr_timescale * run_globals.params.Hubble_h * fescIII; // Probably there is no hubble_h!
+                weighted_sfrIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valIII * fescIII;
                 if (RandomUni <= NormII) {
                   double valII = pow(10,NormalRandNum(MuMCII, SigmaMCII)) / ConvUnit;
                   if (run_globals.params.Flag_IncludeSpinTemp) {
-                    sfr_grid[ix, iy, iz] += valII;
+                    sfr_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valII;
                   }
-                  stellar_grid[ix, iy, iz] += valII * sfr_timescale * run_globals.params.Hubble_h * fesc;
-                  weighted_sfr_grid[ix, iy, iz] += valII * fesc;
+                  stellar_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valII * sfr_timescale * run_globals.params.Hubble_h * fesc;
+                  weighted_sfr_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valII * fesc;
                 }
               }
-             }
+            }
           }
         }
         break;
