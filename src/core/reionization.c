@@ -2250,13 +2250,14 @@ void construct_scaling_sfr(int snapshot)
               float RandomUni = gsl_rng_uniform(run_globals.random_generator);
               double DeltaVal = Delta_grid[ix, iy, iz];
               int DeltaIndex = Find_DeltaIndex(DeltaVal);
-              //mlog("DeltaIndex = %d, for Delta = %f", MLOG_MESG, DeltaIndex, DeltaVal);
+              if (DeltaVal > 0.125)
+                mlog("DeltaIndex = %d, for Delta = %f", MLOG_MESG, DeltaIndex, DeltaVal);
               NormIII = run_globals.NormIII[DeltaIndex, snapshot];
               //mlog("NormIII is = %f", MLOG_MESG, NormIII);
               NormII = run_globals.NormII[DeltaIndex, snapshot];
               if (RandomUni <= NormIII) {
                 double valIII = pow(10, NormalRandNum(MuMCIII, SigmaMCIII)) / ConvUnit;
-                mlog("valIII is = %f", MLOG_MESG, valIII * ConvUnit);
+                //mlog("valIII is = %f", MLOG_MESG, valIII * ConvUnit);
                 if (run_globals.params.Flag_IncludeSpinTemp) {
                   sfrIII_grid[ix, iy, iz] += valIII;
                 }
