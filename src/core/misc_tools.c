@@ -442,13 +442,13 @@ void initialize_ScalingRel()
        run_globals.sigma_MCIII,
        run_globals.sigma_MCII);
   // THIS IS JUST A TEST!
-#ifdef DEBUG
+/*#ifdef DEBUG
     mlog("Init Delta = [", MLOG_MESG);
     for (int ii = 0; ii < NDelta; ++ii) {
       mlog(" %f", MLOG_CONT, Delta[ii]); 
     }
     mlog(" ]", MLOG_CONT);
-#endif
+#endif*/
 }
 
 void ComputeNormTables(int snapshot)
@@ -473,8 +473,8 @@ void ComputeNormTables(int snapshot)
     
     NormIIITable[i_delta][snapshot] = NormFitting_Function(run_globals.ZZ[snapshot], a0_III, a1_III, a2_III, a3_III, a4_III, a5_III, z0_III);
     NormIITable[i_delta][snapshot] = NormFitting_Function(run_globals.ZZ[snapshot], a0_II, a1_II, a2_II, a3_II, a4_II, a5_II, z0_II);
-    if (snapshot == 2)
-      mlog("Init Norm Scaling at Delta = %f and snap 2 = %f ", MLOG_MESG, Delta[i_delta], NormIIITable[i_delta][snapshot]);
+    //if (snapshot == 2)
+    //  mlog("Init Norm Scaling at Delta = %f and snap 2 = %f ", MLOG_MESG, Delta[i_delta], NormIIITable[i_delta][snapshot]);
   }
 }
 

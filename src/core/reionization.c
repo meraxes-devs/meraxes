@@ -2258,8 +2258,8 @@ void construct_scaling_sfr(int snapshot)
               double DeltaVal = Delta_grid[ix, iy, iz];
               int DeltaIndex = Find_DeltaIndex(DeltaVal);
               NormIII = get_NormValue(DeltaIndex, snapshot, 3);
-              if (DeltaVal > 0.375)
-                mlog("DeltaIndex = %d, for Delta = %f, NormIII = %f", MLOG_MESG, DeltaIndex, DeltaVal, NormIII);
+              //if (DeltaVal > 0.375)
+              //  mlog("DeltaIndex = %d, for Delta = %f, NormIII = %f", MLOG_MESG, DeltaIndex, DeltaVal, NormIII);
               //mlog("NormIII is = %f", MLOG_MESG, NormIII);
               NormII = get_NormValue(DeltaIndex, snapshot, 2);
               if (RandomUni <= NormIII) {
