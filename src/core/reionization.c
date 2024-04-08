@@ -2250,7 +2250,7 @@ void construct_scaling_sfr(int snapshot)
               float RandomUni = gsl_rng_uniform(run_globals.random_generator);
               double DeltaVal = Delta_grid[ix, iy, iz];
               int DeltaIndex = Find_DeltaIndex(DeltaVal);
-              if (DeltaVal > 0.125)
+              if (DeltaVal > 0.375)
                 mlog("DeltaIndex = %d, for Delta = %f", MLOG_MESG, DeltaIndex, DeltaVal);
               NormIII = run_globals.NormIII[DeltaIndex, snapshot];
               //mlog("NormIII is = %f", MLOG_MESG, NormIII);
@@ -2259,7 +2259,7 @@ void construct_scaling_sfr(int snapshot)
                 double valIII = pow(10, NormalRandNum(MuMCIII, SigmaMCIII)) / ConvUnit;
                 //mlog("valIII is = %f", MLOG_MESG, valIII * ConvUnit);
                 if (run_globals.params.Flag_IncludeSpinTemp) {
-                  sfrIII_grid[ix, iy, iz] += valIII;
+                  sfrIII_grid[ix, iy, iz] = valIII;
                 }
                 stellarIII_grid[ix, iy, iz] += valIII * sfr_timescale * run_globals.params.Hubble_h * fescIII; // Probably there is no hubble_h!
                 weighted_sfrIII_grid[ix, iy, iz] += valIII * fescIII;
