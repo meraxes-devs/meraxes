@@ -2251,7 +2251,7 @@ void construct_scaling_sfr(int snapshot)
   int local_nix = (int)(run_globals.reion_grids.slab_nix[run_globals.mpi_rank]);
     for (int ix = 0; ix < local_nix; ix++)
       for (int iy = 0; iy < ReionGridDim; iy++)
-        for (int iz = 0; iz < ReionGridDim; iz++) {*/
+        for (int iz = 0; iz < ReionGridDim; iz++) {
             // If the LW is already too strong there is no SF coming from MC halos
             if (McritMC_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)] < MatoLim) { //INDEX_REAL OR PADDED???
               double RandomUni = gsl_rng_uniform(run_globals.random_generator);
