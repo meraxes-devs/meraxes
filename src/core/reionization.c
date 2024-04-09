@@ -2266,7 +2266,7 @@ void construct_scaling_sfr(int snapshot)
                 double valIII = pow(10, NormalRandNum(MuMCIII, SigmaMCIII)) / ConvUnit;
                 //mlog("valIII is = %f", MLOG_MESG, valIII * ConvUnit);
                 if (run_globals.params.Flag_IncludeSpinTemp) {
-                  sfrIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = valIII; // += doesn't work but it should!
+                  sfrIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valIII; // += doesn't work but it should!
                 }
                 stellarIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valIII * sfr_timescale * run_globals.params.Hubble_h * fescIII; // Probably there is no hubble_h!
                 weighted_sfrIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valIII * fescIII;
