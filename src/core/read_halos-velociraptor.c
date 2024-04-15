@@ -343,7 +343,8 @@ void read_trees__velociraptor(int snapshot,
           // We can take advantage of the fact that host halos always
           // seem to appear before their subhalos (checked below) in the
           // trees to immediately connect FOF group members.
-          int host_index = id_to_ind(tree_entry.hostHaloID);
+          //int host_index = id_to_ind(tree_entry.hostHaloID);
+          int host_index = tree_entry.hostHaloID-1;
 
           if (index_lookup)
             host_index = find_original_index(host_index, index_lookup, *n_halos);
