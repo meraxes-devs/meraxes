@@ -59,10 +59,10 @@ static int id_to_snap(long id)
 inline static void convert_input_virial_props(double* Mvir,
                                               double* Rvir,
                                               double* Vvir,
-                                              double* FOFMvirModifier,
+                                              //double* FOFMvirModifier,
                                               const int len,
                                               const int snapshot,
-                                              const bool fof_flag)
+                                              //const bool fof_flag)
 {
   // Update the virial properties for subhalos
   if (*Mvir == -1) {
@@ -98,26 +98,27 @@ void read_trees__velociraptor(int snapshot,
   //! Tree entry struct
   typedef struct tree_entry_t
   {
-    long ForestID;
-    long Head;
-    long Tail;
-    long hostHaloID;
-    double Mass_200crit;
+    unsigned long ForestID;
+    unsigned long Head;
+    //long Tail;
+    int hostHaloID;
+    float Mass_200crit;
     //double Mass_FOF;
-    double Mass_tot;
-    double R_200crit;
-    double Vmax;
-    double Xc;
-    double Yc;
-    double Zc;
-    double VXc;
-    double VYc;
-    double VZc;
-    double Lx;
-    double Ly;
-    double Lz;
-    unsigned long ID;
-    unsigned long npart;
+    float Mass_tot;
+    float R_200crit;
+    float Vmax;
+    float Xc;
+    float Yc;
+    float Zc;
+    float VXc;
+    float VYc;
+    float VZc;
+    float AngMom;
+    //double Lx;
+    //double Ly;
+    //double Lz;
+    unsigned int ID;
+    unsigned int npart;
   } tree_entry_t;
 
   // simulations...
@@ -192,26 +193,27 @@ void read_trees__velociraptor(int snapshot,
       // TODO(trees): Read tail.  If head<->tail then first progenitor line, else it's a merger.  We should populate the
       // new halo and then do a standard merger prescription.
 
-      READ_TREE_ENTRY_PROP(ForestID, long, H5T_NATIVE_LONG);
-      READ_TREE_ENTRY_PROP(Head, long, H5T_NATIVE_LONG);
-      READ_TREE_ENTRY_PROP(Tail, long, H5T_NATIVE_LONG);
-      READ_TREE_ENTRY_PROP(hostHaloID, long, H5T_NATIVE_LONG);
-      READ_TREE_ENTRY_PROP(Mass_200crit, double, H5T_NATIVE_DOUBLE);
+      READ_TREE_ENTRY_PROP(ForestID, unsigned long, H5T_NATIVE_ULONG);
+      READ_TREE_ENTRY_PROP(Head, unsigned long, H5T_NATIVE_ULONG);
+      //READ_TREE_ENTRY_PROP(Tail, long, H5T_NATIVE_LONG);
+      READ_TREE_ENTRY_PROP(hostHaloID, int, H5T_NATIVE_INT);
+      READ_TREE_ENTRY_PROP(Mass_200crit, float, H5T_NATIVE_FLOAT);
       //READ_TREE_ENTRY_PROP(Mass_FOF, double, H5T_NATIVE_DOUBLE);
-      READ_TREE_ENTRY_PROP(Mass_tot, double, H5T_NATIVE_DOUBLE);
-      READ_TREE_ENTRY_PROP(R_200crit, double, H5T_NATIVE_DOUBLE);
-      READ_TREE_ENTRY_PROP(Vmax, double, H5T_NATIVE_DOUBLE);
-      READ_TREE_ENTRY_PROP(Xc, double, H5T_NATIVE_DOUBLE);
-      READ_TREE_ENTRY_PROP(Yc, double, H5T_NATIVE_DOUBLE);
-      READ_TREE_ENTRY_PROP(Zc, double, H5T_NATIVE_DOUBLE);
-      READ_TREE_ENTRY_PROP(VXc, double, H5T_NATIVE_DOUBLE);
-      READ_TREE_ENTRY_PROP(VYc, double, H5T_NATIVE_DOUBLE);
-      READ_TREE_ENTRY_PROP(VZc, double, H5T_NATIVE_DOUBLE);
-      READ_TREE_ENTRY_PROP(Lx, double, H5T_NATIVE_DOUBLE);
-      READ_TREE_ENTRY_PROP(Ly, double, H5T_NATIVE_DOUBLE);
-      READ_TREE_ENTRY_PROP(Lz, double, H5T_NATIVE_DOUBLE);
-      READ_TREE_ENTRY_PROP(ID, unsigned long, H5T_NATIVE_ULONG);
-      READ_TREE_ENTRY_PROP(npart, unsigned long, H5T_NATIVE_ULONG);
+      READ_TREE_ENTRY_PROP(Mass_tot, float, H5T_NATIVE_FLOAT);
+      READ_TREE_ENTRY_PROP(R_200crit, float, H5T_NATIVE_FLOAT);
+      READ_TREE_ENTRY_PROP(Vmax, float, H5T_NATIVE_FLOAT);
+      READ_TREE_ENTRY_PROP(Xc, float, H5T_NATIVE_FLOAT);
+      READ_TREE_ENTRY_PROP(Yc, float, H5T_NATIVE_FLOAT);
+      READ_TREE_ENTRY_PROP(Zc, float, H5T_NATIVE_FLOAT);
+      READ_TREE_ENTRY_PROP(VXc, float, H5T_NATIVE_FLOAT);
+      READ_TREE_ENTRY_PROP(VYc, float, H5T_NATIVE_FLOAT);
+      READ_TREE_ENTRY_PROP(VZc, float, H5T_NATIVE_FLOAT);
+      READ_TREE_ENTRY_PROP(AngMom, float, H5T_NATIVE_FLOAT);
+      //READ_TREE_ENTRY_PROP(Lx, double, H5T_NATIVE_DOUBLE);
+      //READ_TREE_ENTRY_PROP(Ly, double, H5T_NATIVE_DOUBLE);
+      //READ_TREE_ENTRY_PROP(Lz, double, H5T_NATIVE_DOUBLE);
+      READ_TREE_ENTRY_PROP(ID, unsigned int, H5T_NATIVE_UINT);
+      READ_TREE_ENTRY_PROP(npart, unsigned int, H5T_NATIVE_UINT);
 
       H5Sclose(memspace_id);
       H5Sclose(fspace_id);
@@ -228,9 +230,10 @@ void read_trees__velociraptor(int snapshot,
         tree_entries[ii].VXc /= scale_factor;
         tree_entries[ii].VYc /= scale_factor;
         tree_entries[ii].VZc /= scale_factor;
-        tree_entries[ii].Lx *= hubble_h * hubble_h * mass_unit_to_internal;
-        tree_entries[ii].Ly *= hubble_h * hubble_h * mass_unit_to_internal;
-        tree_entries[ii].Lz *= hubble_h * hubble_h * mass_unit_to_internal;
+        tree_entries[ii].AngMom *= hubble_h * hubble_h * mass_unit_to_internal;
+        //tree_entries[ii].Lx *= hubble_h * hubble_h * mass_unit_to_internal;
+        //tree_entries[ii].Ly *= hubble_h * hubble_h * mass_unit_to_internal;
+        //tree_entries[ii].Lz *= hubble_h * hubble_h * mass_unit_to_internal;
 
         // TEMPORARY HACK
         double box_size = run_globals.params.BoxSize;
@@ -366,10 +369,11 @@ void read_trees__velociraptor(int snapshot,
         halo->Rvir = -1;
         halo->Vvir = -1;
         convert_input_virial_props(&halo->Mvir, &halo->Rvir, &halo->Vvir, NULL, -1, snapshot, false);
-
-        halo->AngMom[0] = (float)(tree_entry.Lx / tree_entry.Mass_tot);
-        halo->AngMom[1] = (float)(tree_entry.Ly / tree_entry.Mass_tot);
-        halo->AngMom[2] = (float)(tree_entry.Lz / tree_entry.Mass_tot);
+        
+        halo->AngMom = tree_entry.AngMom;  
+        //halo->AngMom[0] = (float)(tree_entry.Lx / tree_entry.Mass_tot);
+        //halo->AngMom[1] = (float)(tree_entry.Ly / tree_entry.Mass_tot);
+        //halo->AngMom[2] = (float)(tree_entry.Lz / tree_entry.Mass_tot);
 
         halo->Galaxy = NULL;
 

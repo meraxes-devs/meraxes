@@ -663,7 +663,8 @@ typedef struct halo_t
 
   float Pos[3];    //!< Most bound particle position [Mpc/h]
   float Vel[3];    //!< Centre of mass velocity [Mpc/h]
-  float AngMom[3]; //!< Specific angular momentum vector [Mpc/h *km/s]
+  //float AngMom[3]; //!< Specific angular momentum vector [Mpc/h *km/s]
+  float AngMom; //!< Total ngular momentum vector [Mpc/h *km/s]
 
   double Mvir; //!< virial mass [M_sol/h]
   double Rvir; //!< Virial radius [Mpc/h]
