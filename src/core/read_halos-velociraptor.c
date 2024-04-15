@@ -69,13 +69,13 @@ inline static void convert_input_virial_props(double* Mvir,
     assert(len > 0);
     *Mvir = calculate_Mvir(*Mvir, len);
   } else {
-    if (fof_flag && (run_globals.RequestedMassRatioModifier == 1)) {
+    /*if (fof_flag && (run_globals.RequestedMassRatioModifier == 1)) {
       // Modifier the FoF mass and update the virial radius
       assert(FOFMvirModifier != NULL);
       *FOFMvirModifier =
         interpolate_modifier(run_globals.mass_ratio_modifier, log10(*Mvir / run_globals.params.Hubble_h) + 10.0);
       *Mvir *= *FOFMvirModifier;
-    }
+    }*/
   }
 
   if (*Rvir == -1)
@@ -281,7 +281,8 @@ void read_trees__velociraptor(int snapshot,
         if (run_globals.params.FlagIgnoreProgIndex)
           halo->ProgIndex = -1;
         else
-          halo->ProgIndex = id_to_ind(tree_entry.Tail);
+          halo->ProgIndex = tree_entry.ID-1;
+          //halo->ProgIndex = id_to_ind(tree_entry.Tail);
 
         halo->NextHaloInFOFGroup = NULL;
         halo->Type = tree_entry.hostHaloID == -1 ? 0 : 1;
@@ -290,10 +291,12 @@ void read_trees__velociraptor(int snapshot,
         // Any other tree flags need to be set using both the current and
         // progenitor halo information (stored in the galaxy), therefore we
         // need to leave setting those until later...
-        if (run_globals.params.FlagIgnoreProgIndex)
+        /*if (run_globals.params.FlagIgnoreProgIndex)
           halo->TreeFlags = TREE_CASE_NO_PROGENITORS;
         else
-          halo->TreeFlags = (unsigned long)tree_entry.Tail != tree_entry.ID ? 0 : TREE_CASE_NO_PROGENITORS;
+          halo->TreeFlags = (unsigned long)tree_entry.Tail != tree_entry.ID ? 0 : TREE_CASE_NO_PROGENITORS;*/
+        // Balu said Tail is always equal to ID...
+        halo->TreeFlags = TREE_CASE_NO_PROGENITORS;
 
         // Here we have a cyclic pointer, indicating that this halo's life ends here
         if ((unsigned long)tree_entry.Head == tree_entry.ID)
