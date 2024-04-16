@@ -319,7 +319,7 @@ void read_trees__velociraptor(int snapshot,
             // any or allow any hot halo to exist.
             halo->TreeFlags |= TREE_CASE_BELOW_VIRIAL_THRESHOLD;
             //fof_group->Mvir = tree_entry.Mass_FOF;
-            fof_group->Mvir = tree_entry.Mass_tot * run_globals.params.Hubble_h * mass_unit_to_internal;
+            fof_group->Mvir = (double)tree_entry.Mass_tot * run_globals.params.Hubble_h * mass_unit_to_internal;
             fof_group->Rvir = -1;
             // } else if (tree_entry.Mass_200crit < tree_entry.Mass_tot){
             // // The central subhalo has a proxy mass larger than the FOF
@@ -375,7 +375,7 @@ void read_trees__velociraptor(int snapshot,
         halo->Vmax = tree_entry.Vmax;
 
         // TODO: What masses and radii should I use for satellites (inclusive vs. exclusive etc.)?
-        halo->Mvir = tree_entry.Mass_tot * run_globals.params.Hubble_h * mass_unit_to_internal;
+        halo->Mvir = (double)tree_entry.Mass_tot * run_globals.params.Hubble_h * mass_unit_to_internal;
         halo->Rvir = -1;
         halo->Vvir = -1;
         //convert_input_virial_props(&halo->Mvir, &halo->Rvir, &halo->Vvir, NULL, -1, snapshot, false);
