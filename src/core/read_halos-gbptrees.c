@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <hdf5_hl.h>
 #include <math.h>
-#include <string.h>
 
 #include "meraxes.h"
 #include "misc_tools.h"
@@ -107,7 +106,7 @@ static void halo_catalog_filename(char* simulation_dir,
       fname, "%s/catalogs/%s_%03d.catalog_%s_properties", simulation_dir, catalog_file_prefix, snapshot, group_type);
 }
 
-static void inline read_catalogs_header(FILE* fin, int* i_file, int* n_files, int* n_halos_file, int* n_halos_total)
+inline static void read_catalogs_header(FILE* fin, int* i_file, int* n_files, int* n_halos_file, int* n_halos_total)
 {
   fread(i_file, sizeof(int), 1, fin);
   fread(n_files, sizeof(int), 1, fin);
@@ -222,10 +221,10 @@ static void read_catalog_halos(FILE** fin,
   }
 }
 
-static void inline convert_input_virial_props(double* Mvir,
+inline static void convert_input_virial_props(double* Mvir,
                                               double* Rvir,
                                               double* Vvir,
-                                              double* FOFMvirModifier,
+                                              //double* FOFMvirModifier,
                                               int len,
                                               int snapshot)
 {
@@ -236,13 +235,13 @@ static void inline convert_input_virial_props(double* Mvir,
   } else {
     // Convert the mass unit for FoFs
     *Mvir /= 1.0e10;
-    if (run_globals.RequestedMassRatioModifier == 1) {
+    /*if (run_globals.RequestedMassRatioModifier == 1) {
       // Modifier the FoF mass and update the virial radius
       *FOFMvirModifier =
         interpolate_modifier(run_globals.mass_ratio_modifier, log10(*Mvir / run_globals.params.Hubble_h) + 10.0);
       *Mvir *= *FOFMvirModifier;
       *Rvir = calculate_Rvir(*Mvir, snapshot);
-    }
+    }*/
   }
   *Vvir = calculate_Vvir(*Mvir, *Rvir);
 }
@@ -462,10 +461,10 @@ void read_trees__gbptrees(int snapshot,
 
           cur_group->Mvir = cur_cat_group->M_vir;
           cur_group->Rvir = cur_cat_group->R_vir;
-          cur_group->FOFMvirModifier = 1.0;
+          //cur_group->FOFMvirModifier = 1.0;
 
-          convert_input_virial_props(
-            &(cur_group->Mvir), &(cur_group->Rvir), &(cur_group->Vvir), &(cur_group->FOFMvirModifier), -1, snapshot);
+          //convert_input_virial_props(&(cur_group->Mvir), &(cur_group->Rvir), &(cur_group->Vvir), &(cur_group->FOFMvirModifier), -1, snapshot);
+          convert_input_virial_props(&(cur_group->Mvir), &(cur_group->Rvir), &(cur_group->Vvir), -1, snapshot);
 
           fof_group[(*n_fof_groups_kept)++].FirstHalo = &(halo[*n_halos_kept]);
         } else {
@@ -503,7 +502,8 @@ void read_trees__gbptrees(int snapshot,
         else
           Len = cur_halo->Len;
 
-        convert_input_virial_props(&(cur_halo->Mvir), &(cur_halo->Rvir), &(cur_halo->Vvir), NULL, Len, snapshot);
+        //convert_input_virial_props(&(cur_halo->Mvir), &(cur_halo->Rvir), &(cur_halo->Vvir), NULL, Len, snapshot);
+        convert_input_virial_props(&(cur_halo->Mvir), &(cur_halo->Rvir), &(cur_halo->Vvir), Len, snapshot);
 
         // // Replace the virial properties of the FOF group by those of the first
         // // subgroup
