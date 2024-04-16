@@ -163,6 +163,7 @@ void read_trees__velociraptor(int snapshot,
   }
 
   MPI_Bcast(&n_tree_entries, 1, MPI_INT, 0, run_globals.mpi_comm);
+  MPI_Bcast(&mass_unit_to_internal, 1, MPI_DOUBLE, 0, run_globals.mpi_comm);
 
   int n_read = 0;
   int n_to_read = buffer_size > n_tree_entries ? n_tree_entries : buffer_size;
@@ -220,10 +221,10 @@ void read_trees__velociraptor(int snapshot,
 
       double hubble_h = run_globals.params.Hubble_h;
       for (int ii = 0; ii < n_to_read; ii++) {
-        tree_entries[ii].Mass_200crit *= hubble_h * mass_unit_to_internal;
+        //tree_entries[ii].Mass_200crit *= hubble_h * mass_unit_to_internal;
         //tree_entries[ii].Mass_FOF *= hubble_h * mass_unit_to_internal;
-        tree_entries[ii].Mass_tot *= hubble_h * mass_unit_to_internal;
-        tree_entries[ii].R_200crit *= hubble_h;
+        //tree_entries[ii].Mass_tot *= hubble_h * mass_unit_to_internal;
+        //tree_entries[ii].R_200crit *= hubble_h;
         tree_entries[ii].Xc *= hubble_h / scale_factor;
         tree_entries[ii].Yc *= hubble_h / scale_factor;
         tree_entries[ii].Zc *= hubble_h / scale_factor;
@@ -234,6 +235,7 @@ void read_trees__velociraptor(int snapshot,
         //tree_entries[ii].Lx *= hubble_h * hubble_h * mass_unit_to_internal;
         //tree_entries[ii].Ly *= hubble_h * hubble_h * mass_unit_to_internal;
         //tree_entries[ii].Lz *= hubble_h * hubble_h * mass_unit_to_internal;
+
 
         // TEMPORARY HACK
         double box_size = run_globals.params.BoxSize;
@@ -275,7 +277,8 @@ void read_trees__velociraptor(int snapshot,
         tree_entry_t tree_entry = tree_entries[ii];
         halo_t* halo = &(halos[*n_halos]);
 
-        halo->ID = tree_entry.ID;
+        halo->ID = (unsigned long)tree_entry.ID + (unsigned long)snapshot * 1e12l;
+        //halo->ID = tree_entry.ID;
         halo->DescIndex = id_to_ind(tree_entry.Head);
 
         if (run_globals.params.FlagIgnoreProgIndex)
@@ -299,7 +302,8 @@ void read_trees__velociraptor(int snapshot,
         halo->TreeFlags = TREE_CASE_NO_PROGENITORS;
 
         // Here we have a cyclic pointer, indicating that this halo's life ends here
-        if ((unsigned long)tree_entry.Head == tree_entry.ID)
+        //if ((unsigned long)tree_entry.Head == tree_entry.ID)
+        if (tree_entry.Head == halo->ID)
           halo->DescIndex = -1;
 
         if (index_lookup)
@@ -315,7 +319,7 @@ void read_trees__velociraptor(int snapshot,
             // any or allow any hot halo to exist.
             halo->TreeFlags |= TREE_CASE_BELOW_VIRIAL_THRESHOLD;
             //fof_group->Mvir = tree_entry.Mass_FOF;
-            fof_group->Mvir = tree_entry.Mass_tot;
+            fof_group->Mvir = tree_entry.Mass_tot * run_globals.params.Hubble_h * mass_unit_to_internal;
             fof_group->Rvir = -1;
             // } else if (tree_entry.Mass_200crit < tree_entry.Mass_tot){
             // // The central subhalo has a proxy mass larger than the FOF
@@ -326,11 +330,11 @@ void read_trees__velociraptor(int snapshot,
             // fof_group->Mvir = tree_entry.Mass_FOF;
             // fof_group->Rvir = -1;
           } else {
-              fof_group->Mvir = tree_entry.Mass_200crit;
-              fof_group->Rvir = tree_entry.R_200crit;
+              fof_group->Mvir = (double)tree_entry.Mass_200crit * run_globals.params.Hubble_h * mass_unit_to_internal;
+              fof_group->Rvir = (double)tree_entry.R_200crit * run_globals.params.Hubble_h;
           }
           fof_group->Vvir = -1;
-          fof_group->FOFMvirModifier = 1.0;
+          //fof_group->FOFMvirModifier = 1.0;
           
           convert_input_virial_props(&fof_group->Mvir, &fof_group->Rvir, &fof_group->Vvir, -1, snapshot);
 
@@ -362,16 +366,16 @@ void read_trees__velociraptor(int snapshot,
         }
 
         halo->Len = (int)tree_entry.npart;
-        halo->Pos[0] = (float)tree_entry.Xc;
-        halo->Pos[1] = (float)tree_entry.Yc;
-        halo->Pos[2] = (float)tree_entry.Zc;
-        halo->Vel[0] = (float)tree_entry.VXc;
-        halo->Vel[1] = (float)tree_entry.VYc;
-        halo->Vel[2] = (float)tree_entry.VZc;
-        halo->Vmax = (float)tree_entry.Vmax;
+        halo->Pos[0] = tree_entry.Xc;
+        halo->Pos[1] = tree_entry.Yc;
+        halo->Pos[2] = tree_entry.Zc;
+        halo->Vel[0] = tree_entry.VXc;
+        halo->Vel[1] = tree_entry.VYc;
+        halo->Vel[2] = tree_entry.VZc;
+        halo->Vmax = tree_entry.Vmax;
 
         // TODO: What masses and radii should I use for satellites (inclusive vs. exclusive etc.)?
-        halo->Mvir = tree_entry.Mass_tot;
+        halo->Mvir = tree_entry.Mass_tot * run_globals.params.Hubble_h * mass_unit_to_internal;
         halo->Rvir = -1;
         halo->Vvir = -1;
         //convert_input_virial_props(&halo->Mvir, &halo->Rvir, &halo->Vvir, NULL, -1, snapshot, false);
