@@ -2253,7 +2253,7 @@ void construct_scaling_sfr(int snapshot)
       for (int iy = 0; iy < ReionGridDim; iy++)
         for (int iz = 0; iz < ReionGridDim; iz++) {
             // If the LW is already too strong there is no SF coming from MC halos
-            if (McritMC_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)] < MatoLim) { //INDEX_REAL OR PADDED???
+            if (McritMC_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)] < MatoLim) { 
               double RandomUni = gsl_rng_uniform(run_globals.random_generator);
               double DeltaVal = Delta_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)];
               int DeltaIndex = Find_DeltaIndex(DeltaVal);
@@ -2266,16 +2266,16 @@ void construct_scaling_sfr(int snapshot)
                 double valIII = pow(10, NormalRandNum(MuMCIII, SigmaMCIII)) / ConvUnit;
                 //mlog("valIII is = %f", MLOG_MESG, valIII * ConvUnit);
                 if (run_globals.params.Flag_IncludeSpinTemp) {
-                  sfrIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valIII; // += doesn't work but it should!
+                  sfrIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valIII; 
                 }
-                stellarIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valIII * sfr_timescale * run_globals.params.Hubble_h * fescIII; // Probably there is no hubble_h!
+                stellarIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valIII * sfr_timescale * fescIII; 
                 weighted_sfrIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valIII * fescIII;
                 if (RandomUni <= NormII) {
                   double valII = pow(10,NormalRandNum(MuMCII, SigmaMCII)) / ConvUnit;
                   if (run_globals.params.Flag_IncludeSpinTemp) {
                     sfr_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valII;
                   }
-                  stellar_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valII * sfr_timescale * run_globals.params.Hubble_h * fesc;
+                  stellar_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valII * sfr_timescale * fesc;
                   weighted_sfr_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valII * fesc;
                 }
               }
