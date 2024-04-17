@@ -2196,7 +2196,7 @@ void construct_scaling_sfr(int snapshot)
   float MatoLim = 5.4 * 1e-3 * 0.6751 * pow(zplus1 / 11.0, -1.5);
   
   // Compute Norm Table at that snapshot
-  ComputeNormTables(snapshot);
+  //ComputeNormTables(snapshot);
   
   double NormIII;
   double NormII;
