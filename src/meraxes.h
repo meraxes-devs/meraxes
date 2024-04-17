@@ -804,9 +804,6 @@ typedef struct run_globals_t
   double sigma_MCIII;
   double mu_MCII;
   double sigma_MCII;
-  
-  //float* NormIII; // (array 9x119)
-  //float* NormII;
 #endif
 
   int NOutputSnaps;
