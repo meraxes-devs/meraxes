@@ -334,8 +334,8 @@ bool check_for_flag(int flag, int tree_flags)
 
 #if USE_SCALING_REL
 static double Delta[NDelta];
-static double NormIIITable[120 * NDelta]; //substitute 120 with snap_length
-static double NormIITable[120 * NDelta];
+static double NormIIITable[NDelta * 120]; //substitute 120 with snap_length
+static double NormIITable[NDelta * 120];
 
 void read_scaling_rel_tables(void)
 {
