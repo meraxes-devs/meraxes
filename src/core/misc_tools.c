@@ -399,13 +399,13 @@ void initialize_ScalingRel()
        run_globals.sigma_MCIII,
        run_globals.sigma_MCII);
   // THIS IS JUST A TEST!
-#ifdef DEBUG
+/*#ifdef DEBUG
     mlog("Init NormIII snap 5 = [", MLOG_MESG);
     for (int ii = 0; ii < NDelta; ++ii) {
       mlog(" %f", MLOG_CONT, NormIIITable[ii * 120 + 5]); 
     }
     mlog(" ]", MLOG_CONT);
-#endif
+#endif*/
 }
 
 /*void ComputeNormTables(int snapshot)

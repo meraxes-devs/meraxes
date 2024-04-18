@@ -273,6 +273,14 @@ void init_meraxes()
   // read in the scaling relation tables
   read_scaling_rel_tables();
   initialize_ScalingRel();
+#ifdef DEBUG
+  mlog("Init NormIII snap 5 = [", MLOG_MESG);
+  for (int ii = 0; ii < 9; ++ii) {
+    mlog(" %f", MLOG_CONT, get_NormValue(ii, 5, 3)); 
+  }
+  mlog(" ]", MLOG_CONT);
+#endif
+
 #endif
 
 #ifdef USE_MINI_HALOS
