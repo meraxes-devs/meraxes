@@ -439,11 +439,11 @@ double get_NormValue(int i_delta, int snapshot, int flag)
 {
   if (flag == 3)
     //return NormIIITable[snapshot][i_delta];
-    return NormIIITable[i_delta * 120 + snapshot];
+    return NormIIITable[snapshot * 9 + i_delta];
   
   else if (flag == 2)
     //return NormIITable[snapshot][i_delta];
-    return NormIITable[i_delta * 120 + snapshot];
+    return NormIITable[snapshot * 9 + i_delta];
 }
 
 /*double NormFitting_Function(double x, double a0, double a1, double a2, double a3, double a4, double a5, double x0)
