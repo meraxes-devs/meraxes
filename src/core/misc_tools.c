@@ -473,21 +473,21 @@ int Find_DeltaIndex(double DeltaVal)
     if (i == 0) {
       if (DeltaVal < Delta[i] + DDelta / 2.0); {
         delta_index = i;
-        //break;
+        break;
       }
     }
     else if (i == NDelta - 1) {
       if (DeltaVal >= Delta[i] - DDelta / 2.0) {
         delta_index = i; 
-        //break;
+        break;
       }
-      //else
-      //  mlog_error("Haven't found the Delta index");
+      else
+        mlog_error("Haven't found the Delta index");
     }
     else {
       if (fabs(DeltaVal - Delta[i]) < DDelta / 2.0) {
         delta_index = i;
-        //break;
+        break;
       }
     }
   }
