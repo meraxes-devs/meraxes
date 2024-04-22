@@ -2192,11 +2192,12 @@ void construct_scaling_sfr(int snapshot)
   
   int local_n_complex = (int)(run_globals.reion_grids.slab_n_complex[run_globals.mpi_rank]);
   
-  double zplus1 = run_globals.ZZ[snapshot] + 1;
-  float MatoLim = 5.4 * 1e-3 * 0.6751 * pow(zplus1 / 11.0, -1.5);
-  float MatoLim_2 = Tvir_to_Mvir(1e4, run_globals.ZZ[snapshot]);
+  double redshift = run_globals.ZZ[snapshot];
+  // This previous definition probably it's correct when removing little_h
+  // But to be sure we are in internal units, let's use the definition in Meraxes!
   
-  mlog("Atomic Limit = %f, %f", MLOG_MESG, MatoLim, MatoLim_2); 
+  //float MatoLim = 5.4 * 1e-3 * 0.6751 * pow(zplus1 / 11.0, -1.5);
+  float MatoLim = Tvir_to_Mvir(1e4, redshift);
   
   // Compute Norm Table at that snapshot
   //ComputeNormTables(snapshot);
