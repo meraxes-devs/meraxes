@@ -2201,6 +2201,9 @@ void construct_scaling_sfr(int snapshot)
   double NormIII;
   double NormII;
   
+  double valIII;
+  double valII;
+  
   double MuMCIII = run_globals.mu_MCIII;
   double MuMCII = run_globals.mu_MCII;
   double SigmaMCIII = run_globals.sigma_MCIII;
@@ -2254,7 +2257,6 @@ void construct_scaling_sfr(int snapshot)
         for (int iz = 0; iz < ReionGridDim; iz++) {
             // If the LW is already too strong there is no SF coming from MC halos
             if (McritMC_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)] < MatoLim) {
-              double valIII; 
               double RandomUni = gsl_rng_uniform(run_globals.random_generator);
               double DeltaVal = Delta_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)];
               int DeltaIndex = Find_DeltaIndex(DeltaVal);
@@ -2277,7 +2279,7 @@ void construct_scaling_sfr(int snapshot)
                 stellarIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valIII * sfr_timescale * fescIII; 
                 weighted_sfrIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valIII * fescIII;
                 if (RandomUni <= NormII) {
-                  double valII = pow(10,NormalRandNum(MuMCII, SigmaMCII)) / ConvUnit;
+                  valII = pow(10,NormalRandNum(MuMCII, SigmaMCII)) / ConvUnit;
                   if (run_globals.params.Flag_IncludeSpinTemp) {
                     sfr_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valII;
                   }
