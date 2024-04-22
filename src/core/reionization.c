@@ -2263,7 +2263,10 @@ void construct_scaling_sfr(int snapshot)
               //mlog("NormIII is = %f", MLOG_MESG, NormIII);
               NormII = get_NormValue(DeltaIndex, snapshot, 2);
               if (RandomUni <= NormIII) {
-                double valIII = pow(10, NormalRandNum(MuMCIII, SigmaMCIII)) / ConvUnit;
+                if (DeltaIndex == 8)
+                  double valIII = pow(10, NormalRandNum(-4.7, SigmaMCIII)) / ConvUnit;
+                else
+                  double valIII = pow(10, NormalRandNum(MuMCIII, SigmaMCIII)) / ConvUnit;
                 //mlog("valIII is = %f", MLOG_MESG, valIII * ConvUnit);
                 if (run_globals.params.Flag_IncludeSpinTemp) {
                   sfrIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] += valIII; 
