@@ -2194,6 +2194,9 @@ void construct_scaling_sfr(int snapshot)
   
   double zplus1 = run_globals.ZZ[snapshot] + 1;
   float MatoLim = 5.4 * 1e-3 * 0.6751 * pow(zplus1 / 11.0, -1.5);
+  float MatoLim_2 = Tvir_to_Mvir(1e4, run_globals.ZZ[snapshot]);
+  
+  mlog("Atomic Limit = %f, %f", MLOG_MESG, MatoLim, MatoLim_2); 
   
   // Compute Norm Table at that snapshot
   //ComputeNormTables(snapshot);
