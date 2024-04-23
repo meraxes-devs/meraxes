@@ -1376,7 +1376,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
   float* weighted_sfr_grid = run_globals.reion_grids.weighted_sfr;
   int ReionGridDim = run_globals.params.ReionGridDim;
   double sfr_timescale = run_globals.params.ReionSfrTimescale * hubble_time(snapshot);
-#if USE_MINI_HALOS 
+#if USE_MINI_HALOS || USE_SCALING_REL
   float* stellarIII_grid = run_globals.reion_grids.starsIII;
   float* sfrIII_grid = run_globals.reion_grids.sfrIII;
   float* weighted_sfrIII_grid = run_globals.reion_grids.weighted_sfrIII;
