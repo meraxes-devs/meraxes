@@ -1392,7 +1392,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
   for (int ii = 0; ii < local_n_complex * 2; ii++) {
     stellar_grid[ii] = 0.0;
     weighted_sfr_grid[ii] = 0.0;
-#if USE_MINI_HALOS 
+#if USE_MINI_HALOS || USE_SCALING_REL
     stellarIII_grid[ii] = 0.0;
     weighted_sfrIII_grid[ii] = 0.0;
 #endif
@@ -1401,7 +1401,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
   if (run_globals.params.Flag_IncludeSpinTemp) { // For this duplicate the background
     for (int ii = 0; ii < local_n_complex * 2; ii++) {
       sfr_grid[ii] = 0.0;
-#if USE_MINI_HALOS 
+#if USE_MINI_HALOS || USE_SCALING_REL
       sfrIII_grid[ii] = 0.0;
 #endif
     }
@@ -2214,7 +2214,9 @@ void construct_scaling_sfr(int snapshot)
   double SigmaMCII = run_globals.sigma_MCII;
   
   mlog("Adding sfr grids with Scaling rel...", MLOG_OPEN | MLOG_TIMERSTART);
-
+  
+  // INITIALIZE POP.III VARIABLES IN CONSTRUCT_BARYON_GRIDS
+  /*
   // init the grid, only for Pop.III (the one from Pop.II have already been
   // initialized in construct_baryon_grids
   for (int ii = 0; ii < local_n_complex * 2; ii++) {
@@ -2226,7 +2228,7 @@ void construct_scaling_sfr(int snapshot)
     for (int ii = 0; ii < local_n_complex * 2; ii++) {
       sfrIII_grid[ii] = 0.0;
     }
-  }
+  }*/
   
   physics_params_t* params = &(run_globals.params.physics);
   
@@ -2271,7 +2273,7 @@ void construct_scaling_sfr(int snapshot)
               NormII = get_NormValue(DeltaIndex, snapshot, 2);
               if (RandomUni <= NormIII) {
                 if (DeltaIndex == 8) {
-                  valIII = pow(10, NormalRandNum(-4.7, SigmaMCIII)) / ConvUnit;
+                  valIII = pow(10, NormalRandNum(-4.6, SigmaMCIII)) / ConvUnit;
                 }
                 else {
                   valIII = pow(10, NormalRandNum(MuMCIII, SigmaMCIII)) / ConvUnit;
