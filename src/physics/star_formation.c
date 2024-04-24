@@ -209,6 +209,7 @@ void insitu_star_formation(galaxy_t* gal, int snapshot)
           if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII) < 1e-10))
 #endif
             m_stars = zplus1_n_III * SfEfficiency_III * (gal->ColdGas - m_crit_III) / r_disk * v_disk * gal->dt;
+        }
 #else
         if (gal->ColdGas > m_crit)
           m_stars = zplus1_n * SfEfficiency_II * (gal->ColdGas - m_crit) / r_disk * v_disk * gal->dt;
