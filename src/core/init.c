@@ -17,8 +17,10 @@
 #include "save.h"
 #include "stellar_feedback.h"
 #include "virial_properties.h"
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
 #include "PopIII.h"
+#endif
+#if USE_MINI_HALOS
 #include "metal_evo.h"
 #endif
 
@@ -283,7 +285,7 @@ void init_meraxes()
 
 #endif
 
-#ifdef USE_MINI_HALOS
+#ifdef USE_MINI_HALOS || USE_SCALING_REL
   // initialize Pop III tables
   initialize_PopIII();
 #endif
@@ -299,7 +301,7 @@ void init_meraxes()
 
   // read in the mean Mvir_crit table (if needed, 1 for Reio 2 for LW)
   read_Mcrit_table(1);
-#ifdef USE_MINI_HALOS
+#ifdef USE_MINI_HALOS || USE_SCALING_REL
   read_Mcrit_table(2);
 #endif
 

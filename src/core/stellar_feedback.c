@@ -4,7 +4,7 @@
 #include "meraxes.h"
 #include "misc_tools.h"
 #include "stellar_feedback.h"
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
 #include "PopIII.h"
 #endif
 
@@ -177,7 +177,7 @@ double get_total_SN_energy(void)
   return energy_tables[NAGE - 1];
 }
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
 // Stuff for Pop. III feedback
 
 double get_SN_energy_PopIII(int i_burst,

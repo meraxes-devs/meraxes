@@ -23,7 +23,7 @@ void update_galaxy_fesc_vals(galaxy_t* gal, double new_stars, int snapshot)
                           (powf((float)((1.0 + run_globals.ZZ[snapshot]) / 6.0), (float)params->EscapeFracBHScaling)));
 
   double fesc = params->EscapeFracNorm;
-#if USE_MINI_HALOS 
+#if USE_MINI_HALOS || USE_SCALING_REL
   double fescIII = params->EscapeFracNormIII;
 #endif
 
@@ -32,7 +32,7 @@ void update_galaxy_fesc_vals(galaxy_t* gal, double new_stars, int snapshot)
     if (params->EscapeFracRedshiftScaling != 0.0) {
       fesc *=
         pow((1.0 + run_globals.ZZ[snapshot]) / params->EscapeFracRedshiftOffset, params->EscapeFracRedshiftScaling);
-#if USE_MINI_HALOS 
+#if USE_MINI_HALOS || USE_SCALING_REL
       fescIII *=
         pow((1.0 + run_globals.ZZ[snapshot]) / params->EscapeFracRedshiftOffset, params->EscapeFracRedshiftScaling);
 #endif
@@ -46,12 +46,12 @@ void update_galaxy_fesc_vals(galaxy_t* gal, double new_stars, int snapshot)
     case 2: // stellar mass (Msun)
       if (gal->StellarMass > 0.0) {
         fesc *= pow((gal->StellarMass / run_globals.params.Hubble_h), params->EscapeFracPropScaling);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         fescIII *= pow((gal->StellarMass / run_globals.params.Hubble_h), params->EscapeFracPropScaling);
 #endif
       } else {
         fesc = 1.0;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         fescIII = 1.0;
 #endif
       }
@@ -62,14 +62,14 @@ void update_galaxy_fesc_vals(galaxy_t* gal, double new_stars, int snapshot)
         fesc *=
           pow(gal->Sfr * run_globals.units.UnitMass_in_g / run_globals.units.UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS,
               params->EscapeFracPropScaling);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         fescIII *=
           pow(gal->Sfr * run_globals.units.UnitMass_in_g / run_globals.units.UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS,
               params->EscapeFracPropScaling);
 #endif
       } else {
         fesc = 0.0;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         fescIII = 0.0;
 #endif
       }
@@ -79,14 +79,14 @@ void update_galaxy_fesc_vals(galaxy_t* gal, double new_stars, int snapshot)
         fesc *=
           pow((gal->ColdGas / gal->DiskScaleLength / gal->DiskScaleLength * 0.01 * run_globals.params.Hubble_h) / 10.,
               params->EscapeFracPropScaling);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         fescIII *=
           pow((gal->ColdGas / gal->DiskScaleLength / gal->DiskScaleLength * 0.01 * run_globals.params.Hubble_h) / 10.,
               params->EscapeFracPropScaling);
 #endif
       } else {
         fesc = 1.0;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         fescIII = 1.0;
 #endif
       }
@@ -94,12 +94,12 @@ void update_galaxy_fesc_vals(galaxy_t* gal, double new_stars, int snapshot)
     case 5: // halo mass (1e9 Msun)
       if (gal->Mvir > 0.0) {
         fesc *= pow(gal->Mvir * 10. / run_globals.params.Hubble_h, params->EscapeFracPropScaling);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         fescIII *= pow(gal->Mvir * 10. / run_globals.params.Hubble_h, params->EscapeFracPropScaling);
 #endif
       } else {
         fesc = 1.0;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         fescIII = 1.0;
 #endif
       }
@@ -108,13 +108,13 @@ void update_galaxy_fesc_vals(galaxy_t* gal, double new_stars, int snapshot)
       if ((gal->Sfr > 0.0) && (gal->StellarMass > 0.0)) {
         fesc *= pow(gal->Sfr / gal->StellarMass / run_globals.units.UnitTime_in_s * SEC_PER_MEGAYEAR,
                     params->EscapeFracPropScaling);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         fescIII *= pow(gal->Sfr / gal->StellarMass / run_globals.units.UnitTime_in_s * SEC_PER_MEGAYEAR,
                        params->EscapeFracPropScaling);
 #endif
       } else {
         fesc = 0.0;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         fescIII = 0.0;
 #endif
       }
@@ -128,7 +128,7 @@ void update_galaxy_fesc_vals(galaxy_t* gal, double new_stars, int snapshot)
   else if (fesc < 0.0)
     fesc = 0.0;
 
-#if USE_MINI_HALOS 
+#if USE_MINI_HALOS || USE_SCALING_REL
   if (fescIII > 1.0)
     fescIII = 1.0;
   else if (fescIII < 0.0)
@@ -140,13 +140,20 @@ void update_galaxy_fesc_vals(galaxy_t* gal, double new_stars, int snapshot)
   else if (fesc_bh < 0.0)
     fesc_bh = 0.0;
 
+#if USE_MINI_HALOS || USE_SCALING_REL
 #if USE_MINI_HALOS
   if (gal->Galaxy_Population == 2) {
+#else
+  if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII >= 1e-10)) {
+#endif
     gal->Fesc = fesc;
     gal->FescWeightedGSM += new_stars * fesc;
   }
-
+#if USE_MINI_HALOS
   if (gal->Galaxy_Population == 3) {
+#else
+  if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII < 1e-10)) {
+#endif
     gal->FescIII = fescIII;
     gal->FescIIIWeightedGSM += new_stars * fescIII;
   }
@@ -1192,7 +1199,7 @@ void assign_Mvir_crit_to_galaxies(int ngals_in_slabs, int flag_feed)
   int ReionGridDim = run_globals.params.ReionGridDim;
   double box_size = run_globals.params.BoxSize;
   float* Mvir_crit = run_globals.reion_grids.Mvir_crit;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   float* Mvir_crit_MC = run_globals.reion_grids.Mvir_crit_MC;
 #endif
   int total_assigned = 0;
@@ -1203,7 +1210,7 @@ void assign_Mvir_crit_to_galaxies(int ngals_in_slabs, int flag_feed)
   }
 
   if (flag_feed == 2) {
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     mlog("Assigning Mvir_crit_MC to galaxies...", MLOG_OPEN);
 #else
     mlog_error("Cannot assign Mvir_crit_MC to galaxies when not USE_MINI_HALOS...");
@@ -1288,7 +1295,7 @@ void assign_Mvir_crit_to_galaxies(int ngals_in_slabs, int flag_feed)
       }
     }
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     if (flag_feed == 2) {
 
       if (i_skip > 0) {
@@ -1350,7 +1357,7 @@ void assign_Mvir_crit_to_galaxies(int ngals_in_slabs, int flag_feed)
         if (flag_feed == 1)
           gal->MvirCrit = (double)buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
         if (flag_feed == 2)
           gal->MvirCrit_MC = (double)buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
 #endif
@@ -1376,7 +1383,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
   float* weighted_sfr_grid = run_globals.reion_grids.weighted_sfr;
   int ReionGridDim = run_globals.params.ReionGridDim;
   double sfr_timescale = run_globals.params.ReionSfrTimescale * hubble_time(snapshot);
-#if USE_MINI_HALOS 
+#if USE_MINI_HALOS || USE_SCALING_REL
   float* stellarIII_grid = run_globals.reion_grids.starsIII;
   float* sfrIII_grid = run_globals.reion_grids.sfrIII;
   float* weighted_sfrIII_grid = run_globals.reion_grids.weighted_sfrIII;
@@ -1392,7 +1399,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
   for (int ii = 0; ii < local_n_complex * 2; ii++) {
     stellar_grid[ii] = 0.0;
     weighted_sfr_grid[ii] = 0.0;
-#if USE_MINI_HALOS 
+#if USE_MINI_HALOS || USE_SCALING_REL
     stellarIII_grid[ii] = 0.0;
     weighted_sfrIII_grid[ii] = 0.0;
 #endif
@@ -1401,7 +1408,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
   if (run_globals.params.Flag_IncludeSpinTemp) { // For this duplicate the background
     for (int ii = 0; ii < local_n_complex * 2; ii++) {
       sfr_grid[ii] = 0.0;
-#if USE_MINI_HALOS 
+#if USE_MINI_HALOS || USE_SCALING_REL
       sfrIII_grid[ii] = 0.0;
 #endif
     }
@@ -2214,10 +2221,11 @@ void construct_scaling_sfr(int snapshot)
   double SigmaMCII = run_globals.sigma_MCII;
   
   mlog("Adding sfr grids with Scaling rel...", MLOG_OPEN | MLOG_TIMERSTART);
-
+  
+  // MOVED INITIALIZATION OF THESE VARIABLES IN CONSTRUCT_BARYON_GRIDS
   // init the grid, only for Pop.III (the one from Pop.II have already been
   // initialized in construct_baryon_grids
-  for (int ii = 0; ii < local_n_complex * 2; ii++) {
+  /*for (int ii = 0; ii < local_n_complex * 2; ii++) {
     stellarIII_grid[ii] = 0.0;
     weighted_sfrIII_grid[ii] = 0.0;
   }
@@ -2226,7 +2234,7 @@ void construct_scaling_sfr(int snapshot)
     for (int ii = 0; ii < local_n_complex * 2; ii++) {
       sfrIII_grid[ii] = 0.0;
     }
-  }
+  }*/
   
   physics_params_t* params = &(run_globals.params.physics);
   
