@@ -136,7 +136,7 @@ void calc_hdf5_props()
     galaxy_output_t galout;
     int i; // dummy
 
-    h5props->n_props = 9;
+    h5props->n_props = 10;
 #if USE_SCALING_REL
     h5props->n_props += 2;
 #endif 
