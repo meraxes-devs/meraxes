@@ -144,7 +144,7 @@ void update_galaxy_fesc_vals(galaxy_t* gal, double new_stars, int snapshot)
 #if USE_MINI_HALOS
   if (gal->Galaxy_Population == 2) {
 #else
-  if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII >= 1e-10)) {
+  if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII) >= 1e-10)) {
 #endif
     gal->Fesc = fesc;
     gal->FescWeightedGSM += new_stars * fesc;
@@ -152,7 +152,7 @@ void update_galaxy_fesc_vals(galaxy_t* gal, double new_stars, int snapshot)
 #if USE_MINI_HALOS
   if (gal->Galaxy_Population == 3) {
 #else
-  if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII < 1e-10)) {
+  if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII) < 1e-10)) {
 #endif
     gal->FescIII = fescIII;
     gal->FescIIIWeightedGSM += new_stars * fescIII;

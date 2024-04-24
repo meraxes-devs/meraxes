@@ -27,13 +27,13 @@ static void backfill_ghost_star_formation(galaxy_t* gal, double m_stars, double 
 #if USE_MINI_HALOS
         if (gal->Galaxy_Population == 2)
 #else
-        if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII >= 1e-10))
+        if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII) >= 1e-10))
 #endif
           gal->NewStars_II[ii] += m_stars;
 #if USE_MINI_HALOS
         else if (gal->Galaxy_Population == 3)
 #else
-        else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII < 1e-10))
+        else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII) < 1e-10))
 #endif
           gal->NewStars_III[ii] += m_stars;
 #endif
@@ -67,14 +67,14 @@ void update_reservoirs_from_sf(galaxy_t* gal, double new_stars, int snapshot, SF
 #if USE_MINI_HALOS
     if (gal->Galaxy_Population == 2) {
 #else
-    if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII >= 1e-10)) {
+    if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII) >= 1e-10)) {
 #endif
       gal->StellarMass_II += new_stars;
       gal->GrossStellarMass += new_stars;
 #if USE_MINI_HALOS
     } else if (gal->Galaxy_Population == 3) {
 #else
-    }  else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII < 1e-10)) {
+    } else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII) < 1e-10)) {
 #endif
       gal->StellarMass_III += new_stars;
       gal->GrossStellarMassIII += new_stars;
@@ -100,13 +100,13 @@ void update_reservoirs_from_sf(galaxy_t* gal, double new_stars, int snapshot, SF
 #if USE_MINI_HALOS
       if (gal->Galaxy_Population == 2)
 #else
-      if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII >= 1e-10)) {
+      if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII) >= 1e-10)) {
 #endif
         gal->NewStars_II[0] += new_stars;
 #if USE_MINI_HALOS
       else if (gal->Galaxy_Population == 3)
 #else
-      else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII < 1e-10))  
+      else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII) < 1e-10))  
 #endif
         gal->NewStars_III[0] += new_stars;
 #endif
@@ -198,7 +198,7 @@ void insitu_star_formation(galaxy_t* gal, int snapshot)
 #if USE_MINI_HALOS
           if (gal->Galaxy_Population == 2)
 #else
-          if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII >= 1e-10)) 
+          if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII) >= 1e-10)) 
 #endif
             m_stars = zplus1_n * SfEfficiency_II * (gal->ColdGas - m_crit) / r_disk * v_disk * gal->dt;
         }
@@ -206,7 +206,7 @@ void insitu_star_formation(galaxy_t* gal, int snapshot)
 #if USE_MINI_HALOS
           if (gal->Galaxy_Population == 3)
 #else
-          if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII < 1e-10))
+          if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII) < 1e-10))
 #endif
             m_stars = zplus1_n_III * SfEfficiency_III * (gal->ColdGas - m_crit_III) / r_disk * v_disk * gal->dt;
 #else
@@ -246,14 +246,14 @@ void insitu_star_formation(galaxy_t* gal, int snapshot)
     if (gal->Galaxy_Population == 2)
 #endif
 #if USE_SCALING_REL
-    if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII >= 1e-10)) 
+    if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII) >= 1e-10)) 
 #endif
       update_reservoirs_from_sn_feedback(gal, m_reheat, m_eject, m_recycled, 0, m_recycled, m_remnant, new_metals);
 #if USE_MINI_HALOS || USE_SCALING_REL
 #if USE_MINI_HALOS
     else if (gal->Galaxy_Population == 3)
 #else
-    else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII < 1e-10)) 
+    else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII) < 1e-10)) 
 #endif
       update_reservoirs_from_sn_feedback(gal, m_reheat, m_eject, m_recycled, m_recycled, 0, m_remnant, new_metals);
 #endif

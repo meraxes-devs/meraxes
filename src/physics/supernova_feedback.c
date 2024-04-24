@@ -405,7 +405,7 @@ void contemporaneous_supernova_feedback(galaxy_t* gal,
 #if USE_SCALING_REL
     // When using scaling rel we can form Pop. III in AC halos only when the galaxy never
     // formed stars before and the LW feedback was strong enough to prevent Molecular Cooling
-    if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII >= 1e-10)) {
+    if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII) >= 1e-10)) {
 #endif
       *m_recycled = *m_stars * get_recycling_fraction(0, metallicity);
       *new_metals = *m_stars * get_metal_yield(0, metallicity);
@@ -413,7 +413,7 @@ void contemporaneous_supernova_feedback(galaxy_t* gal,
     } else if (gal->Galaxy_Population == 3) {
 #endif
 #if USE_SCALING_REL
-    }  else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII < 1e-10)) {
+    }  else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII) < 1e-10)) {
 #endif
 #if USE_MINI_HALOS || USE_SCALING_REL
       *m_recycled = *m_stars * (CCSN_PopIII_Yield(0, snapshot, 0)) * MassSNII;
@@ -433,7 +433,7 @@ void contemporaneous_supernova_feedback(galaxy_t* gal,
 #endif
 #if USE_SCALING_REL
     // Same logic as above
-    if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII >= 1e-10)) {
+    if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII) >= 1e-10)) {
 #endif
       *m_recycled = *m_stars * run_globals.params.physics.SfRecycleFraction;
       *new_metals = *m_stars * run_globals.params.physics.Yield;
@@ -441,7 +441,7 @@ void contemporaneous_supernova_feedback(galaxy_t* gal,
     } else if (gal->Galaxy_Population == 3) {
 #endif
 #if USE_SCALING_REL
-    }  else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII < 1e-10)) {
+    }  else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII) < 1e-10)) {
 #endif
 #if USE_MINI_HALOS || USE_SCALING_REL
       *m_recycled = *m_stars * run_globals.params.physics.SfRecycleFraction_III;
@@ -454,7 +454,7 @@ void contemporaneous_supernova_feedback(galaxy_t* gal,
   if (gal->Galaxy_Population == 2) {
 #endif
 #if USE_SCALING_REL
-    if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII >= 1e-10)) {
+    if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII) >= 1e-10)) {
 #endif
     // calculate the SNII energy and total reheated mass
     sn_energy = *m_stars * get_SN_energy(0, metallicity);
@@ -464,7 +464,7 @@ void contemporaneous_supernova_feedback(galaxy_t* gal,
   } else if (gal->Galaxy_Population == 3) {
 #endif
 #if USE_SCALING_REL
- }  else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII < 1e-10)) {
+ }  else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII) < 1e-10)) {
 #endif
 #if USE_MINI_HALOS || USE_SCALING_REL
     sn_energy = (*m_stars) * (get_SN_energy_PopIII(0, snapshot, 0) + get_SN_energy_PopIII(0, snapshot, 1)); // erg
