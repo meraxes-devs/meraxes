@@ -100,7 +100,7 @@ void update_reservoirs_from_sf(galaxy_t* gal, double new_stars, int snapshot, SF
 #if USE_MINI_HALOS
       if (gal->Galaxy_Population == 2)
 #else
-      if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII) >= 1e-10)) {
+      if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII) >= 1e-10)) 
 #endif
         gal->NewStars_II[0] += new_stars;
 #if USE_MINI_HALOS
