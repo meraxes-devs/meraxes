@@ -531,7 +531,7 @@ typedef struct reion_grids_t
 typedef struct galaxy_t
 {
   double NewStars[N_HISTORY_SNAPS];
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   double NewStars_II[N_HISTORY_SNAPS]; // New
   double NewStars_III[N_HISTORY_SNAPS];
 #endif
