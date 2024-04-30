@@ -343,7 +343,7 @@ void read_scaling_rel_tables(void)
     hid_t fdd;
     char fname[STRLEN];
     
-    sprintf(fname, "%s/ScalingFunc2_%d.hdf5", run_globals.params.ScalingRelDir,run_globals.params.ScalingRelModel);
+    sprintf(fname, "%s/ScalingFunc3_%d.hdf5", run_globals.params.ScalingRelDir,run_globals.params.ScalingRelModel);
     fdd = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
     // Read Delta [Overdensity]
     H5LTread_dataset_double(fdd, "Delta", Delta);
