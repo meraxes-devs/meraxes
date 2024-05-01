@@ -124,7 +124,7 @@ void dracarys()
     if ((run_globals.params.Flag_PatchyReion) && (run_globals.params.ReionUVBFlag)) {
       calculate_Mvir_crit(run_globals.ZZ[snapshot]);
 
-#if USE_MINI_HALOS || USE_SCALING_REL
+#if USE_MINI_HALOS // || USE_SCALING_REL
       if (run_globals.params.Flag_IncludeLymanWerner)
         calculate_Mvir_crit_MC(run_globals.ZZ[snapshot]);
 #endif
