@@ -531,7 +531,7 @@ typedef struct reion_grids_t
 typedef struct galaxy_t
 {
   double NewStars[N_HISTORY_SNAPS];
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   double NewStars_II[N_HISTORY_SNAPS]; // New
   double NewStars_III[N_HISTORY_SNAPS];
 #endif
@@ -594,8 +594,8 @@ typedef struct galaxy_t
 
   int Galaxy_Population; // You need it also if you are not disentangling PopIII/PopII (when Mini_halos is off, this is
                          // = 2)
-#if USE_MINI_HALOS
-  // Differentiation Pop III / Pop II
+#if USE_MINI_HALOS || USE_SCALING_REL
+  // Differentiation Pop III / Pop II (We allow Pop.III SF with Scaling_Rel
   double StellarMass_II;
   double StellarMass_III;
   double GrossStellarMassIII;
@@ -604,8 +604,10 @@ typedef struct galaxy_t
 
   double Remnant_Mass; // Coming from Pop III with M between 40 and 140 and larger than 260 Msol and remnant of CCSN
                        // [8,40]Msun. Atm those are silent.
+#endif
 
-  // Metallicity stuff
+#if USE_MINI_HALOS
+  // Metallicity stuff (can happen only with USE_MINI_HALO)
   double RmetalBubble; // New for MetalEvo
   double PrefactorBubble;
   double TimeBubble;

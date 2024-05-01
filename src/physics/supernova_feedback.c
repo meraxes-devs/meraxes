@@ -3,7 +3,7 @@
 
 #include "core/misc_tools.h"
 #include "core/stellar_feedback.h"
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
 #include "core/PopIII.h"
 #include "core/virial_properties.h"
 #endif
@@ -32,7 +32,7 @@ void update_reservoirs_from_sn_feedback(galaxy_t* gal,
     central = gal->Halo->FOFGroup->FirstOccupiedHalo->Galaxy;
 
   gal->StellarMass -= m_recycled;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   gal->StellarMass -= m_remnant;
   gal->StellarMass_II -= m_recycled_II;
   gal->StellarMass_III -= (m_recycled_III + m_remnant);
@@ -88,7 +88,7 @@ void update_reservoirs_from_sn_feedback(galaxy_t* gal,
     gal->MetalsColdGas = 0.0;
   if (gal->StellarMass < 0)
     gal->StellarMass = 0.0;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   if (gal->StellarMass_II < 0)
     gal->StellarMass_II = 0.0;
   if (gal->StellarMass_III < 0)
@@ -153,7 +153,7 @@ static inline double calc_sn_reheat_eff(galaxy_t* gal, int snapshot, int flag_po
   double SnReheatScaling;
   double SnReheatNorm;
   double SnReheatLimit;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   if (flag_population == 2) {
 #endif
     SnReheatRedshiftDep = params->SnReheatRedshiftDep;
@@ -161,7 +161,7 @@ static inline double calc_sn_reheat_eff(galaxy_t* gal, int snapshot, int flag_po
     SnReheatScaling = params->SnReheatScaling;
     SnReheatNorm = params->SnReheatNorm;
     SnReheatLimit = params->SnReheatLimit;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   } else if (flag_population == 3) {
     SnReheatRedshiftDep = params->SnReheatRedshiftDep_III;
     SnReheatEff = params->SnReheatEff_III;
@@ -257,7 +257,7 @@ void delayed_supernova_feedback(galaxy_t* gal, int snapshot)
   double m_stars_III = 0.0;
   double m_remnant = 0.0;
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   double NumberSNII = run_globals.NumberSNII;
   double MassSNII = run_globals.MassSNII;
   double MassBHs = run_globals.MassBHs;
@@ -271,7 +271,7 @@ void delayed_supernova_feedback(galaxy_t* gal, int snapshot)
   // bursts and calculate the amount of energy and mass that they will release
   // in the current time step.
   for (int i_burst = 1; i_burst < n_bursts; i_burst++) {
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
     m_stars_II = gal->NewStars_II[i_burst];
     m_stars_III = gal->NewStars_III[i_burst];
 #else
@@ -285,20 +285,20 @@ void delayed_supernova_feedback(galaxy_t* gal, int snapshot)
       // Calculate recycled mass and metals by yield tables
 
       m_recycled_II += m_stars_II * get_recycling_fraction(i_burst, metallicity);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
       m_recycled_III +=
         m_stars_III * CCSN_PopIII_Yield(i_burst, snapshot, 0) * MassSNII; // Only CCSN have delayed feedback
 #endif
 
       new_metals += m_stars_II * get_metal_yield(i_burst, metallicity);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
       new_metals += m_stars_III * CCSN_PopIII_Yield(i_burst, snapshot, 1) * MassSNII;
       m_remnant += m_stars_III * CCSN_PopIII_Yield(i_burst, snapshot, 2) * MassSNII; // Remnants from Pop. III
 #endif
       // Calculate SNII energy
 
       sn_energy_II += get_SN_energy(i_burst, metallicity) * m_stars_II;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
       sn_energy_III +=
         get_SN_energy_PopIII(i_burst, snapshot, 0) * m_stars_III; // This is DeltaM reheat (eq.16 Mutch+16) * ENOVA
 #endif
@@ -307,7 +307,7 @@ void delayed_supernova_feedback(galaxy_t* gal, int snapshot)
 
   m_reheat_II = calc_sn_reheat_eff(gal, snapshot, 2) * sn_energy_II / get_total_SN_energy();
   sn_energy_II *= calc_sn_ejection_eff(gal, snapshot, 2);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   m_reheat_III = calc_sn_reheat_eff(gal, snapshot, 3) * sn_energy_III / ENOVA_CC;
   sn_energy_III *=
     (calc_sn_ejection_eff(gal, snapshot, 3) * NumberSNII * 1e10 / run_globals.params.Hubble_h / energy_unit);
@@ -327,7 +327,7 @@ void delayed_supernova_feedback(galaxy_t* gal, int snapshot)
   assert(m_reheat >= 0);
   assert(m_recycled >= 0);
   assert(new_metals >= 0);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   assert(m_reheat_III >= 0);
   assert(m_recycled_III >= 0);
   assert(m_reheat_II >= 0);
@@ -341,7 +341,7 @@ void delayed_supernova_feedback(galaxy_t* gal, int snapshot)
   else
     fof_Vvir = -1;
 
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   m_eject_III = calc_ejected_mass(&m_reheat_III, sn_energy_III, gal->Vvir, fof_Vvir);
 #endif
   m_eject_II = calc_ejected_mass(&m_reheat_II, sn_energy_II, gal->Vvir, fof_Vvir);
@@ -353,7 +353,7 @@ void delayed_supernova_feedback(galaxy_t* gal, int snapshot)
 
   assert(m_reheat >= 0);
   assert(m_eject >= 0);
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   assert(m_reheat_III >= 0);
   assert(m_eject_III >= 0);
   assert(m_reheat_II >= 0);
@@ -376,7 +376,7 @@ void contemporaneous_supernova_feedback(galaxy_t* gal,
 {
   bool Flag_IRA = (bool)(run_globals.params.physics.Flag_IRA);
   double sn_energy = 0.0;
-#if USE_MINI_HALOS
+#if USE_MINI_HALOS || USE_SCALING_REL
   double energy_unit = run_globals.units.UnitEnergy_in_cgs;
   double MassPISN = run_globals.MassPISN;
   double MassSNII = run_globals.MassSNII;
@@ -402,10 +402,20 @@ void contemporaneous_supernova_feedback(galaxy_t* gal,
 #if USE_MINI_HALOS
     if (gal->Galaxy_Population == 2) {
 #endif
+#if USE_SCALING_REL
+    // When using scaling rel we can form Pop. III in AC halos only when the galaxy never
+    // formed stars before and the LW feedback was strong enough to prevent Molecular Cooling
+    if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII) >= 1e-10)) {
+#endif
       *m_recycled = *m_stars * get_recycling_fraction(0, metallicity);
       *new_metals = *m_stars * get_metal_yield(0, metallicity);
 #if USE_MINI_HALOS
     } else if (gal->Galaxy_Population == 3) {
+#endif
+#if USE_SCALING_REL
+    }  else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII) < 1e-10)) {
+#endif
+#if USE_MINI_HALOS || USE_SCALING_REL
       *m_recycled = *m_stars * (CCSN_PopIII_Yield(0, snapshot, 0)) * MassSNII;
       *new_metals = *m_stars * CCSN_PopIII_Yield(0, snapshot, 1) * MassSNII;
       *m_remnant = *m_stars * (MassBHs + CCSN_PopIII_Yield(0, snapshot, 2) * MassSNII);
@@ -421,10 +431,19 @@ void contemporaneous_supernova_feedback(galaxy_t* gal,
 #if USE_MINI_HALOS
     if (gal->Galaxy_Population == 2) {
 #endif
+#if USE_SCALING_REL
+    // Same logic as above
+    if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII) >= 1e-10)) {
+#endif
       *m_recycled = *m_stars * run_globals.params.physics.SfRecycleFraction;
       *new_metals = *m_stars * run_globals.params.physics.Yield;
 #if USE_MINI_HALOS
     } else if (gal->Galaxy_Population == 3) {
+#endif
+#if USE_SCALING_REL
+    }  else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII) < 1e-10)) {
+#endif
+#if USE_MINI_HALOS || USE_SCALING_REL
       *m_recycled = *m_stars * run_globals.params.physics.SfRecycleFraction_III;
       *new_metals = *m_stars * run_globals.params.physics.Yield_III;
     }
@@ -434,12 +453,20 @@ void contemporaneous_supernova_feedback(galaxy_t* gal,
 #if USE_MINI_HALOS
   if (gal->Galaxy_Population == 2) {
 #endif
+#if USE_SCALING_REL
+    if ((gal->MvirCrit_MC <= gal->Mvir) || ((gal->GrossStellarMass + gal->GrossStellarMassIII) >= 1e-10)) {
+#endif
     // calculate the SNII energy and total reheated mass
     sn_energy = *m_stars * get_SN_energy(0, metallicity);
     *m_reheat = calc_sn_reheat_eff(gal, snapshot, 2) * sn_energy / get_total_SN_energy();
     sn_energy *= calc_sn_ejection_eff(gal, snapshot, 2);
 #if USE_MINI_HALOS
   } else if (gal->Galaxy_Population == 3) {
+#endif
+#if USE_SCALING_REL
+ }  else if ((gal->MvirCrit_MC > gal->Mvir) && ((gal->GrossStellarMass + gal->GrossStellarMassIII) < 1e-10)) {
+#endif
+#if USE_MINI_HALOS || USE_SCALING_REL
     sn_energy = (*m_stars) * (get_SN_energy_PopIII(0, snapshot, 0) + get_SN_energy_PopIII(0, snapshot, 1)); // erg
     sn_energy /= energy_unit; // Convert this because you need in internal units it for m_ejected
     *m_reheat = calc_sn_reheat_eff(gal, snapshot, 3) * (*m_stars) *
