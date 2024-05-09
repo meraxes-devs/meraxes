@@ -379,6 +379,12 @@ void initialize_ScalingRel()
       MuII = -3.5;
       SigmaII = 0.6;
       break;
+    case 2:
+      MuIII = -4.0;
+      SigmaIII = 0.6;
+      MuII = -3.4;
+      SigmaII = 1.0;
+      break;
     default:
       mlog_error("Unrecognised value for ScalingModel! Defaulting to 1.");
       MuIII = -4.9;
