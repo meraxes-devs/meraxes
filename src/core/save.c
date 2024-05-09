@@ -45,13 +45,13 @@ void prepare_galaxy_for_output(galaxy_t gal, galaxy_output_t* galout, int i_snap
 
   for (int ii = 0; ii < 3; ii++) {
     galout->Pos[ii] = gal.Pos[ii];
-    galout->Vel[ii] = gal.Vel[ii];
+    //galout->Vel[ii] = gal.Vel[ii];
   }
 
-  galout->Len = gal.Len;
-  galout->MaxLen = gal.MaxLen;
+  //galout->Len = gal.Len;
+  //galout->MaxLen = gal.MaxLen;
   galout->Mvir = (float)(gal.Mvir);
-  galout->Rvir = (float)(gal.Rvir);
+  /*galout->Rvir = (float)(gal.Rvir);
   galout->Vvir = (float)(gal.Vvir);
   galout->Vmax = (float)(gal.Vmax);
   galout->Spin = (float)(gal.Spin);
@@ -87,7 +87,7 @@ void prepare_galaxy_for_output(galaxy_t gal, galaxy_output_t* galout, int i_snap
   galout->MergerBurstMass = (float)(gal.MergerBurstMass);
   galout->MergTime = (float)(gal.MergTime * units->UnitTime_in_Megayears);
   galout->MergerStartRadius = (float)(gal.MergerStartRadius);
-  galout->MWMSA = current_mwmsa(&gal, i_snap);
+  galout->MWMSA = current_mwmsa(&gal, i_snap);*/
 
 #if USE_MINI_HALOS
   galout->GrossStellarMassIII = (float)(gal.GrossStellarMassIII);
@@ -106,8 +106,8 @@ void prepare_galaxy_for_output(galaxy_t gal, galaxy_output_t* galout, int i_snap
   galout->Remnant_Mass = (float)(gal.Remnant_Mass);
 #endif
 
-  for (int ii = 0; ii < N_HISTORY_SNAPS; ii++) {
-    galout->NewStars[ii] = (float)(gal.NewStars[ii]);
+  //for (int ii = 0; ii < N_HISTORY_SNAPS; ii++) {
+    //galout->NewStars[ii] = (float)(gal.NewStars[ii]);
 #if USE_MINI_HALOS
     galout->NewStars_III[ii] = (float)(gal.NewStars_III[ii]);
     galout->NewStars_II[ii] = (float)(gal.NewStars_II[ii]);
