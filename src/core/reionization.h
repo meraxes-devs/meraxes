@@ -69,7 +69,7 @@ extern "C"
   void save_reion_output_grids(int snapshot);
   bool check_if_reionization_ongoing(int snapshot);
   void filter(fftwf_complex* box, int local_ix_start, int slab_nx, int grid_dim, float R, int filter_type);
-  void velocity_gradient(fftwf_complex* box, int local_ix_start, int slab_nx, int grid_dim);
+  void velocity_gradient(fftwf_complex* box, int slab_nx, int grid_dim);
 
 #ifdef __cplusplus
 }

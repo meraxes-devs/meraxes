@@ -160,16 +160,26 @@ void ComputeBrightnessTemperatureBox(int snapshot) //
     // Compute the velocity gradient, given the velocity field
     vel = run_globals.reion_grids.vel;
 
-    // Temporary fix to the potential units issue with the velocity field
+    // If using Gbptrees (GADGET grids, TreesID == 1)
     // Multiply by sqrt(a) to convert Gadget internal units to proper velocities.
     // Dividing by 1000. because I believe the units are actually m/s not km/s (too large otherwise)
-    // I am just going to divide by 1000. until I recieve confirmation
+    // If using Velociraptor trees (SWIFT grids)
+    // Multiply by 1/a to convert SWIFT internal units to proper velocities.
+    // The  velocities need to be in physical km/s units.
     for (ii = 0; ii < local_nix; ii++) {
       for (jj = 0; jj < ReionGridDim; jj++) {
         for (kk = 0; kk < ReionGridDim; kk++) {
           i_padded = grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED);
-
-          vel[i_padded] = (float)(sqrt(1. / (1. + redshift)) * vel[i_padded] / 1000.);
+          
+          switch (run_globals.params.TreesID) {
+            case GBPTREES_TREES:
+              vel[i_padded] = (float)(sqrt(1. / (1. + redshift)) * vel[i_padded] / 1000.);
+              break;
+            case VELOCIRAPTOR_TREES:
+            case VELOCIRAPTOR_TREES_AUG:
+              vel[i_padded] = (float)((1. + redshift) * vel[i_padded]);
+              break;
+          }
 
           vel[i_padded] *= 1000. * 100. / MPC;
 
@@ -200,8 +210,7 @@ void ComputeBrightnessTemperatureBox(int snapshot) //
       vel_gradient[ii] *= run_globals.params.Hubble_h;
     }
 
-    int local_ix_start = (int)(run_globals.reion_grids.slab_ix_start[run_globals.mpi_rank]);
-    velocity_gradient(vel_gradient, local_ix_start, local_nix, ReionGridDim);
+    velocity_gradient(vel_gradient, local_nix, ReionGridDim);
 
     fftwf_execute(run_globals.reion_grids.vel_gradient_reverse_plan);
 

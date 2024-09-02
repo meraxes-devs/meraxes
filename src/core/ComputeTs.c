@@ -87,7 +87,7 @@ void _ComputeTs(int snapshot)
 
   double dt_dzpp_list[TsNumFilterSteps];
 
-  double ans[3], dansdz[20], xHII_call;
+  double ans[2], dansdz[20], xHII_call;
   double SFR_GAL[TsNumFilterSteps];
 
 #if USE_MINI_HALOS
@@ -696,13 +696,9 @@ void _ComputeTs(int snapshot)
           evolveInt((float)zp,
                     run_globals.reion_grids.deltax[i_padded],
                     SFR_GAL,
-                    0,
                     freq_int_heat_GAL,
                     freq_int_ion_GAL,
                     freq_int_lya_GAL,
-                    0,
-                    0,
-                    0,
                     NO_LIGHT,
                     ans,
                     dansdz);

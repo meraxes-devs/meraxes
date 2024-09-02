@@ -176,6 +176,7 @@ extern "C"
 
   double interpolate_fcoll(double redshift, int snap_i, int flag_population);
 
+#if USE_MINI_HALOS
   void evolveInt(float zp,
                  float curr_delNL0,
                  const double SFR_GAL[],
@@ -189,6 +190,17 @@ extern "C"
                  int COMPUTE_Ts,
                  const double y[],
                  double deriv[]);
+#else
+  void evolveInt(float zp,
+                 float curr_delNL0,
+                 const double SFR_GAL[],
+                 const double freq_int_heat_GAL[],
+                 const double freq_int_ion_GAL[],
+                 const double freq_int_lya_GAL[],
+                 int COMPUTE_Ts,
+                 const double y[],
+                 double deriv[]);
+#endif
 
 #ifdef __cplusplus
 }

@@ -2,9 +2,9 @@
 #----- Simulation input files  ------------
 #------------------------------------------
 SimName           : Genesis L210_N4320
-SimulationDir     : /fred/oz113/balu/files_for_meraxes/L210_N4320/un_augmented_trees
+SimulationDir     : /fred/oz113/yqin/dragons/input_trees/Genesis_L210_N4320
 CatalogFilePrefix : VELOCIraptor.walkabletree.forestID.hdf5.0
-TreesID           : 0  # 0 -> VELOCIraptor; 1 -> gbpTrees
+TreesID           : 0  # 0 -> VELOCIraptor; 1 -> gbpTrees, 2 -> VELOCIraptor augmented
 BoxSize           : 210.0
 VolumeFactor      : 1.0
 
@@ -27,3 +27,41 @@ NPart: 80621568000
 UnitLength_in_cm         : 3.08568e+24       # WATCH OUT : Mpc/h
 UnitMass_in_g            : 1.989e+43         # WATCH OUT : 10^10Msun/h
 UnitVelocity_in_cm_per_s : 100000            # WATCH OUT : km/s
+
+
+#-------------------------------------------------
+#----- Astrophysical parameters since Balu+22 ----
+#-------------------------------------------------
+
+FlagIgnoreProgIndex        : 1
+Flag_IncludePecVelsFor21cm : 2
+Flag_IncludeSpinTemp       : 1
+Flag_ComputePS             : 1
+Flag_Compute21cmBrightTemp : 1
+Flag_IncludeRecombinations : 1
+
+ReionNionPhotPerBary : 6000
+ReionGridDim : 1024
+
+ReincorporationModel : 2
+ReincorporationEff        : 18000    # gas reincorporation efficiency from ejected component
+
+SfEfficiency              : 0.09966
+SfCriticalSDNorm          : 0.01382
+
+SnModel                   : 2
+SnEjectionEff             : 1.53782     # SN feedback gas reheating efficiency
+SnEjectionScaling         : 1.0
+SnEjectionScaling2        : 3.2
+
+SnReheatRedshiftDep       : 2.0
+SnReheatEff               : 6.97996    # mass loading factor for SN feedback
+SnReheatScaling           : 1.0
+SnReheatScaling2          : 3.2
+SnReheatNorm              : 60.0
+SnReheatLimit             : 10000.0    # maximum allowed mass loading factor for SN feedback
+
+EscapeFracDependency      : 1  # 0->none, 1->redshift, 2->stellar mass, 3->sfr, 4->cold gas surface density, 5->mvir, 6->ssfr
+EscapeFracNorm            : 0.14
+EscapeFracRedshiftOffset  : 6.0
+EscapeFracRedshiftScaling : 0.2

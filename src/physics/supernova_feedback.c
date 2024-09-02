@@ -249,8 +249,6 @@ void delayed_supernova_feedback(galaxy_t* gal, int snapshot)
   double sn_energy_III = 0.0;
   double m_reheat_II = 0.0;
   double m_reheat_III = 0.0;
-  double m_eject_II = 0.0;
-  double m_eject_III = 0.0;
   double m_recycled_II = 0.0;
   double m_recycled_III = 0.0;
   double m_stars_II = 0.0;
@@ -341,11 +339,7 @@ void delayed_supernova_feedback(galaxy_t* gal, int snapshot)
   else
     fof_Vvir = -1;
 
-#if USE_MINI_HALOS
-  m_eject_III = calc_ejected_mass(&m_reheat_III, sn_energy_III, gal->Vvir, fof_Vvir);
-#endif
-  m_eject_II = calc_ejected_mass(&m_reheat_II, sn_energy_II, gal->Vvir, fof_Vvir);
-  m_eject = m_eject_II + m_eject_III;
+  m_eject = calc_ejected_mass(&m_reheat, sn_energy, gal->Vvir, fof_Vvir); 
 
   // Note that m_eject returned for ghosts by calc_ejected_mass() is
   // meaningless in the current physical prescriptions.  This fact is dealt
@@ -355,9 +349,7 @@ void delayed_supernova_feedback(galaxy_t* gal, int snapshot)
   assert(m_eject >= 0);
 #if USE_MINI_HALOS
   assert(m_reheat_III >= 0);
-  assert(m_eject_III >= 0);
   assert(m_reheat_II >= 0);
-  assert(m_eject_II >= 0);
 #endif
 
   // update the baryonic reservoirs

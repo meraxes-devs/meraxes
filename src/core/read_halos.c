@@ -135,6 +135,9 @@ static void select_forests()
       case VELOCIRAPTOR_TREES:
         sprintf(fname, "%s/trees/meraxes_augmented_stats.h5", run_globals.params.SimulationDir);
         break;
+      case VELOCIRAPTOR_TREES_AUG:
+        sprintf(fname, "%s/augmented_trees/meraxes_augmented_stats.h5", run_globals.params.SimulationDir);
+        break;
       case GBPTREES_TREES:
         sprintf(fname, "%s/trees/forests_info.hdf5", run_globals.params.SimulationDir);
         break;
@@ -155,6 +158,7 @@ static void select_forests()
         H5LTget_attribute_int(fd, "info", "n_forests", &n_forests);
         break;
       case VELOCIRAPTOR_TREES:
+      case VELOCIRAPTOR_TREES_AUG:
         H5LTget_attribute_int(fd, "forests", "n_forests", &n_forests);
         break;
       default:
@@ -193,6 +197,7 @@ static void select_forests()
           H5LTread_dataset_int(fd, dset_name, final_counts);
           break;
         case VELOCIRAPTOR_TREES:
+        case VELOCIRAPTOR_TREES_AUG:
           H5LTread_dataset_long(fd, "forests/forest_ids", forest_ids);
           H5LTread_dataset_int(fd, "forests/max_contemporaneous_halos", max_contemp_halo);
           H5LTread_dataset_int(fd, "forests/max_contemporaneous_fof_groups", max_contemp_fof);
@@ -287,6 +292,7 @@ static void select_forests()
           sprintf(dset_name, "snapshots/snap_%03d", snap);
           break;
         case VELOCIRAPTOR_TREES:
+        case VELOCIRAPTOR_TREES_AUG:
           sprintf(dset_name, "snapshots/Snap%03d", snap);
           break;
         default:
@@ -428,6 +434,7 @@ trees_info_t read_halos(const int snapshot,
   trees_info_t trees_info = { 0 };
   switch (run_globals.params.TreesID) {
     case VELOCIRAPTOR_TREES:
+    case VELOCIRAPTOR_TREES_AUG:
       trees_info = read_trees_info__velociraptor(snapshot);
       break;
     case GBPTREES_TREES:
@@ -482,6 +489,10 @@ trees_info_t read_halos(const int snapshot,
   switch (run_globals.params.TreesID) {
     case VELOCIRAPTOR_TREES:
       read_trees__velociraptor(snapshot, *halos, &n_halos, *fof_groups, &n_fof_groups, *index_lookup);
+      break;
+
+    case VELOCIRAPTOR_TREES_AUG:
+      read_trees__velociraptor_aug(snapshot, *halos, &n_halos, *fof_groups, &n_fof_groups, *index_lookup);
       break;
 
     case GBPTREES_TREES: {

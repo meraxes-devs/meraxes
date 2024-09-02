@@ -18,6 +18,7 @@ void read_grid(const enum grid_prop property, const int snapshot, float* slab)
   // Read in the dark matter density grid
   switch (run_globals.params.TreesID) {
     case VELOCIRAPTOR_TREES:
+    case VELOCIRAPTOR_TREES_AUG:
       read_grid__velociraptor(property, snapshot, slab);
       break;
     case GBPTREES_TREES:

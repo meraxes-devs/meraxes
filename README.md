@@ -39,7 +39,7 @@ AGN model
 : [Qin et al. 2017 (arXiv:1703.04895)](https://ui.adsabs.harvard.edu/#abs/2017arXiv170304895Q/abstract)
 
 Minihalo model
-: [Ventura et al. Subm. (arXiv:2401.07396)](https://ui.adsabs.harvard.edu/abs/2024arXiv240107396V/abstract)
+: [Ventura et al. 2024 (arXiv:2401.07396)](https://ui.adsabs.harvard.edu/abs/2024MNRAS.529..628V/abstract)
 
 Contributors
 ------------

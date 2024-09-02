@@ -143,11 +143,9 @@ void _find_HII_bubbles(const int snapshot)
 
   // The free electron fraction from X-rays
   // TODO: Only necessary if we aren't using the GPU (not implemented there yet)
-  float* x_e_box = NULL;
   fftwf_complex* x_e_unfiltered = NULL;
   fftwf_complex* x_e_filtered = NULL;
   if (run_globals.params.Flag_IncludeSpinTemp) {
-    x_e_box = run_globals.reion_grids.x_e_box;
     x_e_unfiltered = run_globals.reion_grids.x_e_unfiltered;
     x_e_filtered = run_globals.reion_grids.x_e_filtered;
     fftwf_execute(run_globals.reion_grids.x_e_box_forward_plan);

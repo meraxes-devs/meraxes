@@ -30,7 +30,6 @@
 #include "XRayHeatingFunctions.h"
 
 static double *sigma_atR, *sigma_Tmin, *ST_over_PS;
-static int NO_LIGHT;
 
 static float x_int_Energy[x_int_NENERGY];
 static float x_int_fheat[x_int_NXHII][x_int_NENERGY];
@@ -1224,6 +1223,7 @@ int locate_xHII_index(float xHII_call)
 // ************************** IGM Evolution ***************************
 //  This function creates the d/dz' integrands
 // *********************************************************************
+#if USE_MINI_HALOS
 void evolveInt(float zp,
                float curr_delNL0,
                const double SFR_GAL[],
@@ -1237,6 +1237,17 @@ void evolveInt(float zp,
                int COMPUTE_Ts,
                const double y[],
                double deriv[])
+#else
+void evolveInt(float zp,
+               float curr_delNL0,
+               const double SFR_GAL[],
+               const double freq_int_heat_GAL[],
+               const double freq_int_ion_GAL[],
+               const double freq_int_lya_GAL[],
+               int COMPUTE_Ts,
+               const double y[],
+               double deriv[])
+#endif
 {
 
   double dadia_dzp, dadia_dzp_II, dcomp_dzp, dcomp_dzp_II, dxheat_dt_GAL, dxion_source_dt_GAL, dxion_sink_dt;
@@ -1274,7 +1285,7 @@ void evolveInt(float zp,
   dstarlyLW_dt_III = 0;
 #endif
 
-  if (!NO_LIGHT) {
+  if (!COMPUTE_Ts) {
     for (zpp_ct = 0; zpp_ct < run_globals.params.TsNumFilterSteps; zpp_ct++) {
       // Define last redshift that is effective, zpp_edge is defined in init_heat!
       // set redshift of half annulus; dz'' is negative since we flipped limits of integral
@@ -1344,7 +1355,7 @@ void evolveInt(float zp,
     }
 #endif
 
-  } // end NO_LIGHT if statement YOU CAN SAVE SOME MORE OUTPUTS BUT FOR THE MOMENT THIS SHOULD BE FINE!
+  } // end COMPUTE_Ts if statement YOU CAN SAVE SOME MORE OUTPUTS BUT FOR THE MOMENT THIS SHOULD BE FINE!
 
   // **** Now we can solve the evolution equations  ***** //
   // *** First let's do dxe_dzp *** //
@@ -1428,7 +1439,7 @@ double dT_comp(double z, double TK, double xe)
   double Trad, ans;
 
   Trad = TCMB * (1.0 + z);
-  ans = (-1.51e-4) * (xe / (1.0 + xe)) / (hubble((float)z) / (HUBBLE * run_globals.params.Hubble_h)) /
+  ans = (-1.51e-4) * (xe / (1.0 + xe + f_He)) / (hubble((float)z) / (HUBBLE * run_globals.params.Hubble_h)) /
         run_globals.params.Hubble_h * pow(Trad, 4.0) / (1.0 + z);
   ans *= Trad - TK;
   return ans;
