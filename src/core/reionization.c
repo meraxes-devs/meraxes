@@ -1586,7 +1586,8 @@ void construct_baryon_grids(int snapshot, int local_ngals)
         }
     }
     MPI_Allreduce(MPI_IN_PLACE, &N_BlackHoleMassLimitReion, 1, MPI_LONG, MPI_SUM, run_globals.mpi_comm);
-    mlog("%d quasars are smaller than %g",
+    if (prop == prop_stellar)
+      mlog("%d quasars are smaller than %g",
          MLOG_MESG,
          N_BlackHoleMassLimitReion,
          run_globals.params.physics.BlackHoleMassLimitReion);
@@ -1774,7 +1775,7 @@ void load_reion_sfr_grids(int snapshot, float weight, const int new_load)
   hid_t dset_id = H5Dopen(file_id, "sfr", H5P_DEFAULT);
   plist_id = H5Pcreate(H5P_DATASET_XFER);
   H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
-  H5Dread(dset_id, H5T_NATIVE_FLOAT, memspace_id, fspace_id, plist_id, grids);
+  H5Dread(dset_id, H5T_NATIVE_FLOAT, memspace_id, fspace_id, plist_id, (float*)grid);
   H5Pclose(plist_id);
 
   if (new_load){
@@ -1811,7 +1812,7 @@ void load_reion_sfr_grids(int snapshot, float weight, const int new_load)
 #endif
 
   // tidy up
-  H5Pclose(dset_id);
+  H5Dclose(dset_id);
   H5Sclose(memspace_id);
   H5Sclose(fspace_id);
   H5Fclose(file_id);

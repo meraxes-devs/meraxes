@@ -84,6 +84,7 @@ void _ComputeTs(int snapshot)
 #endif
 
   double R_values[TsNumFilterSteps];
+  int snapshot_counter_backwards[TsNumFilterSteps];
 
   double ans[2], dansdz[20], xHII_call;
   double SFR_GAL[TsNumFilterSteps];
@@ -224,8 +225,8 @@ void _ComputeTs(int snapshot)
 
     // Smooth the density, stars and SFR fields over increasingly larger filtering radii (for evaluating the
     // heating/ionisation integrals)
-    int snapshot_counter_backwards = 1;
-	reion_grids_t* grids = &(run_globals.reion_grids);
+    snapshot_counter_backwards[0] = 1;
+    reion_grids_t* grids = &(run_globals.reion_grids);
 
     for (R_ct = 0; R_ct < TsNumFilterSteps; R_ct++) {
 
@@ -237,44 +238,50 @@ void _ComputeTs(int snapshot)
       } else {
         prev_zpp = zpp_edge[R_ct - 1];
         prev_R = R_values[R_ct - 1];
+        snapshot_counter_backwards[R_ct] = snapshot_counter_backwards[R_ct-1];
       }
 
       zpp_edge[R_ct] = prev_zpp - (R - prev_R) * MPC / (drdz((float)prev_zpp)); // cell size
       zpp = (zpp_edge[R_ct] + prev_zpp) * 0.5; // average redshift value of shell: z'' + 0.5 * dz''
 
-      if (zpp_edge[R_ct] > run_globals.ZZ[snapshot - snapshot_counter_backwards]){
+      if (zpp_edge[R_ct] > run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]]){
         if (R_ct==0){
             weight = dt_dzp * dzp ;//YQ:I would do  dt_dzp using the mid redshift just like dzpp...
             for (int ii = 0; ii < slab_n_complex; ii++)
                  grids->sfr[ii] *= weight;
         }
         else{
-          weight = dtdz( 0.5 * (run_globals.ZZ[snapshot - snapshot_counter_backwards] + zpp_edge[R_ct-1]));
-          weight *= (run_globals.ZZ[snapshot - snapshot_counter_backwards] - zpp_edge[R_ct-1]);
-          load_reion_sfr_grids(snapshot - snapshot_counter_backwards+1, weight, 1);
+          weight = dtdz( 0.5 * (run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]] + zpp_edge[R_ct-1]));
+          weight *= (run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]] - zpp_edge[R_ct-1]);
+          load_reion_sfr_grids(snapshot - snapshot_counter_backwards[R_ct]+1, weight, 1);
         }
-        while (zpp_edge[R_ct] > run_globals.ZZ[snapshot - snapshot_counter_backwards]){
-          if (zpp_edge[R_ct] < run_globals.ZZ[snapshot - snapshot_counter_backwards - 1]){
-            weight = zpp_edge[R_ct] - run_globals.ZZ[snapshot - snapshot_counter_backwards];
-            weight *= dtdz(0.5*(zpp_edge[R_ct]+run_globals.ZZ[snapshot - snapshot_counter_backwards]));
+        while (zpp_edge[R_ct] > run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]]){
+          // nothing should happen at snapshot = 0
+          if (snapshot - snapshot_counter_backwards[R_ct] == 0)
+              break;
+          if (zpp_edge[R_ct] < run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct] - 1]){
+            weight = zpp_edge[R_ct] - run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]];
+            weight *= dtdz(0.5*(zpp_edge[R_ct]+run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]]));
           }
           else{
-            weight = run_globals.ZZ[snapshot - snapshot_counter_backwards - 1] - run_globals.ZZ[snapshot - snapshot_counter_backwards];
-            weight *= dtdz(0.5*(run_globals.ZZ[snapshot - snapshot_counter_backwards - 1] + run_globals.ZZ[snapshot - snapshot_counter_backwards]));
+            weight = run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct] - 1] - run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]];
+            weight *= dtdz(0.5*(run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct] - 1] + run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]]));
           }
-          load_reion_sfr_grids(snapshot_counter_backwards, weight, 0);
-          snapshot_counter_backwards+=1;
+          load_reion_sfr_grids(snapshot_counter_backwards[R_ct], weight, 0);
+          snapshot_counter_backwards[R_ct]+=1;
         }
-	    if (R_ct==0)
+        if (R_ct==0)
           weight = (zp - zpp_edge[0]) * dtdz(zpp); // this is the total weight
-	    else
+        else
           weight = (zpp_edge[R_ct] - zpp_edge[R_ct-1]) * dtdz(zpp); 
         for (int ii = 0; ii < slab_n_complex; ii++)
           grids->sfr[ii] /= weight;
       }
       else
         if (R_ct>0)
-          load_reion_sfr_grids(snapshot - snapshot_counter_backwards+1, 1, 1);
+          // This means that we are at higher snapshots than previous filtering radius
+          if (snapshot_counter_backwards[R_ct]>snapshot_counter_backwards[R_ct-1])
+            load_reion_sfr_grids(snapshot - snapshot_counter_backwards[R_ct]+1, 1, 1);
 
       fftwf_execute(run_globals.reion_grids.sfr_forward_plan);
       // Remember to add the factor of VOLUME/TOT_NUM_PIXELS when converting from real space to k-space
