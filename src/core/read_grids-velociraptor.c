@@ -132,15 +132,19 @@ static int read_swift(const enum grid_prop property, const int snapshot, float* 
   switch (property) {
     case X_VELOCITY:
       sprintf(dset_name, "/PartType1/Grids/Vx");
+      mlog("Reading Vx grid", MLOG_MESG);
       break;
     case Y_VELOCITY:
       sprintf(dset_name, "/PartType1/Grids/Vy");
+      mlog("Reading Vy grid", MLOG_MESG);
       break;
     case Z_VELOCITY:
       sprintf(dset_name, "/PartType1/Grids/Vz");
+      mlog("Reading Vz grid", MLOG_MESG);
       break;
     case DENSITY:
       sprintf(dset_name, "/PartType1/Grids/Density");
+      mlog("Reading Density grid", MLOG_MESG);
       break;
     default:
       mlog_error("Unrecognised grid property in read_grid__velociraptor!");

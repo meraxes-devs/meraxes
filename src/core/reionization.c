@@ -1748,8 +1748,6 @@ void load_reion_sfr_grids(int snapshot, float weight, const int new_load)
   double UnitMass_in_g = run_globals.units.UnitMass_in_g;
   float* grid = (float*)calloc((size_t)local_nix * (size_t)ReionGridDim * (size_t)ReionGridDim, sizeof(float));
 
-  mlog("Reading tocf sfr grids at %d...", MLOG_OPEN, snapshot);
-
   char name[STRLEN];
   gen_grids_fname(snapshot, name, false);
 
@@ -1798,17 +1796,16 @@ void load_reion_sfr_grids(int snapshot, float weight, const int new_load)
   H5Dread(dset_id, H5T_NATIVE_FLOAT, memspace_id, fspace_id, plist_id, grids);
   H5Pclose(plist_id);
 
-  if (new_load){
+  if (new_load)
     for (int ii = 0; ii < local_nix; ii++)
       for (int jj = 0; jj < ReionGridDim; jj++)
         for (int kk = 0; kk < ReionGridDim; kk++)
-            (float)((grids->sfrIII)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] = grid[grid_index(ii, jj, kk, ReionGridDim, INDEX_REAL)] / (UnitMass_in_g / UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS) * weight;
-  }
-  else{
+            (grids->sfrIII)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] = grid[grid_index(ii, jj, kk, ReionGridDim, INDEX_REAL)] / (UnitMass_in_g / UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS) * weight;
+  else
     for (int ii = 0; ii < local_nix; ii++)
       for (int jj = 0; jj < ReionGridDim; jj++)
         for (int kk = 0; kk < ReionGridDim; kk++)
-            (float)((grids->sfrIII)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] += grid[grid_index(ii, jj, kk, ReionGridDim, INDEX_REAL)] / (UnitMass_in_g / UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS) * weight;
+            (grids->sfrIII)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] += grid[grid_index(ii, jj, kk, ReionGridDim, INDEX_REAL)] / (UnitMass_in_g / UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS) * weight;
 #endif
 
   // tidy up
@@ -1816,8 +1813,6 @@ void load_reion_sfr_grids(int snapshot, float weight, const int new_load)
   H5Sclose(memspace_id);
   H5Sclose(fspace_id);
   H5Fclose(file_id);
-
-  mlog("...done", MLOG_CLOSE);
 }
 
 void save_reion_output_grids(int snapshot)
