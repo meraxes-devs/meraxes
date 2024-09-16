@@ -248,7 +248,7 @@ ReionNionPhotPerBary   : 4000
 ReionSfrTimescale          : 0.5
 TsHeatingFilterType        : 1 
 TsNumFilterSteps           : 40
-TsVelocityComponent        : 1 # 1->X, 2->Y, 3->Z
+TsVelocityComponent        : 3 # 1->X, 2->Y, 3->Z
 EndRedshiftLightcone       : 6.0
 ReionRBubbleMaxRecomb      : 33.9
 ReionMaxHeatingRedshift    : 30.
