@@ -384,6 +384,7 @@ typedef struct reion_grids_t
   fftwf_plan deltax_filtered_reverse_plan;
 
   float* sfr;
+  float* sfr_histories;
   float* weighted_sfr;
   fftwf_complex* sfr_unfiltered;
   fftwf_complex* sfr_filtered;
@@ -402,6 +403,7 @@ typedef struct reion_grids_t
   fftwf_plan starsIII_filtered_reverse_plan;
 
   float* sfrIII;
+  float* sfrIII_histories;
   float* weighted_sfrIII;
   fftwf_complex* sfrIII_unfiltered;
   fftwf_complex* sfrIII_filtered;
@@ -795,6 +797,7 @@ typedef struct run_globals_t
   int NFOFGroupsMax;
   int NRequestedForests;
   int NStoreSnapshots;
+  int NstoreSnapshots_SFR;
 
   bool SelectForestsSwitch;
   struct Modifier* mass_ratio_modifier;
@@ -825,6 +828,7 @@ extern "C"
   void init_storage(void);
   void init_meraxes(void);
 
+  int set_sfr_history(void);
   // core/cleanup.c
   void cleanup(void);
 

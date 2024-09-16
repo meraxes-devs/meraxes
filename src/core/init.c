@@ -292,6 +292,9 @@ void init_meraxes()
   set_ReionEfficiency();
   set_quasar_fobs();
 
+  if (run_globals.params.Flag_ComputePS)
+    run_globals.NstoreSnapshots_SFR = set_sfr_history();
+
   // Determine the size of the light-cone for initialising the light-cone grid
   if (run_globals.params.Flag_PatchyReion && run_globals.params.Flag_ConstructLightcone) {
     Initialise_ConstructLightcone();
