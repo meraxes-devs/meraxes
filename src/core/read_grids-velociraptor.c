@@ -132,15 +132,19 @@ static int read_swift(const enum grid_prop property, const int snapshot, float* 
   switch (property) {
     case X_VELOCITY:
       sprintf(dset_name, "/PartType1/Grids/Vx");
+      mlog("Reading Vx grid", MLOG_MESG);
       break;
     case Y_VELOCITY:
       sprintf(dset_name, "/PartType1/Grids/Vy");
+      mlog("Reading Vy grid", MLOG_MESG);
       break;
     case Z_VELOCITY:
       sprintf(dset_name, "/PartType1/Grids/Vz");
+      mlog("Reading Vz grid", MLOG_MESG);
       break;
     case DENSITY:
       sprintf(dset_name, "/PartType1/Grids/Density");
+      mlog("Reading Density grid", MLOG_MESG);
       break;
     default:
       mlog_error("Unrecognised grid property in read_grid__velociraptor!");
@@ -580,19 +584,17 @@ int read_grid__velociraptor(const enum grid_prop property, const int snapshot, f
   if ((params->FlagInteractive || params->FlagMCMC) && !load_cached_slab(slab, snapshot, property))
     return 0;
 
-  if ((property == X_VELOCITY) || (property == Y_VELOCITY) || (property == Z_VELOCITY)) {
 
-    if (params->TsVelocityComponent < 1 || params->TsVelocityComponent > 3) {
-      mlog("Not a valid velocity direction: 1 - x, 2 - y, 3 - z", MLOG_MESG);
-      ABORT(EXIT_FAILURE);
-    }
+  if (params->TsVelocityComponent < 1 || params->TsVelocityComponent > 3) {
+    mlog("Not a valid velocity direction: 1 - x, 2 - y, 3 - z", MLOG_MESG);
+    ABORT(EXIT_FAILURE);
+  }
 
-    if (params->Flag_ConstructLightcone && params->TsVelocityComponent != 3) {
-      mlog("Light-cone is generated along the z-direction, therefore the velocity component should be in the "
-           "z-direction (i.e 3).",
-           MLOG_MESG);
-      ABORT(EXIT_FAILURE);
-    }
+  if (params->Flag_ConstructLightcone && params->TsVelocityComponent != 3) {
+    mlog("Light-cone is generated along the z-direction, therefore the velocity component should be in the "
+         "z-direction (i.e 3).",
+         MLOG_MESG);
+    ABORT(EXIT_FAILURE);
   }
 
   int filetype = determine_file_type(snapshot);

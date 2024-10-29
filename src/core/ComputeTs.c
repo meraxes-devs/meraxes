@@ -28,6 +28,53 @@
  * we are still considering for the UV ionizing feedback from Pop III (xHI, and xe are computed using both PopII and Pop
  * III)
  */
+
+int set_sfr_history()
+{
+  double box_size = run_globals.params.BoxSize / run_globals.params.Hubble_h; // Mpc
+  int ReionGridDim = run_globals.params.ReionGridDim;
+  int TsNumFilterSteps = run_globals.params.TsNumFilterSteps;
+  int snapshot_counter_backwards, R_ct;
+  double R, R_factor, zp, prev_zpp, prev_R, zpp_edge=0;
+  int NOutputSnaps = run_globals.NOutputSnaps;
+  int last_snap = 0;
+  
+  for (int ii = 0; ii < NOutputSnaps; ii++)
+    if (run_globals.ListOutputSnaps[ii] > last_snap)
+      last_snap = run_globals.ListOutputSnaps[ii];
+
+  int max_snaps = 0;
+  for (int snapshot = 1; snapshot <= last_snap; snapshot++){
+    zp = run_globals.ZZ[snapshot];
+
+    R = L_FACTOR * box_size / (float)ReionGridDim;
+    R_factor = pow(R_XLy_MAX / R, 1 / (float)TsNumFilterSteps);
+
+    snapshot_counter_backwards = 1;
+	prev_R = 0;
+	prev_zpp = zp;
+    for (R_ct = 0; R_ct < TsNumFilterSteps; R_ct++) {
+      zpp_edge = prev_zpp - (R - prev_R) * MPC / (drdz((float)prev_zpp)); // cell size
+
+      while (zpp_edge > run_globals.ZZ[snapshot - snapshot_counter_backwards]){
+        if (snapshot - snapshot_counter_backwards == 0)
+          break;
+        snapshot_counter_backwards+=1;
+      }
+#ifdef DEBUG
+      mlog("snapshot=%d, z=%.1f, R_ct = %d, R=%.1f, zpp_edge=%.1f, snapshot_counter_backwards=%d", MLOG_MESG, snapshot, zp, R_ct, R, zpp_edge, snapshot_counter_backwards);
+#endif
+
+      prev_R = R;
+      prev_zpp = zpp_edge;
+      R *= R_factor;
+    }
+    if (max_snaps < snapshot_counter_backwards)
+        max_snaps = snapshot_counter_backwards;
+  }
+  return max_snaps;
+}
+
 void _ComputeTs(int snapshot)
 {
   double box_size = run_globals.params.BoxSize / run_globals.params.Hubble_h; // Mpc
@@ -61,7 +108,7 @@ void _ComputeTs(int snapshot)
 #endif
 
   // TODO: Can we reduce the scope of these variables and, if not, improve the names?
-  double weight = 0;
+  double weight, total_weight;
   bool first_radii = true;
   bool first_zero = true;
   int n_pts_radii = 1000;
@@ -84,8 +131,8 @@ void _ComputeTs(int snapshot)
 #endif
 
   double R_values[TsNumFilterSteps];
-
-  double dt_dzpp_list[TsNumFilterSteps];
+  int snapshot_counter_backwards[TsNumFilterSteps];
+  double zedge;
 
   double ans[2], dansdz[20], xHII_call;
   double SFR_GAL[TsNumFilterSteps];
@@ -108,23 +155,11 @@ void _ComputeTs(int snapshot)
 
   fftwf_complex* sfr_unfiltered = run_globals.reion_grids.sfr_unfiltered;
   fftwf_complex* sfr_filtered = run_globals.reion_grids.sfr_filtered;
-  fftwf_execute(run_globals.reion_grids.sfr_forward_plan);
 
 #if USE_MINI_HALOS
   fftwf_complex* sfrIII_unfiltered = run_globals.reion_grids.sfrIII_unfiltered;
   fftwf_complex* sfrIII_filtered = run_globals.reion_grids.sfrIII_filtered;
-  fftwf_execute(run_globals.reion_grids.sfrIII_forward_plan);
 #endif
-
-  // Remember to add the factor of VOLUME/TOT_NUM_PIXELS when converting from real space to k-space
-  // Note: we will leave off factor of VOLUME, in anticipation of the inverse FFT below
-  // TODO: Double check that looping over correct number of elements here
-  for (int ii = 0; ii < slab_n_complex; ii++) {
-    sfr_unfiltered[ii] /= (float)total_n_cells;
-#if USE_MINI_HALOS
-    sfrIII_unfiltered[ii] /= (float)total_n_cells;
-#endif
-  }
 
   double* SMOOTHED_SFR_GAL = run_globals.reion_grids.SMOOTHED_SFR_GAL;
 #if USE_MINI_HALOS
@@ -238,31 +273,141 @@ void _ComputeTs(int snapshot)
 
     // Smooth the density, stars and SFR fields over increasingly larger filtering radii (for evaluating the
     // heating/ionisation integrals)
+    snapshot_counter_backwards[0] = 1;
+    reion_grids_t* grids = &(run_globals.reion_grids);
+
+    weight = 1;
     for (R_ct = 0; R_ct < TsNumFilterSteps; R_ct++) {
 
       R_values[R_ct] = R;
 
-      memcpy(sfr_filtered, sfr_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-#if USE_MINI_HALOS
-      memcpy(sfrIII_filtered, sfrIII_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-#endif
-
-      if (R_ct > 0) {
-        int local_ix_start = (int)(run_globals.reion_grids.slab_ix_start[run_globals.mpi_rank]);
-
-        filter(sfr_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.TsHeatingFilterType);
-#if USE_MINI_HALOS
-        filter(
-          sfrIII_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.TsHeatingFilterType);
-#endif
+      if (R_ct == 0) {
+        prev_zpp = zp;
+        prev_R = 0;
+      } else {
+        prev_zpp = zpp_edge[R_ct - 1];
+        prev_R = R_values[R_ct - 1];
+        snapshot_counter_backwards[R_ct] = snapshot_counter_backwards[R_ct-1];
       }
 
+      zpp_edge[R_ct] = prev_zpp - (R - prev_R) * MPC / (drdz((float)prev_zpp)); // cell size
+      zpp = (zpp_edge[R_ct] + prev_zpp) * 0.5; // average redshift value of shell: z'' + 0.5 * dz''
+      total_weight = (prev_zpp - zpp_edge[R_ct]) * dtdz(zpp); // this is the total weight
+
+      if (snapshot - snapshot_counter_backwards[R_ct] >= 0){
+
+      if (snapshot - snapshot_counter_backwards[R_ct] == 0 && weight<0){
+#ifdef DEBUG
+          mlog("R_ct = %d, went beyong snapshot 0, clear tocf sfr grids.", MLOG_MESG, R_ct);
+#endif
+          for (int ii = 0; ii < slab_n_complex; ii++)
+              grids->sfr[ii] = 0;
+          snapshot_counter_backwards[R_ct] += 1;
+      }
+      else if (zpp_edge[R_ct] > run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]]){
+        if (R_ct==0){
+            weight = dt_dzp * dzp / total_weight;//YQ:I would do  dt_dzp using the mid redshift just like dzpp...
+#ifdef DEBUG
+            mlog("R_ct = %d, reaching %d snapshots earlier, reweighting tocf sfr grids at snapshot %d with a weight of %.2f...", MLOG_OPEN, R_ct, snapshot_counter_backwards[R_ct]-1, snapshot-snapshot_counter_backwards[R_ct]+1, weight);
+#endif
+            for (int ii = 0; ii < slab_n_complex; ii++)
+                 grids->sfr[ii] *= weight;
+        }
+        else{
+          if (run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]] > zpp_edge[R_ct-1]){
+            weight = -dtdz( 0.5 * (run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]] + zpp_edge[R_ct-1]));
+            weight *= ( run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]] - zpp_edge[R_ct-1] ); 
+            weight /= total_weight;
+#ifdef DEBUG
+            mlog("R_ct = %d, reaching %d snapshots earlier, reloading tocf sfr grids at snapshot %d with a weight of %.2f...", MLOG_OPEN, R_ct, snapshot_counter_backwards[R_ct]-1, snapshot-snapshot_counter_backwards[R_ct]+1, weight);
+#endif
+            load_reion_sfr_grids(snapshot_counter_backwards[R_ct]-1, weight, 1);
+          }
+          else{
+            // shouldn't really happen!
+#ifdef DEBUG
+            mlog("R_ct = %d, reaching %d snapshots earlier, same as R_ct = %d, clear tocf sfr grids...", MLOG_OPEN, R_ct, snapshot_counter_backwards[R_ct], R_ct - 1);
+#endif
+            for (int ii = 0; ii < slab_n_complex; ii++)
+                 grids->sfr[ii] = 0;;
+          }
+        }
+        while (zpp_edge[R_ct] > run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]]){
+          // nothing should happen at snapshot = 0 and this happens at snapshot<~20 for GENESIS
+          if (snapshot - snapshot_counter_backwards[R_ct] == 0){
+#ifdef DEBUG
+              mlog("going beyong snapshot 0!", MLOG_MESG);
+#endif
+              weight = -1;
+              break;
+          }
+          if (zpp_edge[R_ct] < run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct] - 1]){
+            zedge = zpp_edge[R_ct-1] ?  run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]]:zpp_edge[R_ct-1]>run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]];
+
+            weight = zpp_edge[R_ct] - zedge;
+            weight *= -dtdz(0.5*(zpp_edge[R_ct]+zedge));
+          }
+          else{
+            weight = run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct] - 1] - run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]];
+            weight *= -dtdz(0.5*(run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct] - 1] + run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]]));
+          }
+          weight /= total_weight;
+#ifdef DEBUG
+          mlog("       reaching %d snapshots earlier, loading tocf sfr grids at snapshot %d with a weight of %.2f.", MLOG_MESG, snapshot_counter_backwards[R_ct], snapshot-snapshot_counter_backwards[R_ct], weight);
+#endif
+          load_reion_sfr_grids(snapshot_counter_backwards[R_ct], weight, 0);
+          snapshot_counter_backwards[R_ct]+=1;
+        }
+#ifdef DEBUG
+          mlog("...done", MLOG_CLOSE);
+#endif
+      }
+      else{
+        if (R_ct>0){
+          // This means that we are at higher snapshots than previous filtering radius
+            if (weight!=1){
+              weight = 1;
+#ifdef DEBUG
+              mlog("R_ct = %d, reached %d snapshots earlier, reloading tocf sfr grids at snapshot %d", MLOG_MESG, R_ct, snapshot_counter_backwards[R_ct] - 1, snapshot - snapshot_counter_backwards[R_ct]+1);
+#endif
+              load_reion_sfr_grids(snapshot_counter_backwards[R_ct]-1, weight, 1);
+            }
+        }
+      }
+      }
+
+      fftwf_execute(run_globals.reion_grids.sfr_forward_plan);
+      // Remember to add the factor of VOLUME/TOT_NUM_PIXELS when converting from real space to k-space
+      // Note: we will leave off factor of VOLUME, in anticipation of the inverse FFT below
+      // TODO: Double check that looping over correct number of elements here
+      for (int ii = 0; ii < slab_n_complex; ii++)
+        sfr_unfiltered[ii] /= (float)total_n_cells;
+  #if USE_MINI_HALOS
+      fftwf_execute(run_globals.reion_grids.sfrIII_forward_plan);
+      for (int ii = 0; ii < slab_n_complex; ii++)
+        sfrIII_unfiltered[ii] /= (float)total_n_cells;
+  #endif
+  
+      memcpy(sfr_filtered, sfr_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
+  #if USE_MINI_HALOS
+      memcpy(sfrIII_filtered, sfrIII_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
+  #endif
+  
+      if (R_ct > 0) {
+        int local_ix_start = (int)(run_globals.reion_grids.slab_ix_start[run_globals.mpi_rank]);
+  
+        filter(sfr_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.TsHeatingFilterType);
+  #if USE_MINI_HALOS
+        filter(sfrIII_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.TsHeatingFilterType);
+  #endif
+      }
+  
       // inverse fourier transform back to real space
       fftwf_execute(run_globals.reion_grids.sfr_filtered_reverse_plan);
-#if USE_MINI_HALOS
+  #if USE_MINI_HALOS
       fftwf_execute(run_globals.reion_grids.sfrIII_filtered_reverse_plan);
-#endif
-
+  #endif
+  
       // Compute and store the collapse fraction and average electron fraction. Necessary for evaluating the integrals
       // back along the light-cone. Need the non-smoothed version, hence this is only done for R_ct == 0.
       if (R_ct == 0) {
@@ -358,12 +503,12 @@ void _ComputeTs(int snapshot)
     }
 
     // A condition (defined by whether or not there are stars) for evaluating the heating/ionisation integrals
-    // if (collapse_fraction > 0.0) {
 #if USE_MINI_HALOS
-    if ((collapse_fraction + collapse_fractionIII) > 0.0) {
+    if ((collapse_fraction + collapse_fractionIII) > 0.0)
 #else
-    if (collapse_fraction > 0.0) {
+    if (collapse_fraction > 0.0)
 #endif
+    {
       NO_LIGHT = 0;
     } else {
       NO_LIGHT = 1;
@@ -379,11 +524,7 @@ void _ComputeTs(int snapshot)
         prev_zpp = zpp_edge[R_ct - 1];
         prev_R = R_values[R_ct - 1];
       }
-
-      zpp_edge[R_ct] = prev_zpp - (R_values[R_ct] - prev_R) * MPC / (drdz((float)prev_zpp)); // cell size
       zpp = (zpp_edge[R_ct] + prev_zpp) * 0.5; // average redshift value of shell: z'' + 0.5 * dz''
-
-      dt_dzpp_list[R_ct] = dtdz((float)zpp);
 
 #if USE_MINI_HALOS
       filling_factor_of_HI_zp =
@@ -619,8 +760,6 @@ void _ComputeTs(int snapshot)
             SFR_III[R_ct] = SMOOTHED_SFR_III[i_smoothedSFR];
 #endif
             xHII_call = x_e_box_prev[i_padded];
-
-            dt_dzpp = dt_dzpp_list[R_ct];
 
             // Check if ionized fraction is within boundaries; if not, adjust to be within
             if (xHII_call > x_int_XHII[x_int_NXHII - 1] * 0.999) {

@@ -1296,6 +1296,7 @@ void evolveInt(float zp,
         zpp = (zpp_edge[zpp_ct] + zpp_edge[zpp_ct - 1]) * 0.5;
         dzpp = zpp_edge[zpp_ct - 1] - zpp_edge[zpp_ct];
       }
+	  dt_dzpp = dtdz(zpp);
 
       // Use this when using the SFR provided by Meraxes
       // Units should be M_solar/s. Factor of (dt_dzp * dzpp) converts from per s to per z'

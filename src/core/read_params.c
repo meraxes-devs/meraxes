@@ -14,13 +14,17 @@ static void check_problem_params(run_params_t* run_params)
     mlog("*** YOU HAVE PROVIDED A REQUESTED FORESTID FILE. THIS FEATURE HAS NOT BE WELL TESTED. YMMV! ***", MLOG_MESG);
   }
 
-#ifdef USE_CUDA
   if (run_params->Flag_IncludeSpinTemp != 0) {
+#ifdef USE_CUDA
     mlog_error(
       "Spin temperature features are not currently available in the GPU version of find_HII_bubbles!  Exiting...");
     ABORT(EXIT_FAILURE);
-  }
 #endif
+    if (run_globals.params.FlagMCMC != 0){
+      mlog_error("Currently we have to store input sfr grids for all snapshots, so cannot MCMC :(");
+      ABORT(EXIT_FAILURE);
+    }
+  }
 }
 
 static void store_params(entry_t entry[123],
