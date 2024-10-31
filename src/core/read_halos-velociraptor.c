@@ -353,7 +353,7 @@ void read_trees__velociraptor(int snapshot,
           
           // Part below still work in progress, need to make sure of few things
           
-          if (tree_entry.Mass_200crit < tree_entry.Mass_FOF) && (tree_entry.Mass_200crit > tree_entry.Mass_tot) {
+          if ((tree_entry.Mass_200crit < tree_entry.Mass_FOF) && (tree_entry.Mass_200crit > tree_entry.Mass_tot)) {
               fof_group->Mvir = tree_entry.Mass_200crit;
               fof_group->Rvir = tree_entry.R_200crit;
           }
