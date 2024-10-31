@@ -545,6 +545,7 @@ void read_trees__velociraptor_aug(int snapshot,
       READ_TREE_ENTRY_PROP(hostHaloID, long, H5T_NATIVE_LONG);
       READ_TREE_ENTRY_PROP(Mass_200crit, float, H5T_NATIVE_FLOAT);
       READ_TREE_ENTRY_PROP(Mass_tot, float, H5T_NATIVE_FLOAT);
+      READ_TREE_ENTRY_PROP(Mass_FOF, float, H5T_NATIVE_FLOAT);
       READ_TREE_ENTRY_PROP(R_200crit, float, H5T_NATIVE_FLOAT);
       READ_TREE_ENTRY_PROP(Vmax, float, H5T_NATIVE_FLOAT);
       READ_TREE_ENTRY_PROP(Xc, float, H5T_NATIVE_FLOAT);
