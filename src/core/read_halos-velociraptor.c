@@ -109,7 +109,7 @@ void read_trees__velociraptor(int snapshot,
   typedef struct tree_entry_t
   {
     long ForestID;
-    long Head; // Unsigned long or long? Wouldn't be better to use unsigned long?
+    long Head;
     long Tail; // Keep it for now, maybe you can remove it later on
     long hostHaloID;
     float Mass_200crit;
@@ -124,7 +124,7 @@ void read_trees__velociraptor(int snapshot,
     float VYc;
     float VZc;
     float AngMom;
-    unsigned long ID; // Unsigned long or long?
+    unsigned long ID; 
     unsigned long npart;
   } tree_entry_t;
 
@@ -208,7 +208,7 @@ void read_trees__velociraptor(int snapshot,
       READ_TREE_ENTRY_PROP(Mass_FOF, float, H5T_NATIVE_FLOAT);
       READ_TREE_ENTRY_PROP(Mass_tot, float, H5T_NATIVE_FLOAT);
       READ_TREE_ENTRY_PROP(R_200crit, float, H5T_NATIVE_FLOAT);
-      READ_TREE_ENTRY_PROP(Vmax, float, H5T_NATIVE_FLOAT); // WHAT ARE THE UNITS OF THIS Vmax?? It's never converted with little_h!
+      READ_TREE_ENTRY_PROP(Vmax, float, H5T_NATIVE_FLOAT);
       READ_TREE_ENTRY_PROP(Xc, float, H5T_NATIVE_FLOAT);
       READ_TREE_ENTRY_PROP(Yc, float, H5T_NATIVE_FLOAT);
       READ_TREE_ENTRY_PROP(Zc, float, H5T_NATIVE_FLOAT);
@@ -228,7 +228,6 @@ void read_trees__velociraptor(int snapshot,
         tree_entries[ii].Mass_FOF *= hubble_h * mass_unit_to_internal;
         tree_entries[ii].Mass_tot *= hubble_h * mass_unit_to_internal;
         tree_entries[ii].R_200crit *= hubble_h;
-        //Vmax is never converted! Is this a mistake??
         tree_entries[ii].Xc *= hubble_h / scale_factor;
         tree_entries[ii].Yc *= hubble_h / scale_factor;
         tree_entries[ii].Zc *= hubble_h / scale_factor;
@@ -310,47 +309,6 @@ void read_trees__velociraptor(int snapshot,
         if (halo->Type == 0) {
           fof_group_t* fof_group = &fof_groups[*n_fof_groups];
           
-          // Might need to change one of the conditions below
-          if ((tree_entry.Mass_200crit < tree_entry.Mass_FOF) && (tree_entry.Mass_200crit > tree_entry.Mass_tot)) {
-              fof_group->Mvir = tree_entry.Mass_200crit;
-              fof_group->Rvir = tree_entry.R_200crit;
-          }
-          else {
-              // BELOW_VIRIAL_THRESHOLD merger halo swammping
-              if (tree_entry.Mass_200crit <= 0)
-                 halo->TreeFlags |= TREE_CASE_BELOW_VIRIAL_THRESHOLD;
-              fof_group->Mvir = tree_entry.Mass_FOF;
-              fof_group->Rvir = -1;
-          }
-
-          /*if (tree_entry.Mass_200crit <= 0) {
-            // This "halo" is not above the virial threshold!  Use
-            // proxy masses, but flag this fact so we know not to do
-            // any or allow any hot halo to exist.
-            halo->TreeFlags |= TREE_CASE_BELOW_VIRIAL_THRESHOLD;
-            fof_group->Mvir = tree_entry.Mass_FOF;
-            fof_group->Rvir = -1;
-            // } else if (tree_entry.Mass_200crit < tree_entry.Mass_tot){
-            // // The central subhalo has a proxy mass larger than the FOF
-            // // group. Entirely possible for non-virialised and relaxed
-            // // halos but doesn't really lead to internal consistency.
-            // // Let's therefore just set the FOF virial mass to be that
-            // // central subhalo proxy mass.
-            // fof_group->Mvir = tree_entry.Mass_FOF;
-            // fof_group->Rvir = -1;
-          } else {
-            if ((tree_entry.Mass_200crit >= tree_entry.Mass_FOF) || (tree_entry.Mass_200crit < tree_entry.Mass_tot)) {
-              // Adding this since we found an issue in the N-body
-              fof_group->Mvir = tree_entry.Mass_FOF;
-              fof_group->Rvir = -1;
-            }
-
-            else {
-              fof_group->Mvir = tree_entry.Mass_200crit;
-              fof_group->Rvir = tree_entry.R_200crit;
-            }
-          }*/
-          
           // Part below still work in progress, need to make sure of few things
           
           if ((tree_entry.Mass_200crit < tree_entry.Mass_FOF) && (tree_entry.Mass_200crit > tree_entry.Mass_tot)) {
@@ -404,7 +362,7 @@ void read_trees__velociraptor(int snapshot,
         halo->Vel[0] = tree_entry.VXc;
         halo->Vel[1] = tree_entry.VYc;
         halo->Vel[2] = tree_entry.VZc;
-        halo->Vmax = tree_entry.Vmax; // Differently from other velocities this was never converted!
+        halo->Vmax = tree_entry.Vmax; 
 
         // TODO: What masses and radii should I use for satellites (inclusive vs. exclusive etc.)?
         halo->Mvir = (double)tree_entry.Mass_tot;
@@ -567,7 +525,6 @@ void read_trees__velociraptor_aug(int snapshot,
         tree_entries[ii].Mass_FOF *= hubble_h * mass_unit_to_internal;
         tree_entries[ii].Mass_tot *= hubble_h * mass_unit_to_internal;
         tree_entries[ii].R_200crit *= hubble_h;
-        //Vmax is never converted! Is this a mistake??
         tree_entries[ii].Xc *= hubble_h / scale_factor;
         tree_entries[ii].Yc *= hubble_h / scale_factor;
         tree_entries[ii].Zc *= hubble_h / scale_factor;
@@ -640,6 +597,21 @@ void read_trees__velociraptor_aug(int snapshot,
         // TODO: What masses and radii should I use for centrals (inclusive vs. exclusive etc.)?
         if (halo->Type == 0) {
           fof_group_t* fof_group = &fof_groups[*n_fof_groups];
+          
+          // Part below still work in progress!
+          
+          // Might need to change one of the conditions below
+          if ((tree_entry.Mass_200crit < tree_entry.Mass_FOF) && (tree_entry.Mass_200crit > tree_entry.Mass_tot)) {
+              fof_group->Mvir = tree_entry.Mass_200crit;
+              fof_group->Rvir = tree_entry.R_200crit;
+          }
+          else {
+              // BELOW_VIRIAL_THRESHOLD merger halo swammping
+              if (tree_entry.Mass_200crit <= 0)
+                 halo->TreeFlags |= TREE_CASE_BELOW_VIRIAL_THRESHOLD;
+              fof_group->Mvir = tree_entry.Mass_FOF;
+              fof_group->Rvir = -1;
+          }
 
           if (tree_entry.Mass_200crit <= 0) {
             // This "halo" is not above the virial threshold!  Use
@@ -690,7 +662,7 @@ void read_trees__velociraptor_aug(int snapshot,
         halo->Vel[0] = tree_entry.VXc;
         halo->Vel[1] = tree_entry.VYc;
         halo->Vel[2] = tree_entry.VZc;
-        halo->Vmax = tree_entry.Vmax; // Differently from other velocities this was never converted!
+        halo->Vmax = tree_entry.Vmax; 
 
         // TODO: What masses and radii should I use for satellites (inclusive vs. exclusive etc.)?
         halo->Mvir = (double)tree_entry.Mass_tot;
