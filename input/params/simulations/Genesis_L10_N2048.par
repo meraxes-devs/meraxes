@@ -22,3 +22,7 @@ Sigma8: 0.815
 PartMass: 9.935e-7
 wLambda: -1.0
 NPart: 8589934592 
+
+UnitLength_in_cm         : 3.08568e+24       # WATCH OUT : Mpc/h
+UnitMass_in_g            : 1.989e+43         # WATCH OUT : 10^10Msun/h
+UnitVelocity_in_cm_per_s : 100000            # WATCH OUT : km/s
