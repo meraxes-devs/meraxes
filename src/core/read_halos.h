@@ -33,12 +33,6 @@ extern "C"
                                 int* n_fof_groups,
                                 int* index_lookup);
 
-  void read_trees__velociraptor_aug(int snapshot,
-                                halo_t* halos,
-                                int* n_halos,
-                                fof_group_t* fof_groups,
-                                int* n_fof_groups,
-                                int* index_lookup);
   trees_info_t read_trees_info__velociraptor(const int snapshot);
 
 #ifdef __cplusplus
