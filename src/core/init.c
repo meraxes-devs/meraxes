@@ -292,7 +292,7 @@ void init_meraxes()
   set_ReionEfficiency();
   set_quasar_fobs();
 
-  if (run_globals.params.Flag_ComputePS){
+  if (run_globals.params.Flag_IncludeSpinTemp){
     run_globals.NstoreSnapshots_SFR = set_sfr_history();
     mlog("Storing %d snapshots of SFR histories for Ts.", MLOG_MESG, run_globals.NstoreSnapshots_SFR);
   }
