@@ -110,10 +110,8 @@ void read_trees__velociraptor(int snapshot,
   {
     long ForestID;
     long Head;
-    long Tail; // Keep it for now, maybe you can remove it later on
     long hostHaloID;
     float Mass_200crit;
-    float Mass_FOF; // Keep it for now, maybe you can remove it later on
     float Mass_tot;
     float R_200crit;
     float Vmax;
@@ -221,10 +219,8 @@ void read_trees__velociraptor(int snapshot,
 
       READ_TREE_ENTRY_PROP(ForestID, long, H5T_NATIVE_LONG);
       READ_TREE_ENTRY_PROP(Head, long, H5T_NATIVE_LONG);
-      READ_TREE_ENTRY_PROP(Tail, long, H5T_NATIVE_LONG);
       READ_TREE_ENTRY_PROP(hostHaloID, long, H5T_NATIVE_LONG);
       READ_TREE_ENTRY_PROP(Mass_200crit, float, H5T_NATIVE_FLOAT);
-      READ_TREE_ENTRY_PROP(Mass_FOF, float, H5T_NATIVE_FLOAT);
       READ_TREE_ENTRY_PROP(Mass_tot, float, H5T_NATIVE_FLOAT);
       READ_TREE_ENTRY_PROP(R_200crit, float, H5T_NATIVE_FLOAT);
       READ_TREE_ENTRY_PROP(Vmax, float, H5T_NATIVE_FLOAT);
@@ -244,7 +240,6 @@ void read_trees__velociraptor(int snapshot,
       double hubble_h = run_globals.params.Hubble_h;
       for (int ii = 0; ii < n_to_read; ii++) {
         tree_entries[ii].Mass_200crit *= hubble_h * mass_unit_to_internal;
-        tree_entries[ii].Mass_FOF *= hubble_h * mass_unit_to_internal;
         tree_entries[ii].Mass_tot *= hubble_h * mass_unit_to_internal;
         tree_entries[ii].R_200crit *= hubble_h;
         tree_entries[ii].Xc *= hubble_h / scale_factor;
@@ -255,7 +250,6 @@ void read_trees__velociraptor(int snapshot,
         tree_entries[ii].VZc /= scale_factor;
         tree_entries[ii].AngMom *= hubble_h * mass_unit_to_internal;
         // NOTE THAT FOR AngMom THERE IS ONLY ONE hubble_h (this is because Lx is h**2 and Mtot is h 
-        // Check with Balu why he has 2 hubble_h in the augmented trees!
         
         // TEMPORARY HACK: Why is this temporary? Can I remove this comment?
         double box_size = run_globals.params.BoxSize;
@@ -302,8 +296,8 @@ void read_trees__velociraptor(int snapshot,
 
         if (run_globals.params.FlagIgnoreProgIndex)
           halo->ProgIndex = -1;
-        else
-          halo->ProgIndex = id_to_ind(tree_entry.Tail);
+        //else
+        //  halo->ProgIndex = id_to_ind(tree_entry.Tail);
 
         halo->NextHaloInFOFGroup = NULL;
         halo->Type = tree_entry.hostHaloID == -1 ? 0 : 1;
@@ -314,8 +308,8 @@ void read_trees__velociraptor(int snapshot,
         // need to leave setting those until later...
         if (run_globals.params.FlagIgnoreProgIndex)
           halo->TreeFlags = TREE_CASE_NO_PROGENITORS;
-        else
-          halo->TreeFlags = (unsigned long)tree_entry.Tail != tree_entry.ID ? 0 : TREE_CASE_NO_PROGENITORS;
+        //else
+        //  halo->TreeFlags = (unsigned long)tree_entry.Tail != tree_entry.ID ? 0 : TREE_CASE_NO_PROGENITORS;
 
         // Here we have a cyclic pointer, indicating that this halo's life ends here
         if ((unsigned long)tree_entry.Head == tree_entry.ID)
@@ -328,9 +322,10 @@ void read_trees__velociraptor(int snapshot,
         if (halo->Type == 0) {
           fof_group_t* fof_group = &fof_groups[*n_fof_groups];
           
-          // Part below still work in progress, need to make sure of few things
+          // This check is to ensure sensible values of mass_200crit and avoid having 
+          // very weird halos
           
-          if ((tree_entry.Mass_200crit < tree_entry.Mass_FOF) && (tree_entry.Mass_200crit > tree_entry.Mass_tot)) {
+          if ((tree_entry.Mass_200crit < 5 * tree_entry.Mass_tot)) {
               fof_group->Mvir = tree_entry.Mass_200crit;
               fof_group->Rvir = tree_entry.R_200crit;
           }
@@ -338,10 +333,7 @@ void read_trees__velociraptor(int snapshot,
             // BELOW_VIRIAL_THRESHOLD merger halo swammping
             if (tree_entry.Mass_200crit <= 0)
                halo->TreeFlags |= TREE_CASE_BELOW_VIRIAL_THRESHOLD;
-               if (tree_entry.Mass_FOF <= 0) // This indeed happens!
-                 fof_group->Mvir = tree_entry.Mass_tot; 
-               else
-                 fof_group->Mvir = tree_entry.Mass_FOF; 
+            fof_group->Mvir = tree_entry.Mass_tot;  
             fof_group->Rvir = -1;
           }
           
