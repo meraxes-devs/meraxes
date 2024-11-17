@@ -490,6 +490,7 @@ trees_info_t read_halos(const int snapshot,
     case VELOCIRAPTOR_TREES:
     case VELOCIRAPTOR_TREES_AUG:
       read_trees__velociraptor(snapshot, *halos, &n_halos, *fof_groups, &n_fof_groups, *index_lookup);
+      break;
     case GBPTREES_TREES: {
       int n_halos_kept = 0;
       int n_fof_groups_kept = 0;
