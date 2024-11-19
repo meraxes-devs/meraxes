@@ -248,7 +248,7 @@ void read_trees__velociraptor(int snapshot,
         tree_entries[ii].VXc /= scale_factor;
         tree_entries[ii].VYc /= scale_factor;
         tree_entries[ii].VZc /= scale_factor;
-        tree_entries[ii].AngMom *= hubble_h 
+        tree_entries[ii].AngMom *= hubble_h; 
         // NOTE THAT FOR AngMom THERE IS ONLY ONE hubble_h and no mass_unit_to_internal 
         // this is because Lx is h**2 * mass_unit_to_internal and Mtot is h * mass_unit_to_internal 
         
@@ -324,7 +324,7 @@ void read_trees__velociraptor(int snapshot,
           fof_group_t* fof_group = &fof_groups[*n_fof_groups];
           
           // This check is to ensure sensible values of mass_200crit and avoid having 
-          // very weird halos
+          // very weird halos. Put this check back if you feel that the N-body is weird.
           
           /*if ((tree_entry.Mass_200crit < 5 * tree_entry.Mass_tot)) {
               fof_group->Mvir = tree_entry.Mass_200crit;
