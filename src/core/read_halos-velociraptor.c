@@ -248,8 +248,9 @@ void read_trees__velociraptor(int snapshot,
         tree_entries[ii].VXc /= scale_factor;
         tree_entries[ii].VYc /= scale_factor;
         tree_entries[ii].VZc /= scale_factor;
-        tree_entries[ii].AngMom *= hubble_h * mass_unit_to_internal;
-        // NOTE THAT FOR AngMom THERE IS ONLY ONE hubble_h (this is because Lx is h**2 and Mtot is h 
+        tree_entries[ii].AngMom *= hubble_h 
+        // NOTE THAT FOR AngMom THERE IS ONLY ONE hubble_h and no mass_unit_to_internal 
+        // this is because Lx is h**2 * mass_unit_to_internal and Mtot is h * mass_unit_to_internal 
         
         // TEMPORARY HACK: Why is this temporary? Can I remove this comment?
         double box_size = run_globals.params.BoxSize;
@@ -325,17 +326,17 @@ void read_trees__velociraptor(int snapshot,
           // This check is to ensure sensible values of mass_200crit and avoid having 
           // very weird halos
           
-          if ((tree_entry.Mass_200crit < 5 * tree_entry.Mass_tot)) {
+          /*if ((tree_entry.Mass_200crit < 5 * tree_entry.Mass_tot)) {
               fof_group->Mvir = tree_entry.Mass_200crit;
               fof_group->Rvir = tree_entry.R_200crit;
-          }
-          else {
+          }*/
+          //else {
             // BELOW_VIRIAL_THRESHOLD merger halo swammping
-            if (tree_entry.Mass_200crit <= 0)
-               halo->TreeFlags |= TREE_CASE_BELOW_VIRIAL_THRESHOLD;
+          if (tree_entry.Mass_200crit <= 0)
+            halo->TreeFlags |= TREE_CASE_BELOW_VIRIAL_THRESHOLD;
             fof_group->Mvir = tree_entry.Mass_tot;  
             fof_group->Rvir = -1;
-          }
+          //}
           
           fof_group->Vvir = -1;
           fof_group->FOFMvirModifier = 1.0;
