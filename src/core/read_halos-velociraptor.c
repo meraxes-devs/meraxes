@@ -332,11 +332,16 @@ void read_trees__velociraptor(int snapshot,
           }*/
           //else {
             // BELOW_VIRIAL_THRESHOLD merger halo swammping
-          if (tree_entry.Mass_200crit <= 0)
+          if (tree_entry.Mass_200crit <= 0) {
             halo->TreeFlags |= TREE_CASE_BELOW_VIRIAL_THRESHOLD;
             fof_group->Mvir = tree_entry.Mass_tot;  
             fof_group->Rvir = -1;
-          //}
+          }
+          
+          else {
+            fof_group->Mvir = (double)tree_entry.Mass_200crit;
+            fof_group->Rvir = (double)tree_entry.R_200crit;
+          }
           
           fof_group->Vvir = -1;
           fof_group->FOFMvirModifier = 1.0;
