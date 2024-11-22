@@ -1,6 +1,6 @@
 Meraxes
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-8-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-9-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 =======
 
@@ -86,6 +86,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/daviesje"><img src="https://avatars.githubusercontent.com/u/36873665?v=4?s=100" width="100px;" alt="daviesje"/><br /><sub><b>daviesje</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=daviesje" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://s-balu.github.io"><img src="https://avatars.githubusercontent.com/u/14290533?v=4?s=100" width="100px;" alt="Balu Sreedhar"/><br /><sub><b>Balu Sreedhar</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=s-balu" title="Code">💻</a> <a href="https://github.com/meraxes-devs/meraxes/pulls?q=is%3Apr+reviewed-by%3As-balu" title="Reviewed Pull Requests">👀</a></td>
     </tr>
   </tbody>
 </table>
