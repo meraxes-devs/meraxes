@@ -15,6 +15,17 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "qyx268",
+      "name": "Yuxiang Qin",
+      "avatar_url": "https://avatars.githubusercontent.com/u/15994713?v=4",
+      "profile": "http://qyx268.github.io/homepage_unimelb/",
+      "contributions": [
+        "code",
+        "maintenance",
+        "review"
+      ]
     }
   ],
   "contributorsPerLine": 7,
