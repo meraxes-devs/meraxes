@@ -1,6 +1,6 @@
 Meraxes
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-1-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-2-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 =======
 
@@ -77,6 +77,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   <tbody>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://smutch.github.io/"><img src="https://avatars.githubusercontent.com/u/782987?v=4?s=100" width="100px;" alt="Simon Mutch"/><br /><sub><b>Simon Mutch</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=smutch" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://qyx268.github.io/homepage_unimelb/"><img src="https://avatars.githubusercontent.com/u/15994713?v=4?s=100" width="100px;" alt="Yuxiang Qin"/><br /><sub><b>Yuxiang Qin</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=qyx268" title="Code">💻</a> <a href="#maintenance-qyx268" title="Maintenance">🚧</a> <a href="https://github.com/meraxes-devs/meraxes/pulls?q=is%3Apr+reviewed-by%3Aqyx268" title="Reviewed Pull Requests">👀</a></td>
     </tr>
   </tbody>
 </table>
