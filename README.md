@@ -1,6 +1,6 @@
 Meraxes
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-5-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-6-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 =======
 
@@ -81,6 +81,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/EMventura"><img src="https://avatars.githubusercontent.com/u/98299102?v=4?s=100" width="100px;" alt="Emanuele Maria Ventura"/><br /><sub><b>Emanuele Maria Ventura</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=EMventura" title="Code">💻</a> <a href="https://github.com/meraxes-devs/meraxes/pulls?q=is%3Apr+reviewed-by%3AEMventura" title="Reviewed Pull Requests">👀</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/BradGreig"><img src="https://avatars.githubusercontent.com/u/16087482?v=4?s=100" width="100px;" alt="BradGreig"/><br /><sub><b>BradGreig</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=BradGreig" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://www.astronomy.swin.edu.au/~gpoole/"><img src="https://avatars.githubusercontent.com/u/599836?v=4?s=100" width="100px;" alt="Gregory B. Poole"/><br /><sub><b>Gregory B. Poole</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=gbpoole" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/pgeil"><img src="https://avatars.githubusercontent.com/u/13758421?v=4?s=100" width="100px;" alt="pgeil"/><br /><sub><b>pgeil</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=pgeil" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
