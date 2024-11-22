@@ -36,6 +36,15 @@
         "code",
         "review"
       ]
+    },
+    {
+      "login": "BradGreig",
+      "name": "BradGreig",
+      "avatar_url": "https://avatars.githubusercontent.com/u/16087482?v=4",
+      "profile": "https://github.com/BradGreig",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
