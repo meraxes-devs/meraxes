@@ -81,6 +81,16 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "s-balu",
+      "name": "Balu Sreedhar",
+      "avatar_url": "https://avatars.githubusercontent.com/u/14290533?v=4",
+      "profile": "http://s-balu.github.io",
+      "contributions": [
+        "code",
+        "review"
+      ]
     }
   ],
   "contributorsPerLine": 7,
