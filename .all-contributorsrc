@@ -45,6 +45,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "gbpoole",
+      "name": "Gregory B. Poole",
+      "avatar_url": "https://avatars.githubusercontent.com/u/599836?v=4",
+      "profile": "http://www.astronomy.swin.edu.au/~gpoole/",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
