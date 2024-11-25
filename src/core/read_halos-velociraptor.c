@@ -371,7 +371,7 @@ void read_trees__velociraptor(int snapshot,
         halo->Vmax = Vmax[ii]; 
 
         // TODO: What masses and radii should I use for satellites (inclusive vs. exclusive etc.)?
-        halo->Mvir = (double)Mass_tot[ii];
+        halo->Mvir = (double)Mass_tot[ii] * hubble_h * mass_unit_to_internal;
         halo->Rvir = -1;
         halo->Vvir = -1;
         convert_input_virial_props(&halo->Mvir, &halo->Rvir, &halo->Vvir, NULL, -1, snapshot, false);
@@ -404,11 +404,8 @@ void read_trees__velociraptor(int snapshot,
   free(npart);
   H5Pclose(plist_id);
   H5Sclose(fspace_id);
-
-  if (run_globals.mpi_rank == 0) {
-    H5Gclose(snap_group);
-    H5Fclose(fd);
-  }
+  H5Gclose(snap_group);
+  H5Fclose(fd);
 
   mlog("...done", MLOG_CLOSE);
 }
