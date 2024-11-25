@@ -17,17 +17,17 @@ trees_info_t read_trees_info__velociraptor(const int snapshot)
   if (run_globals.mpi_rank == 0) {
     // TODO: This could maybe only ever be done once and stored in run_globals.
     char fname[STRLEN + 34];
-	switch (run_globals.params.TreesID) {
-	  case VELOCIRAPTOR_TREES:
-		sprintf(fname, "%s/trees/meraxes_augmented_stats.h5", run_globals.params.SimulationDir);
-		break;
-	  case VELOCIRAPTOR_TREES_AUG:
-		sprintf(fname, "%s/augmented_trees/meraxes_augmented_stats.h5", run_globals.params.SimulationDir);
-		break;
-	  default:
-		mlog_error("Unrecognised input trees identifier (TreesID).");
-		break;
-	}
+    switch (run_globals.params.TreesID) {
+      case VELOCIRAPTOR_TREES:
+        sprintf(fname, "%s/trees/meraxes_augmented_stats.h5", run_globals.params.SimulationDir);
+        break;
+      case VELOCIRAPTOR_TREES_AUG:
+        sprintf(fname, "%s/augmented_trees/meraxes_augmented_stats.h5", run_globals.params.SimulationDir);
+        break;
+      default:
+        mlog_error("Unrecognised input trees identifier (TreesID).");
+        break;
+    }
 
     hid_t fd = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
     if (fd < 0) {
@@ -149,9 +149,6 @@ void read_trees__velociraptor(int snapshot,
   *n_halos = 0;
   *n_fof_groups = 0;
 
-  int buffer_size = 10000; // NOTE: Arbitrary. Should be a multiple of the chunk size of arrays in file ideally?
-  tree_entry_t* tree_entries = malloc(sizeof(tree_entry_t) * buffer_size);
-
   if (run_globals.mpi_rank == 0) {
     char fname[STRLEN * 2 + 8];
     switch (run_globals.params.TreesID) {
@@ -178,8 +175,6 @@ void read_trees__velociraptor(int snapshot,
 
     H5LTget_attribute_int(fd, snap_group_name, "NHalos", &n_tree_entries);
 
-    property_buffer = malloc(buffer_size * sizeof(long));
-
     // check the units
     H5LTget_attribute_double(fd, "Header/Units", "Mass_unit_to_solarmass", &mass_unit_to_internal);
     mass_unit_to_internal /= 1.0e10;
@@ -188,8 +183,14 @@ void read_trees__velociraptor(int snapshot,
 
   MPI_Bcast(&n_tree_entries, 1, MPI_INT, 0, run_globals.mpi_comm);
 
+  int buffer_size = (n_tree_entries > 100000) ? n_tree_entries / 10 : 10000;
+  buffer_size = buffer_size > n_tree_entries ? n_tree_entries : buffer_size;
+  property_buffer = malloc(buffer_size * sizeof(long));
+
+  tree_entry_t* tree_entries = malloc(sizeof(tree_entry_t) * buffer_size);
+
   int n_read = 0;
-  int n_to_read = buffer_size > n_tree_entries ? n_tree_entries : buffer_size;
+  int n_to_read = buffer_size;
   while (n_read < n_tree_entries) {
     int n_remaining = n_tree_entries - n_read;
     if (n_remaining < n_to_read) {
