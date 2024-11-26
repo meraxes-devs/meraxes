@@ -46,8 +46,8 @@ ReionGridDim : 1024
 ReincorporationModel : 2
 ReincorporationEff        : 18000    # gas reincorporation efficiency from ejected component
 
-SfEfficiency              : 0.09966
-SfCriticalSDNorm          : 0.01382
+SfEfficiency              : 0.1476
+SfCriticalSDNorm          : 0.00933
 
 SnModel                   : 2
 SnEjectionEff             : 1.53782     # SN feedback gas reheating efficiency
