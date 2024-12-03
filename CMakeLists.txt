@@ -51,12 +51,14 @@ endif()
 # build options #
 #################
 
-set(N_HISTORY_SNAPS 5 CACHE STRING "Number of snapshots for delayed SN feedback")
+set(N_HISTORY_SNAPS 17 CACHE STRING "Number of snapshots for delayed SN feedback")
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared library version (required for Mhysa)")
 option(CALC_MAGS "Calculate magnitude" OFF)
+set(MAGS_N_SNAPS 12 CACHE STRING "Number of snapshots to compute magnitudes")
+set(MAGS_N_BANDS 11 CACHE STRING "Number of bands to compute")
+option(USE_JWST "Calculate JWST band magnitude (70, 90, 115, 150, 200, 277, 356, 444)" OFF)
+option(USE_HST "Calculate HST band magnitude (125, 160)" OFF)
 option(USE_MINI_HALOS "Consider minihalos" OFF)
-set(MAGS_N_SNAPS 3 CACHE STRING "Number of snapshots to compute magnitudes")
-set(MAGS_N_BANDS 6 CACHE STRING "Number of bands to compute")
 set(SECTOR_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src/sector" CACHE PATH "Base directory of sector library")
 option(BUILD_TESTS "Build criterion tests" OFF)
 option(GDB "Drop into GDB with mpi_debug_here() calls" OFF)
@@ -202,7 +204,7 @@ target_link_libraries(meraxes_lib PUBLIC MPI::MPI_C)
 
 # MINI_HALOS
 if(USE_MINI_HALOS)
-	add_definitions(-DUSE_MINI_HALOS)
+    add_definitions(-DUSE_MINI_HALOS)
 endif()
 
 # MAGNITUDES
@@ -228,6 +230,14 @@ if(CALC_MAGS)
         DESTINATION lib
         PUBLIC_HEADER DESTINATION include
         COMPONENT lib)
+endif()
+
+if(USE_JWST)
+    add_definitions(-DUSE_JWST)
+endif()
+
+if(USE_HST)
+    add_definitions(-DUSE_HST)
 endif()
 
 # MLOG

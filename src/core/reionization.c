@@ -91,11 +91,11 @@ void update_galaxy_fesc_vals(galaxy_t* gal, double new_stars, int snapshot)
 #endif
       }
       break;
-    case 5: // halo mass (1e9 Msun)
+    case 5: // halo mass (1e10 Msun)
       if (gal->Mvir > 0.0) {
-        fesc *= pow(gal->Mvir * 10. / run_globals.params.Hubble_h, params->EscapeFracPropScaling);
+        fesc *= pow(gal->Mvir / run_globals.params.Hubble_h, params->EscapeFracPropScaling);
 #if USE_MINI_HALOS
-        fescIII *= pow(gal->Mvir * 10. / run_globals.params.Hubble_h, params->EscapeFracPropScaling);
+        fescIII *= pow(gal->Mvir / run_globals.params.Hubble_h, params->EscapeFracPropScaling);
 #endif
       } else {
         fesc = 1.0;
@@ -104,12 +104,12 @@ void update_galaxy_fesc_vals(galaxy_t* gal, double new_stars, int snapshot)
 #endif
       }
       break;
-    case 6: // specific star formation rate (1 / Myr)
+    case 6: // specific star formation rate (10/ Gyr)
       if ((gal->Sfr > 0.0) && (gal->StellarMass > 0.0)) {
-        fesc *= pow(gal->Sfr / gal->StellarMass / run_globals.units.UnitTime_in_s * SEC_PER_MEGAYEAR,
+        fesc *= pow(gal->Sfr / gal->StellarMass / run_globals.units.UnitTime_in_s * SEC_PER_MEGAYEAR / 100,
                     params->EscapeFracPropScaling);
 #if USE_MINI_HALOS
-        fescIII *= pow(gal->Sfr / gal->StellarMass / run_globals.units.UnitTime_in_s * SEC_PER_MEGAYEAR,
+        fescIII *= pow(gal->Sfr / gal->StellarMass / run_globals.units.UnitTime_in_s * SEC_PER_MEGAYEAR / 100,
                        params->EscapeFracPropScaling);
 #endif
       } else {

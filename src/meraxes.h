@@ -727,6 +727,7 @@ typedef struct mag_params_t
   double* inBC;
   double* outBC;
   double* centreWaves;
+  double allcentreWaves[MAGS_N_SNAPS][MAGS_N_BANDS];
   double* logWaves;
 #ifdef USE_MINI_HALOS
   size_t totalSizeIII;

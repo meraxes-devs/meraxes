@@ -965,7 +965,7 @@ void create_master_file()
   mlog(" ...done", MLOG_CLOSE | MLOG_TIMERSTOP);
 }
 
-static void inline save_walk_indices(hid_t file_id,
+static inline void save_walk_indices(hid_t file_id,
                                      int i_out,
                                      int prev_i_out,
                                      int* descendant_index,

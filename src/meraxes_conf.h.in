@@ -8,4 +8,3 @@
 #define MAGS_N_BANDS @MAGS_N_BANDS@
 #define MAGS_N MAGS_N_SNAPS* MAGS_N_BANDS
 #endif
-

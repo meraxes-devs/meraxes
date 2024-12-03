@@ -91,11 +91,17 @@ CALC_MAGS
 SECTOR_ROOT
 : Path to the sector repo. Default is `src/sector`. This is only used if `CALC_MAGS=ON`.
 
-MAGS_N_BANDS
-: Number of bands to calculate magnitudes for. Only applicable if `CALC_MAGS=ON`. Default is 6.
-
 MAGS_N_SNAPS
-: Number of snapshots to calculate magnitudes for. Only applicable if `CALC_MAGS=ON`. Default is 3.
+: Number of snapshots to calculate magnitudes for. Only applicable if `CALC_MAGS=ON`. Default is 12.
+
+MAGS_N_BANDS
+: Number of bands to magnitudes for. Only applicable if `CALC_MAGS=ON`. Default is 11.
+
+USE_JWST
+: Calculate JWST band magnitude (70, 90, 115, 150, 200, 277, 356, 444). Default is OFF.
+
+USE_HST
+: Calculate HST band magnitude (125, 160). Default is OFF.
 
 CMAKE_BUILD_TYPE
 : Build type. Default is RelWithDebInfo (Release with debug symbols).
@@ -110,7 +116,7 @@ GDB
 : Enable GDB debugging. Default is OFF.
 
 N_HISTORY_SNAPS
-: Number of snapshots to star formation history for. This is simulation dependent. If the value is too low then Meraxes will crash with an error telling you what the minimum value is for your simulation. Default is 5.
+: Number of snapshots to star formation history for. This is simulation dependent. If the value is too low then Meraxes will crash with an error telling you what the minimum value is for your simulation. Default is 17.
 
 USE_CUDA
 : Use CUDA accelerated reionization calculation. Default is OFF.
