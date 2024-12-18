@@ -102,9 +102,6 @@ void read_trees__velociraptor(int snapshot,
                               int* n_fof_groups,
                               int* index_lookup)
 {
-  // TODO: For the moment, I'll forgo chunking the read.  This will need to
-  // be implemented in future though, as we ramp up the size of the trees
-
   switch (run_globals.params.TreesID) {
     case VELOCIRAPTOR_TREES:
       mlog("Reading velociraptor trees for snapshot %d...", MLOG_OPEN, snapshot);
@@ -161,6 +158,7 @@ void read_trees__velociraptor(int snapshot,
   mass_unit_to_internal /= 1.0e10;
   H5LTget_attribute_double(fd, snap_group_name, "scalefactor", &scale_factor);
 
+  // Currently the chunk size is 10000, improving ~10% w.r.t. no chunk or 1k chunk
   int buffer_size = (n_tree_entries > 100000) ? n_tree_entries / 10 : 10000;
   buffer_size = buffer_size > n_tree_entries ? n_tree_entries : buffer_size;
 
