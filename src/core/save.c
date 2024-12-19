@@ -247,7 +247,7 @@ void calc_hdf5_props()
     h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, Vel);
     h5props->dst_field_sizes[i] = sizeof(galout.Vel);
     h5props->field_names[i] = "Vel";
-    h5props->field_units[i] = "km/s";
+    h5props->field_units[i] = "km/s"; // comoving
     h5props->field_h_conv[i] = "None";
     h5props->field_types[i++] = h5props->array3f_tid;
 
@@ -275,14 +275,14 @@ void calc_hdf5_props()
     h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, Vvir);
     h5props->dst_field_sizes[i] = sizeof(galout.Vvir);
     h5props->field_names[i] = "Vvir";
-    h5props->field_units[i] = "km/s";
+    h5props->field_units[i] = "km/s"; // physical
     h5props->field_h_conv[i] = "None";
     h5props->field_types[i++] = H5T_NATIVE_FLOAT;
 
     h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, Vmax);
     h5props->dst_field_sizes[i] = sizeof(galout.Vmax);
     h5props->field_names[i] = "Vmax";
-    h5props->field_units[i] = "km/s";
+    h5props->field_units[i] = "km/s"; // physical
     h5props->field_h_conv[i] = "None";
     h5props->field_types[i++] = H5T_NATIVE_FLOAT;
 
@@ -352,7 +352,7 @@ void calc_hdf5_props()
     h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, DiskScaleLength);
     h5props->dst_field_sizes[i] = sizeof(galout.DiskScaleLength);
     h5props->field_names[i] = "DiskScaleLength";
-    h5props->field_units[i] = "Mpc"; // real
+    h5props->field_units[i] = "Mpc"; // physical
     h5props->field_h_conv[i] = "v/h";
     h5props->field_types[i++] = H5T_NATIVE_FLOAT;
 
@@ -457,7 +457,7 @@ void calc_hdf5_props()
     h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, RmetalBubble);
     h5props->dst_field_sizes[i] = sizeof(galout.RmetalBubble);
     h5props->field_names[i] = "RmetalBubble";
-    h5props->field_units[i] = "Mpc";
+    h5props->field_units[i] = "Mpc"; // physical
     h5props->field_h_conv[i] = "v/h";
     h5props->field_types[i++] = H5T_NATIVE_FLOAT;
 
@@ -486,7 +486,7 @@ void calc_hdf5_props()
     h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, Rcool);
     h5props->dst_field_sizes[i] = sizeof(galout.Rcool);
     h5props->field_names[i] = "Rcool";
-    h5props->field_units[i] = "Mpc"; // real
+    h5props->field_units[i] = "Mpc"; // physical
     h5props->field_h_conv[i] = "v/h";
     h5props->field_types[i++] = H5T_NATIVE_FLOAT;
 
