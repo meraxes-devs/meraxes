@@ -56,7 +56,7 @@ static void update_reservoirs_from_quasar_mode_bh_feedback(galaxy_t* gal, double
     metallicity = calc_metallicity(central->HotGas, central->MetalsHotGas);
     gal->ColdGas = 0.0;
 #if USE_ANG_MOM
-    gal->VGasDisk = 0.0
+    gal->VGasDisk = 0.0;
     gal->DiskScaleLength = 0.0;
 #endif
     gal->MetalsColdGas = 0.0;
@@ -71,8 +71,8 @@ static void update_reservoirs_from_quasar_mode_bh_feedback(galaxy_t* gal, double
     central->HotGas = 0.0;
   if (central->MetalsHotGas < 0)
     central->MetalsHotGas = 0.0;
-  if (gal->ColdGas < 0)
-    gal->ColdGas = 0.0; {
+  if (gal->ColdGas < 0) {
+    gal->ColdGas = 0.0; 
 #if USE_ANG_MOM
     gal->VGasDisk = 0.0;
     gal->DiskScaleLength = 0.0;
