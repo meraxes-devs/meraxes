@@ -122,7 +122,10 @@ USE_CUDA
 : Use CUDA accelerated reionization calculation. Default is OFF.
 
 USE_MINI_HALOS
-: Use mini-halos. Default is ON.
+: Use mini-halos. Default is OFF.
+
+USE_ANG_MOM
+: Updated angular momentum according to Maddie's model. Default is OFF.
 
 You can set these on the command line when running cmake, e.g.:
 

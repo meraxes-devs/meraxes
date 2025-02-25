@@ -575,6 +575,15 @@ typedef struct galaxy_t
   double FescWeightedGSM;
   double MetalsStellarMass;
   double DiskScaleLength;
+#if USE_ANG_MOM
+  double VGasDisk;
+  double VStellarDisk;
+  double StellarDiskScaleLength;
+  
+  // angular momentum
+  double AMstars[3]; //Total angular momentum vector  [Mpc/h *km/s]
+  double AMcold[3]; //Total angular momentum vector  [Mpc/h *km/s]
+#endif
   double Sfr;
   double EjectedGas;
   double MetalsEjectedGas;

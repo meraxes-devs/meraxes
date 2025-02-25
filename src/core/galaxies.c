@@ -31,6 +31,11 @@ galaxy_t* new_galaxy(int snapshot, unsigned long halo_ID)
   gal->Rvir = 0.0;
   gal->Vvir = 0.0;
   gal->Vmax = 0.0;
+#if USE_ANG_MOM
+  gal->VGasDisk = 0.0;
+  gal->VStellarDisk = 0.0;
+  gal->StellarDiskScaleLength = 0.0;
+#endif
   gal->Spin = 0.0;
   gal->DiskScaleLength = 0.0;
   gal->HotGas = 0.0;
@@ -139,20 +144,33 @@ void copy_halo_props_to_galaxy(halo_t* halo, galaxy_t* gal)
   gal->Spin = calculate_spin_param(halo);
   gal->FOFMvirModifier = halo->FOFGroup->FOFMvirModifier;
 
+// Be careful! Here you might need to remove the DiskScaleLength for when are taking
+// the updated AngMom calculation
+
   double sqrt_2 = 1.414213562;
   if (gal->Type == 0) {
     gal->Vmax = halo->Vmax;
+#if USE_ANG_MOM
+#else
     gal->DiskScaleLength = gal->Spin * gal->Rvir / sqrt_2;
+#endif
   } else {
     if (!run_globals.params.physics.Flag_FixVmaxOnInfall)
       gal->Vmax = halo->Vmax;
     if (!run_globals.params.physics.Flag_FixDiskRadiusOnInfall)
+#if USE_ANG_MOM
+#else
       gal->DiskScaleLength = gal->Spin * gal->Rvir / sqrt_2;
+#endif
   }
 
   for (int ii = 0; ii < 3; ii++) {
     gal->Pos[ii] = halo->Pos[ii];
     gal->Vel[ii] = halo->Vel[ii];
+#if USE_ANG_MOM
+    gal->AMstars[ii] = 0.0;
+    gal->AMcold[ii] = 0.0;
+#endif
   }
 
   // record the maximum Len value if necessary

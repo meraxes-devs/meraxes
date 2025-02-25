@@ -59,6 +59,7 @@ set(MAGS_N_BANDS 11 CACHE STRING "Number of bands to compute")
 option(USE_JWST "Calculate JWST band magnitude (70, 90, 115, 150, 200, 277, 356, 444)" OFF)
 option(USE_HST "Calculate HST band magnitude (125, 160)" OFF)
 option(USE_MINI_HALOS "Consider minihalos" OFF)
+option(USE_ANG_MOM "Consider new Ang Mom" OFF)
 set(SECTOR_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src/sector" CACHE PATH "Base directory of sector library")
 option(BUILD_TESTS "Build criterion tests" OFF)
 option(GDB "Drop into GDB with mpi_debug_here() calls" OFF)
@@ -205,6 +206,11 @@ target_link_libraries(meraxes_lib PUBLIC MPI::MPI_C)
 # MINI_HALOS
 if(USE_MINI_HALOS)
     add_definitions(-DUSE_MINI_HALOS)
+endif()
+
+# ANG_MOM
+if(USE_ANG_MOM)
+    add_definitions(-DUSE_ANG_MOM)
 endif()
 
 # MAGNITUDES
