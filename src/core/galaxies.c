@@ -150,16 +150,14 @@ void copy_halo_props_to_galaxy(halo_t* halo, galaxy_t* gal)
   double sqrt_2 = 1.414213562;
   if (gal->Type == 0) {
     gal->Vmax = halo->Vmax;
-#if USE_ANG_MOM
-#else
+#if !USE_ANG_MOM
     gal->DiskScaleLength = gal->Spin * gal->Rvir / sqrt_2;
 #endif
   } else {
     if (!run_globals.params.physics.Flag_FixVmaxOnInfall)
       gal->Vmax = halo->Vmax;
     if (!run_globals.params.physics.Flag_FixDiskRadiusOnInfall)
-#if USE_ANG_MOM
-#else
+#if !USE_ANG_MOM
       gal->DiskScaleLength = gal->Spin * gal->Rvir / sqrt_2;
 #endif
   }
