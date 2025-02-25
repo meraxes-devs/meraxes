@@ -1,5 +1,8 @@
-#ifndef ANGULARMOMENTUM_H
-#define ANGULARMOMENTUM_H
+#ifndef ANGULAR_MOMENTUM_H
+#define ANGULAR_MOMENTUM_H
+
+#include <stdbool.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C"
