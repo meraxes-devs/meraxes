@@ -26,6 +26,7 @@ void specific_to_total_angmom(double *specific, double mass, double *total) {
     total[ii] = specific[ii] * mass;
 }
 
+#if USE_ANG_MOM
 void add_disks(galaxy_t *gal, int gas, double new_mass, double new_rad,
                double new_vel, double *new_am) {
   if ((gas == 0) && (gal->StellarDiskScaleLength == 0)) {
@@ -81,4 +82,4 @@ void add_disks(galaxy_t *gal, int gas, double new_mass, double new_rad,
     }
   }
 }
-         
+#endif         
