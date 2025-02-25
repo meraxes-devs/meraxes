@@ -1,6 +1,7 @@
 #include "meraxes.h"
 #include <math.h>
 #include "misc_tools.h"
+#include "angular_momentum.h"
 
 // If incrementing total angular momentum then set `mass=1`.
 // Otherwise `angmom` is interpreted as specific angular momentum.
