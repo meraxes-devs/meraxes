@@ -666,7 +666,11 @@ typedef struct halo_t
 
   float Pos[3];    //!< Most bound particle position [Mpc/h]
   float Vel[3];    //!< Centre of mass velocity [Mpc/h]
+#if USE_ANG_MOM
+  float AngMom[3]; //In this case you need the 3D one!
+#else
   float AngMom; //!< Specific angular momentum length [Mpc/h *km/s]
+#endif
 
   double Mvir; //!< virial mass [M_sol/h]
   double Rvir; //!< Virial radius [Mpc/h]

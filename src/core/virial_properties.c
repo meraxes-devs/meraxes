@@ -111,7 +111,12 @@ double calculate_Vvir(double Mvir, double Rvir)
 
 double calculate_spin_param(halo_t* halo)
 {
+#if USE_ANG_MOM
+  double angmom_mag = sqrt(halo->AngMom[0] * halo->AngMom[0] + halo->AngMom[1] * halo->AngMom[1] + halo->AngMom[2] * halo->AngMom[2]);
+  return angmom_mag / (1.414213562 * halo->Vvir * halo->Rvir);
+#else
   return halo->AngMom / (1.414213562 * halo->Vvir * halo->Rvir);
+#endif
 }
 
 double Vvir_to_Tvir(double Vvir, int halo_type)
