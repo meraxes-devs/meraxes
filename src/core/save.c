@@ -150,7 +150,7 @@ void calc_hdf5_props()
     h5props->n_props += 14; // Double check later
 #endif
 #if USE_ANG_MOM
-    h5props->n_props += 2;
+    h5props->n_props += 1;
 #endif
 #ifdef CALC_MAGS
     h5props->n_props += 2;
