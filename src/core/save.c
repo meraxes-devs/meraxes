@@ -341,7 +341,7 @@ void calc_hdf5_props()
     h5props->field_names[i] = "FOFMvir";
     h5props->field_units[i] = "1e10 solMass";
     h5props->field_h_conv[i] = "v/h";
-    h5props->field_types[i++] = H5T_NATIVE_FLOAT;
+    h5props->field_types[i++] = H5T_NATIVE_FLOAT;*/
 
     h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, HotGas);
     h5props->dst_field_sizes[i] = sizeof(galout.HotGas);
@@ -350,7 +350,7 @@ void calc_hdf5_props()
     h5props->field_h_conv[i] = "v/h";
     h5props->field_types[i++] = H5T_NATIVE_FLOAT;
 
-    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, MetalsHotGas);
+    /*h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, MetalsHotGas);
     h5props->dst_field_sizes[i] = sizeof(galout.MetalsHotGas);
     h5props->field_names[i] = "MetalsHotGas";
     h5props->field_units[i] = "1e10 solMass";
@@ -591,7 +591,7 @@ void calc_hdf5_props()
     h5props->field_types[i++] = H5T_NATIVE_FLOAT;
 #endif
 
-    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, MergerBurstMass);
+    /*h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, MergerBurstMass);
     h5props->dst_field_sizes[i] = sizeof(galout.MergerBurstMass);
     h5props->field_names[i] = "MergerBurstMass";
     h5props->field_units[i] = "1e10 solMass";
@@ -603,7 +603,7 @@ void calc_hdf5_props()
     h5props->field_names[i] = "MWMSA";
     h5props->field_units[i] = "Myr";
     h5props->field_h_conv[i] = "v/h";
-    h5props->field_types[i++] = H5T_NATIVE_FLOAT;
+    h5props->field_types[i++] = H5T_NATIVE_FLOAT;*/
 
     /*h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, NewStars);
     h5props->dst_field_sizes[i] = sizeof(galout.NewStars);
