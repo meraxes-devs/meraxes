@@ -41,18 +41,18 @@ void prepare_galaxy_for_output(galaxy_t gal, galaxy_output_t* galout, int i_snap
     galout->CentralGal = -1;
     galout->FOFMvir = (float)-1.0;
   }
-  /*galout->GhostFlag = (int)gal.ghost_flag;
+  //galout->GhostFlag = (int)gal.ghost_flag;
 
   for (int ii = 0; ii < 3; ii++) {
     galout->Pos[ii] = gal.Pos[ii];
     galout->Vel[ii] = gal.Vel[ii];
 #if USE_ANG_MOM
-    galout->AMstars[ii] = (float)(gal.AMstars[ii]);
+    //galout->AMstars[ii] = (float)(gal.AMstars[ii]);
     galout->AMcold[ii] = (float)(gal.AMcold[ii]);
 #endif
   }
 
-  galout->Len = gal.Len;
+  /*galout->Len = gal.Len;
   galout->MaxLen = gal.MaxLen;*/
   galout->Mvir = (float)(gal.Mvir);
   galout->Rvir = (float)(gal.Rvir);
@@ -150,7 +150,7 @@ void calc_hdf5_props()
     h5props->n_props += 14; // Double check later
 #endif
 #if USE_ANG_MOM
-    h5props->n_props += 1;
+    h5props->n_props += 2;
 #endif
 #ifdef CALC_MAGS
     h5props->n_props += 2;
@@ -319,14 +319,14 @@ void calc_hdf5_props()
     h5props->field_names[i] = "AMstars";
     h5props->field_units[i] = "1e10 solMass";
     h5props->field_h_conv[i] = "v/h";
-    h5props->field_types[i++] = h5props->array3f_tid;
+    h5props->field_types[i++] = h5props->array3f_tid;*/
 
     h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, AMcold);
     h5props->dst_field_sizes[i] = sizeof(galout.AMcold);
     h5props->field_names[i] = "AMcold";
     h5props->field_units[i] = "1e10 solMass";
     h5props->field_h_conv[i] = "v/h";
-    h5props->field_types[i++] = h5props->array3f_tid;*/
+    h5props->field_types[i++] = h5props->array3f_tid;
     
     h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, StellarDiskScaleLength);
     h5props->dst_field_sizes[i] = sizeof(galout.StellarDiskScaleLength);
