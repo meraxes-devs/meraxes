@@ -26,6 +26,16 @@ void specific_to_total_angmom(double *specific, double mass, double *total) {
     total[ii] = specific[ii] * mass;
 }
 
+double calculate_spin_param(halo_t* halo)
+{
+#if USE_ANG_MOM
+  double angmom_mag = vector_magnitude(halo->AngMom);
+  return angmom_mag / (1.414213562 * halo->Vvir * halo->Rvir);
+#else
+  return halo->AngMom / (1.414213562 * halo->Vvir * halo->Rvir);
+#endif
+}
+
 #if USE_ANG_MOM
 void add_disks(galaxy_t *gal, int gas, double new_mass, double new_rad,
                double new_vel, double *new_am) {

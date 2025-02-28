@@ -1,5 +1,6 @@
 #include <assert.h>
 
+#include "angular_momentum.h"
 #include "galaxies.h"
 #include "magnitudes.h"
 #include "meraxes.h"
