@@ -109,11 +109,6 @@ double calculate_Vvir(double Mvir, double Rvir)
   return sqrt((run_globals.G) * Mvir / Rvir);
 }
 
-double calculate_spin_param(halo_t* halo)
-{
-  return halo->AngMom / (1.414213562 * halo->Vvir * halo->Rvir);
-}
-
 double Vvir_to_Tvir(double Vvir, int halo_type)
 {
   // V in internal units, km/s. T in Kelvin

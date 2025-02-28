@@ -44,6 +44,9 @@ extern "C"
   double interp(double xp, double* x, double* y, int nPts);
   double trapz_table(double* y, double* x, int nPts, double a, double b);
   bool check_for_flag(int flag, int tree_flags);
+#if USE_ANG_MOM
+  double vector_magnitude(double vector[3]);
+#endif
 
 #ifdef __cplusplus
 }

@@ -1,6 +1,9 @@
 #include <math.h>
 
 #include "blackhole_feedback.h"
+#if USE_ANG_MOM
+#include "core/angular_momentum.h"
+#endif
 #include "core/magnitudes.h"
 #include "core/misc_tools.h"
 #include "meraxes.h"
@@ -177,7 +180,13 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   min_stellar_mass = (gal->StellarMass <= parent->StellarMass) ? gal->StellarMass : parent->StellarMass;
 
   // Add galaxies together
-  parent->StellarMass += gal->StellarMass;
+#if USE_ANG_MOM
+  add_disks(parent, 1, gal->ColdGas, gal->DiskScaleLength,
+            gal->VGasDisk, gal->AMcold);
+#endif
+  // This sum of StellarMass is different from Maddie's model because we don't have major mergers
+  // and we don't have bulge.
+  parent->StellarMass += gal->StellarMass; 
 #if USE_MINI_HALOS
   parent->StellarMass_II += gal->StellarMass_II;
   parent->StellarMass_III += gal->StellarMass_III;
@@ -215,6 +224,24 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
     parent->PrefactorBubble = gal->PrefactorBubble;
     parent->TimeBubble = gal->TimeBubble;
   }
+#endif
+
+#if USE_ANG_MOM
+  for (int ii = 0; ii < 3; ii++) {
+    // This is an artificial choice which must be made due to the lack of
+    // orbital information about the infalling satellite, however, here we say
+    // that the specific angular momentum of gas and stars added to the primary
+    // is dictated by the host halo.
+
+    // TODO: Use the AM of the satellite gas and stellar disks, or assume have
+    // AM of halo as in Tonini?
+    // primary->AMcold[ii]   += secondary->ColdGas *
+    // secondary->Halo->FOFGroup->AngMom[ii];  primary->AMstars[ii] +=
+    // secondary->StellarMass * secondary->Halo->FOFGroup->AngMom[ii];
+    parent->AMcold[ii] += gal->AMcold[ii];
+    parent->AMstars[ii] += gal->AMstars[ii];
+  }
+
 #endif
 
   for (int ii = 0; ii < N_HISTORY_SNAPS; ii++) {

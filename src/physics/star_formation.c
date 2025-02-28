@@ -1,6 +1,10 @@
 #include <assert.h>
 #include <gsl/gsl_integration.h>
 
+
+#if USE_ANG_MOM
+#include "core/angular_momentum.h"
+#endif
 #include "core/magnitudes.h"
 #include "core/misc_tools.h"
 #include "core/reionization.h"
@@ -44,6 +48,39 @@ void update_reservoirs_from_sf(galaxy_t* gal, double new_stars, int snapshot, SF
 
     // instantaneous recycling approximation of stellar mass
     metallicity = calc_metallicity(gal->ColdGas, gal->MetalsColdGas);
+    
+#if USE_ANG_MOM
+    if (type == INSITU) {
+      double *angmom;
+      // Differently from Maddie's version you only have a disk so all stars are formed in the disk
+      // In this case, we must calculate the transferred angular momentum from
+      // the gas disk to the stellar disk BEFORE we remove cold gas.
+      // This would be equivalent to add_to_bulge = 0 in Maddie's model
+      angmom = malloc(sizeof(double) * 3);
+      total_to_specific_angmom(gal->AMcold, gal->ColdGas, angmom);
+      for (int ii = 0; ii < 3; ii++) {
+        angmom[ii] *= new_stars;
+      }
+
+      // Here I have a doubt though... Shouldn't be StellarDiskScaleLength = 3*DiskScaleLength?
+      add_disks(gal, 0, new_stars, gal->DiskScaleLength, gal->VGasDisk,
+                angmom);
+      add_disks(gal, 1, -new_stars, gal->DiskScaleLength, gal->VGasDisk,
+                angmom); // subtract non-projected gas disk from total gas disk
+      increment_angular_momentum(gal->AMcold, angmom, -1);
+      increment_angular_momentum(gal->AMstars, angmom, +1);
+    }
+    else {
+    // Merger burst SF scenario (add_to_bulge = 1)
+      if (gal->ColdGas - new_stars > 0) {
+        gal->DiskScaleLength *=
+             gal->ColdGas / (gal->ColdGas - new_stars);
+      }
+      else {
+        gal->DiskScaleLength = 0;
+      }
+    }
+#endif
 
     // update the galaxy's SFR value
     double sfr = new_stars / gal->dt;
@@ -96,8 +133,15 @@ void update_reservoirs_from_sf(galaxy_t* gal, double new_stars, int snapshot, SF
     // is because some fraction of the stars in this burst will go nova and
     // return mass to the ISM.  This will be accounted for when we update the
     // reservoirs due to supernova feedback.
-    if (gal->StellarMass < 0)
+    if (gal->StellarMass < 0) {
       gal->StellarMass = 0.0;
+#if USE_ANG_MOM
+      gal->VStellarDisk = 0.0;
+      gal->StellarDiskScaleLength = 0.0;
+      for (int ii = 0; ii < 3; ii++)
+        gal->AMstars[ii] = 0.0;
+#endif
+    }
 #if USE_MINI_HALOS
     if (gal->StellarMass_II < 0)
       gal->StellarMass_II = 0.0;

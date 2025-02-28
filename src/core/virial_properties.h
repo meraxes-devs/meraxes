@@ -14,7 +14,6 @@ extern "C"
   double hubble_time(int snapshot);
   double calculate_Rvir(double Mvir, int snapshot);
   double calculate_Vvir(double Mvir, double Rvir);
-  double calculate_spin_param(halo_t* halo);
   double Vvir_to_Tvir(double Vvir, int halo_type);
   double Vvir_to_Mvir(double Vvir, double redshift, int halo_type);
 

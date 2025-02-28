@@ -17,6 +17,16 @@ void myexit(int signum)
   exit(signum);
 }
 
+#if USE_ANG_MOM
+double vector_magnitude(double vector[3]) {
+  double magnitude = 0;
+  for (int ii = 0; ii < 3; ii++)
+    magnitude += vector[ii] * vector[ii];
+
+  return sqrt(magnitude);
+}
+#endif
+
 double calc_metallicity(double total_gas, double metals)
 {
   double Z;

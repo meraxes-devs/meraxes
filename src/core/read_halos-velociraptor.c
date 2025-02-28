@@ -175,7 +175,13 @@ void read_trees__velociraptor(int snapshot,
   float* VXc = malloc(sizeof(float) * buffer_size);
   float* VYc = malloc(sizeof(float) * buffer_size);
   float* VZc = malloc(sizeof(float) * buffer_size);
+#if USE_ANG_MOM
+  float* Lx = malloc(sizeof(float) * buffer_size);
+  float* Ly = malloc(sizeof(float) * buffer_size);
+  float* Lz = malloc(sizeof(float) * buffer_size);
+#else
   float* AngMom = malloc(sizeof(float) * buffer_size);
+#endif
   unsigned long* ID = malloc(sizeof(unsigned long) * buffer_size); 
   unsigned long* npart = malloc(sizeof(unsigned long) * buffer_size);
 
@@ -221,10 +227,18 @@ void read_trees__velociraptor(int snapshot,
 	READ_TREE_ENTRY_PROP(Zc,           float, H5T_NATIVE_FLOAT, 10);                                                                  
 	READ_TREE_ENTRY_PROP(VXc,          float, H5T_NATIVE_FLOAT, 11);                                                                  
 	READ_TREE_ENTRY_PROP(VYc,          float, H5T_NATIVE_FLOAT, 12);                                                                  
-	READ_TREE_ENTRY_PROP(VZc,          float, H5T_NATIVE_FLOAT, 13);                                                                  
+	READ_TREE_ENTRY_PROP(VZc,          float, H5T_NATIVE_FLOAT, 13);
+#if USE_ANG_MOM
+        READ_TREE_ENTRY_PROP(Lx,           float, H5T_NATIVE_FLOAT, 14);
+        READ_TREE_ENTRY_PROP(Ly,           float, H5T_NATIVE_FLOAT, 15);
+        READ_TREE_ENTRY_PROP(Lz,           float, H5T_NATIVE_FLOAT, 16);                                                                  
+        READ_TREE_ENTRY_PROP(ID,           unsigned long, H5T_NATIVE_ULONG, 17);                                                          
+        READ_TREE_ENTRY_PROP(npart,        unsigned long, H5T_NATIVE_ULONG, 18);
+#else                                                                  
 	READ_TREE_ENTRY_PROP(AngMom,       float, H5T_NATIVE_FLOAT, 14);                                                                  
 	READ_TREE_ENTRY_PROP(ID,           unsigned long, H5T_NATIVE_ULONG, 15);                                                          
-	READ_TREE_ENTRY_PROP(npart,        unsigned long, H5T_NATIVE_ULONG, 16);                                                          
+	READ_TREE_ENTRY_PROP(npart,        unsigned long, H5T_NATIVE_ULONG, 16); 
+#endif                                                         
 
     H5Sclose(memspace_id);
 
@@ -336,7 +350,13 @@ void read_trees__velociraptor(int snapshot,
         halo->Vvir = -1;
         convert_input_virial_props(&halo->Mvir, &halo->Rvir, &halo->Vvir, NULL, -1, snapshot, false);
 
+#if USE_ANG_MOM
+        halo->AngMom[0] = Lx[ii] / Mass_tot[ii] * hubble_h;
+        halo->AngMom[1] = Ly[ii] / Mass_tot[ii] * hubble_h;
+        halo->AngMom[2] = Lz[ii] / Mass_tot[ii] * hubble_h;
+#else
         halo->AngMom = AngMom[ii] * hubble_h;
+#endif
         halo->Galaxy = NULL;
 
         (*n_halos)++;
@@ -359,7 +379,13 @@ void read_trees__velociraptor(int snapshot,
   free(VXc);
   free(VYc);
   free(VZc);
+#if USE_ANG_MOM
+  free(Lx);
+  free(Ly);
+  free(Lz);
+#else
   free(AngMom);
+#endif
   free(ID);
   free(npart);
   H5Pclose(plist_id);

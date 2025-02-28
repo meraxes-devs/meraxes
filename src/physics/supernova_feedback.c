@@ -1,6 +1,9 @@
 #include <assert.h>
 #include <math.h>
 
+#if USE_ANG_MOM
+#include "core/angular_momentum.h"
+#endif
 #include "core/misc_tools.h"
 #include "core/stellar_feedback.h"
 #if USE_MINI_HALOS
@@ -30,6 +33,31 @@ void update_reservoirs_from_sn_feedback(galaxy_t* gal,
     central = gal;
   else
     central = gal->Halo->FOFGroup->FirstOccupiedHalo->Galaxy;
+    
+#if USE_ANG_MOM
+// Adapted from Maddie's version but there is no bulge here.
+  if (gal->StellarDiskScaleLength > 0) {
+    double specific_delta_angmom[3];
+    double total_delta_angmom[3];
+    total_to_specific_angmom(gal->AMstars, gal->StellarMass,
+                             specific_delta_angmom);
+    specific_to_total_angmom(specific_delta_angmom,
+                             m_recycled,
+                             total_delta_angmom);
+    // Update gas disk
+    add_disks(gal, 1, m_recycled,
+              vector_magnitude(total_delta_angmom) /
+                  (2 * m_recycled * gal->VStellarDisk),
+              gal->VStellarDisk, total_delta_angmom);
+    // Update stellar disk
+    add_disks(gal, 0, -m_recycled,
+              vector_magnitude(total_delta_angmom) /
+                  (2 * m_recycled * gal->VStellarDisk),
+              gal->VStellarDisk, total_delta_angmom);
+    increment_angular_momentum(gal->AMstars, total_delta_angmom, -1);
+    increment_angular_momentum(gal->AMcold, total_delta_angmom, 1);
+  }
+#endif
 
   gal->StellarMass -= m_recycled;
 #if USE_MINI_HALOS
