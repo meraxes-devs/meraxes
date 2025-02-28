@@ -133,8 +133,15 @@ void update_reservoirs_from_sf(galaxy_t* gal, double new_stars, int snapshot, SF
     // is because some fraction of the stars in this burst will go nova and
     // return mass to the ISM.  This will be accounted for when we update the
     // reservoirs due to supernova feedback.
-    if (gal->StellarMass < 0)
+    if (gal->StellarMass < 0) {
       gal->StellarMass = 0.0;
+#if USE_ANG_MOM
+      gal->VStellarDisk = 0.0;
+      gal->StellarDiskScaleLength = 0.0;
+      for (int ii = 0; ii < 3; ii++)
+        gal->AMstars[ii] = 0.0;
+#endif
+    }
 #if USE_MINI_HALOS
     if (gal->StellarMass_II < 0)
       gal->StellarMass_II = 0.0;
