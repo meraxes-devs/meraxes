@@ -50,23 +50,36 @@ void update_reservoirs_from_sf(galaxy_t* gal, double new_stars, int snapshot, SF
     metallicity = calc_metallicity(gal->ColdGas, gal->MetalsColdGas);
     
 #if USE_ANG_MOM
-    double *angmom;
-    // Differently from Maddie's version you only have a disk so all stars are formed in the disk
-    // In this case, we must calculate the transferred angular momentum from
-    // the gas disk to the stellar disk BEFORE we remove cold gas.
-    angmom = malloc(sizeof(double) * 3);
-    total_to_specific_angmom(gal->AMcold, gal->ColdGas, angmom);
-    for (int ii = 0; ii < 3; ii++) {
-      angmom[ii] *= new_stars;
-    }
+    if (type == INSITU) {
+      double *angmom;
+      // Differently from Maddie's version you only have a disk so all stars are formed in the disk
+      // In this case, we must calculate the transferred angular momentum from
+      // the gas disk to the stellar disk BEFORE we remove cold gas.
+      // This would be equivalent to add_to_bulge = 0 in Maddie's model
+      angmom = malloc(sizeof(double) * 3);
+      total_to_specific_angmom(gal->AMcold, gal->ColdGas, angmom);
+      for (int ii = 0; ii < 3; ii++) {
+        angmom[ii] *= new_stars;
+      }
 
-    // Here I have a doubt though... Shouldn't be StellarDiskScaleLength = 3*DiskScaleLength?
-    add_disks(gal, 0, new_stars, gal->DiskScaleLength, gal->VGasDisk,
-              angmom);
-    add_disks(gal, 1, -new_stars, gal->DiskScaleLength, gal->VGasDisk,
-              angmom); // subtract non-projected gas disk from total gas disk
-    increment_angular_momentum(gal->AMcold, angmom, -1);
-    increment_angular_momentum(gal->AMstars, angmom, +1);
+      // Here I have a doubt though... Shouldn't be StellarDiskScaleLength = 3*DiskScaleLength?
+      add_disks(gal, 0, new_stars, gal->DiskScaleLength, gal->VGasDisk,
+                angmom);
+      add_disks(gal, 1, -new_stars, gal->DiskScaleLength, gal->VGasDisk,
+                angmom); // subtract non-projected gas disk from total gas disk
+      increment_angular_momentum(gal->AMcold, angmom, -1);
+      increment_angular_momentum(gal->AMstars, angmom, +1);
+    }
+    else {
+    // Merger burst SF scenario (add_to_bulge = 1)
+      if (gal->ColdGas - new_stars > 0) {
+        gal->DiskScaleLength *=
+             gal->ColdGas / (gal->ColdGas - new_stars);
+      }
+      else {
+        gal->DiskScaleLength = 0;
+      }
+    }
 #endif
 
     // update the galaxy's SFR value

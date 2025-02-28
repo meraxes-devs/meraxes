@@ -29,11 +29,11 @@ void specific_to_total_angmom(double *specific, double mass, double *total) {
 #if USE_ANG_MOM
 void add_disks(galaxy_t *gal, int gas, double new_mass, double new_rad,
                double new_vel, double *new_am) {
-  if ((gas == 0) && (gal->StellarDiskScaleLength == 0)) {
+  if ((gas == 0) && (gal->StellarDiskScaleLength < 1e-10)) {
     // First time you form stars (see star_formation.c)
     gal->VStellarDisk = new_vel;
     gal->StellarDiskScaleLength = new_rad;
-  } else if ((gas == 1) && (gal->DiskScaleLength == 0)) {
+  } else if ((gas == 1) && (gal->DiskScaleLength < 1e-10)) {
     // First time you cool down the gas (see cooling.c)!
     gal->VGasDisk = new_vel;
     gal->DiskScaleLength = new_rad;
@@ -43,7 +43,7 @@ void add_disks(galaxy_t *gal, int gas, double new_mass, double new_rad,
       return;
   else if (new_mass != 0) {
     double AMcombined[3];
-    if ((gas == 0) & (new_mass + gal->StellarMass != 0)) {
+    if ((gas == 0) & (new_mass + gal->StellarMass > 1e-10)) {
       for (int ii = 0; ii < 3; ii++) {
         AMcombined[ii] =
             gal->AMstars[ii] + ((new_mass > 0) - (new_mass < 0)) * new_am[ii];
@@ -57,7 +57,7 @@ void add_disks(galaxy_t *gal, int gas, double new_mass, double new_rad,
           0.5);
       // the one below is Eq. 13 in Maddie's paper for Rnew
       gal->StellarDiskScaleLength =
-          vector_magnitude(AMcombined) / (2 * (disk_mass + new_mass) * v_final);
+          vector_magnitude(AMcombined) / (2 * mplusm * v_final);
       gal->VStellarDisk = v_final;
     } else if ((gas == 1) && (new_mass + gal->ColdGas != 0)) {
       // You have already cool down gas once (see cooling.c)
@@ -77,7 +77,7 @@ void add_disks(galaxy_t *gal, int gas, double new_mass, double new_rad,
           0.5);
       //Eq. 13    
       gal->DiskScaleLength = vector_magnitude(AMcombined) /
-                                (2 * (gal->ColdGas + new_mass) * v_final);
+                                (2 * mplusm * v_final);
       gal->VGasDisk = v_final;
     }
   }

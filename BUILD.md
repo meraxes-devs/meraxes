@@ -125,7 +125,7 @@ USE_MINI_HALOS
 : Use mini-halos. Default is OFF.
 
 USE_ANG_MOM
-: Updated angular momentum according to Maddie's model. Default is OFF.
+: Updated angular momentum according to Marshall+19 model (10.1093/mnras/stz1810). Default is OFF.
 
 You can set these on the command line when running cmake, e.g.:
 
