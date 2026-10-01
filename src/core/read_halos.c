@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <gsl/gsl_sort_int.h>
 #include <hdf5_hl.h>
-#include <string.h>
 
 #include "meraxes.h"
 #include "misc_tools.h"
@@ -237,7 +236,7 @@ static void select_forests()
     gsl_sort_int_index(sort_ind, final_counts, 1, n_forests);
     {
       int ii = 0;
-      int jj = n_forests - 1; // was 0, which made this reversal a no-op (ii < jj was never true)
+      int jj = n_forests - 1;
       while (ii < jj) {
         int tmp = sort_ind[ii];
         sort_ind[ii] = sort_ind[jj];
@@ -248,15 +247,12 @@ static void select_forests()
     }
 
     max_rank_n_forests = (int)((float)n_forests * 0.75);
-    // Guard a zero-size per-rank cap: 0.75 * n_forests can truncate to 0, overflowing assigned_ids.
-    if (max_rank_n_forests < 1)
-      max_rank_n_forests = 1;
     rank_n_assigned = calloc(run_globals.mpi_size, sizeof(int));
     if (rank_n_assigned == NULL) {
       mlog_error("Failed to allocate rank_n_assigned array.");
       ABORT(EXIT_FAILURE);
     }
-    assigned_ids = calloc((size_t)max_rank_n_forests * run_globals.mpi_size, sizeof(long));
+    assigned_ids = calloc(max_rank_n_forests * run_globals.mpi_size, sizeof(long));
     if (assigned_ids == NULL) {
       mlog_error("Failed to allocate assigned_ids array.");
       ABORT(EXIT_FAILURE);
@@ -318,16 +314,7 @@ static void select_forests()
           // first appearance!
           int rank = rank_argsort_ind[0];
           rank_counts[rank] += final_counts[jj];
-          /* rank * max_rank_n_forests is computed as plain `int` unless one operand is
-           * widened first: at large enough resolution/box size (n_forests in the
-           * millions, mpi_size in the hundreds), that product alone can exceed
-           * INT_MAX (rank up to mpi_size-1 times max_rank_n_forests), silently
-           * wrapping to a negative/garbage index into assigned_ids (a `long*`,
-           * allocated with the correct size_t-widened arithmetic at its calloc()
-           * above) -- an out-of-bounds write, seen as a segfault in select_forests()
-           * on large runs. Casting rank to `long` here forces the whole index
-           * expression to be evaluated in 64-bit arithmetic instead. */
-          assigned_ids[(long)rank * max_rank_n_forests + rank_n_assigned[rank]] = forest_ids[jj];
+          assigned_ids[rank * max_rank_n_forests + rank_n_assigned[rank]] = forest_ids[jj];
           rank_n_assigned[rank]++;
           if (rank_n_assigned[rank] >= max_rank_n_forests) {
             mlog_error("Forest load-imbalance is above currently allowed threshold.");
@@ -380,26 +367,21 @@ static void select_forests()
   else
     run_globals.RequestedForestId = (long*)malloc(sizeof(long) * run_globals.NRequestedForests);
 
-  // Point-to-point instead of MPI_Scatterv: its displs[] is 32-bit and ii * max_rank_n_forests can exceed INT_MAX.
-  if (run_globals.mpi_rank == 0) {
-    for (int ii = 0; ii < run_globals.mpi_size; ++ii) {
-      long* src = assigned_ids + (long)ii * max_rank_n_forests;
-      if (rank_n_assigned[ii] == 0)
-        continue;
-      if (ii == 0)
-        memcpy(run_globals.RequestedForestId, src, (size_t)rank_n_assigned[0] * sizeof(long));
-      else
-        MPI_Send(src, rank_n_assigned[ii], MPI_LONG, ii, 0, run_globals.mpi_comm);
-    }
-  } else if (run_globals.NRequestedForests > 0) {
-    MPI_Recv(run_globals.RequestedForestId,
-             run_globals.NRequestedForests,
-             MPI_LONG,
-             0,
-             0,
-             run_globals.mpi_comm,
-             MPI_STATUS_IGNORE);
+  // NB: displs only valid on rank 0
+  int* displs = calloc(run_globals.mpi_size, sizeof(int));
+  for (int ii = 0; ii < run_globals.mpi_size; ++ii) {
+    displs[ii] = ii * max_rank_n_forests;
   }
+  MPI_Scatterv(assigned_ids,
+               rank_n_assigned,
+               displs,
+               MPI_LONG,
+               run_globals.RequestedForestId,
+               run_globals.NRequestedForests,
+               MPI_LONG,
+               0,
+               run_globals.mpi_comm);
+  free(displs);
 
   // let all ranks know what their max allocation counts are
   MPI_Scatter(rank_max_contemp_halo, 1, MPI_INT, &run_globals.NHalosMax, 1, MPI_INT, 0, run_globals.mpi_comm);
