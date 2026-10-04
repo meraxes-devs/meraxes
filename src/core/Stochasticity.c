@@ -329,6 +329,15 @@ static double no_sfr_get_table_value(const float* table,
   y0 = table[SFR_INDEX(gal->Type, index_left)];
   y1 = table[SFR_INDEX(gal->Type, index_right)];
 
+  /* Outside the populated range: keep the floor. */
+  if (y0 <= floor_value)
+    return pow(10.0, floor_value);
+
+  /* Last populated bin: do not interpolate toward the empty right bin. */
+  if (y1 <= floor_value)
+    return pow(10.0, y0);
+
+  /* Both endpoints are usable. */
   y0 += fraction * (y1 - y0);
   if (y0 < floor_value)
     y0 = floor_value;
@@ -800,7 +809,31 @@ gal->StochasticityTreatedFescWeightedSfr = source_view.FescWeightedSfr;
     gal = gal->Next;
   }
 }
+static double no_sfr_budget_factor(double target,
+                                   double raw,
+                                   int population,
+                                   size_t index,
+                                   const char* quantity)
+{
+  if (!isfinite(target) || !isfinite(raw) ||
+      target < 0.0 || raw < 0.0) {
+    mlog_error(
+        "Cannot recalibrate noSFR %s: pop=%d index=%zu target=%.17g raw=%.17g.",
+        quantity, population, index, target, raw);
+    ABORT(EXIT_FAILURE);
+  }
 
+  const double factor = raw > 0.0 ? target / raw : 1.0;
+
+  if (!isfinite(factor) || (target > 0.0 && factor == 0.0)) {
+    mlog_error(
+        "Invalid noSFR %s factor: pop=%d index=%zu target=%.17g raw=%.17g C=%.17g.",
+        quantity, population, index, target, raw, factor);
+    ABORT(EXIT_FAILURE);
+  }
+
+  return factor;
+}
 // Apply fixed-bin global recalibration factors: reduce per-bin raw/source
 // budgets across MPI ranks, compute correction ratios for bins with support,
 // and scale galaxy target weighted sources in the corresponding bin.
@@ -839,17 +872,10 @@ void compute_no_sfr_recalibration_factors(int population)
       run_globals.no_sfr_sfr_stochasticity_calibrations;
 #endif
 
-  long long* local_target_gsm_count = calloc(n_bins, sizeof(long long));
-  long long* global_target_gsm_count = calloc(n_bins, sizeof(long long));
-  long long* local_target_sfr_count = calloc(n_bins, sizeof(long long));
-  long long* global_target_sfr_count = calloc(n_bins, sizeof(long long));
-
   if (local_target_gsm == NULL || global_target_gsm == NULL ||
       local_target_sfr == NULL || global_target_sfr == NULL ||
       local_raw_gsm == NULL || global_raw_gsm == NULL ||
-      local_raw_sfr == NULL || global_raw_sfr == NULL ||
-      local_target_gsm_count == NULL || global_target_gsm_count == NULL ||
-      local_target_sfr_count == NULL || global_target_sfr_count == NULL) {
+      local_raw_sfr == NULL || global_raw_sfr == NULL) {
     mlog_error("Failed to allocate noSFR memory.");
     ABORT(EXIT_FAILURE);
   }
@@ -884,15 +910,11 @@ void compute_no_sfr_recalibration_factors(int population)
         // in other words, the source is the target and the target is the raw data for recalibration purposes
         local_target_gsm[index] += target_gsm;
         local_raw_gsm[index] += raw_gsm;
-        if (target_gsm > 0.0)
-          local_target_gsm_count[index]++;
       }
 
       if (has_sfr) {
         local_target_sfr[index] += target_sfr;
         local_raw_sfr[index] += raw_sfr;
-        if (target_sfr > 0.0)
-          local_target_sfr_count[index]++;
       }
     }
 
@@ -935,50 +957,23 @@ void compute_no_sfr_recalibration_factors(int population)
       run_globals.mpi_comm
   );
 
-  MPI_Allreduce(
-      local_target_gsm_count,
-      global_target_gsm_count,
-      (int)n_bins,
-      MPI_LONG_LONG_INT,
-      MPI_SUM,
-      run_globals.mpi_comm
-  );
+  for (index = 0; index < n_bins; ++index) {
+    no_sfr_gsm_stochasticity_calibrations[index] =
+        no_sfr_budget_factor(
+            global_target_gsm[index],
+            global_raw_gsm[index],
+            population,
+            index,
+            "GSM");
 
-  MPI_Allreduce(
-      local_target_sfr_count,
-      global_target_sfr_count,
-      (int)n_bins,
-      MPI_LONG_LONG_INT,
-      MPI_SUM,
-      run_globals.mpi_comm
-  );
-
-  for (index=0; index<n_bins; index++) {
-    if (global_raw_gsm[index] <= ABS_TOL && global_target_gsm[index] > ABS_TOL) {
-      no_sfr_gsm_stochasticity_calibrations[index] =
-          global_target_gsm[index] /
-          (double)global_target_gsm_count[index];
-    } else {
-      no_sfr_gsm_stochasticity_calibrations[index] =
-          global_raw_gsm[index] > ABS_TOL
-              ? global_target_gsm[index] /
-                global_raw_gsm[index]
-              : 1.0;
-    }
-
-    if (global_raw_sfr[index] <= ABS_TOL && global_target_sfr[index] > ABS_TOL) {
-      no_sfr_sfr_stochasticity_calibrations[index] =
-          global_target_sfr[index] /
-          (double)global_target_sfr_count[index];
-    } else {
-      no_sfr_sfr_stochasticity_calibrations[index] =
-          global_raw_sfr[index] > ABS_TOL
-              ? global_target_sfr[index] /
-                global_raw_sfr[index]
-              : 1.0;
-    }
+    no_sfr_sfr_stochasticity_calibrations[index] =
+        no_sfr_budget_factor(
+            global_target_sfr[index],
+            global_raw_sfr[index],
+            population,
+            index,
+            "SFR");
   }
-
   free(local_target_gsm);
   free(global_target_gsm);
   free(local_target_sfr);
@@ -987,10 +982,6 @@ void compute_no_sfr_recalibration_factors(int population)
   free(global_raw_gsm);
   free(local_raw_sfr);
   free(global_raw_sfr);
-  free(local_target_gsm_count);
-  free(global_target_gsm_count);
-  free(local_target_sfr_count);
-  free(global_target_sfr_count);
 }
 
 void no_sfr_sources_init(void)

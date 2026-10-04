@@ -2006,6 +2006,8 @@ void construct_baryon_grids(int snapshot, int local_ngals)
   // Recalibrate the X-ray field only when source recalibration is enabled and either noSFR treatment or X-ray scatter modifies the source luminosities.
   int recalibrate_xray_sources = run_globals.params.physics.Flag_SourceRecalibration &&
   (run_globals.params.physics.Flag_RemoveSFRScatter == 1 || run_globals.params.physics.XrayScatterDex > 0.0);
+  int recalibrate_sfr_sources = run_globals.params.physics.Flag_SourceRecalibration &&
+                               run_globals.params.physics.Flag_RemoveSFRScatter == 1;
 #endif
   float* weighted_sfr_grid = run_globals.reion_grids.weighted_sfr;
   int ReionGridDim = run_globals.params.ReionGridDim;
@@ -2179,6 +2181,8 @@ void construct_baryon_grids(int snapshot, int local_ngals)
 #if USE_STOCHASTICITY
     double local_xray_raw = 0.0;
     double local_xray_target = 0.0;
+    double local_sfr_raw = 0.0;
+    double local_sfr_target = 0.0;
 #endif
 
     for (int i_r = 0; i_r < run_globals.mpi_size; i_r++) {
@@ -2345,22 +2349,28 @@ void construct_baryon_grids(int snapshot, int local_ngals)
             }
 #endif
 
-              case prop_sfr: 
-              # if USE_STOCHASTICITY
-                buffer[ind] +=
-                    run_globals.params.Flag_InstantaneousSFR
-                  ? (run_globals.params.physics.Flag_RemoveSFRScatter == 1
-                    ? gal->SfrNoScatter
-                    : gal->Sfr)
-                  : (run_globals.params.physics.Flag_RemoveSFRScatter == 1
-                    ? gal->GrossStellarMassNoScatter
-                    : gal->GrossStellarMass);                
-              #else
-                buffer[ind] += run_globals.params.Flag_InstantaneousSFR
-                            ? gal->Sfr
-                            : gal->GrossStellarMass; 
-              #endif
-                break;
+            case prop_sfr: {
+#if USE_STOCHASTICITY
+              double sfr_target = run_globals.params.Flag_InstantaneousSFR
+                                ? gal->Sfr : gal->GrossStellarMass;
+              double sfr_raw = sfr_target;
+
+              if (run_globals.params.physics.Flag_RemoveSFRScatter == 1)
+                sfr_raw = run_globals.params.Flag_InstantaneousSFR
+                        ? gal->SfrNoScatter : gal->GrossStellarMassNoScatter;
+
+              if (recalibrate_sfr_sources) {
+                local_sfr_raw += sfr_raw;
+                local_sfr_target += sfr_target;
+              }
+
+              buffer[ind] += sfr_raw;
+#else
+              buffer[ind] += run_globals.params.Flag_InstantaneousSFR
+                           ? gal->Sfr : gal->GrossStellarMass;
+#endif
+              break;
+            }
                  
 
             /*
@@ -2555,6 +2565,35 @@ void construct_baryon_grids(int snapshot, int local_ngals)
           (float)xray_recalibration_factor;
         xray_luminosity_histories_grid[ii] *=
           (float)xray_recalibration_factor;
+      }
+    }
+
+    if (prop == prop_sfr && recalibrate_sfr_sources) {
+      double local_sfr_budgets[2] = {local_sfr_raw, local_sfr_target};
+      double global_sfr_budgets[2] = {0.0, 0.0};
+      MPI_Allreduce(local_sfr_budgets, global_sfr_budgets, 2,
+                    MPI_DOUBLE, MPI_SUM, run_globals.mpi_comm);
+
+      double raw = global_sfr_budgets[0];
+      double target = global_sfr_budgets[1];
+      if (!isfinite(raw) || !isfinite(target) || raw < 0.0 || target < 0.0) {
+        mlog_error("Cannot recalibrate SFR source: target=%g raw=%g.", target, raw);
+        ABORT(EXIT_FAILURE);
+      }
+
+      double sfr_recalibration_factor = raw > 0.0 ? target / raw : 1.0;
+      if (!isfinite(sfr_recalibration_factor) ||
+          (target > 0.0 && sfr_recalibration_factor == 0.0)) {
+        mlog_error("Invalid SFR source recalibration factor: target=%g raw=%g C=%g.",
+                   target, raw, sfr_recalibration_factor);
+        ABORT(EXIT_FAILURE);
+      }
+
+      // Match the mean stellar Ly-alpha source; older history slots retain
+      // the calibration applied when those snapshots were constructed.
+      for (int ii = 0; ii < local_n_complex * 2; ii++) {
+        sfr_grid[ii] = (float)(sfr_grid[ii] * sfr_recalibration_factor);
+        sfr_histories_grid[ii] = (float)(sfr_histories_grid[ii] * sfr_recalibration_factor);
       }
     }
 #endif
