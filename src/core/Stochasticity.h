@@ -17,7 +17,7 @@
 
 #define SFR_INDEX(t,i) ((size_t)(t) * (size_t)SFR_NX + (size_t)(i))
 void compute_fesc_recalibration_factors(void);
-double compute_xray_recalibration_factor(double local_xray_raw, double local_xray_target);
+double compute_xray_recalibration_factor(double local_raw, double local_target);
 
 void build_no_sfr_tables(int population);
 void apply_no_sfr_treatment(int snapshot);

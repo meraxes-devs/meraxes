@@ -2569,25 +2569,11 @@ void construct_baryon_grids(int snapshot, int local_ngals)
     }
 
     if (prop == prop_sfr && recalibrate_sfr_sources) {
-      double local_sfr_budgets[2] = {local_sfr_raw, local_sfr_target};
-      double global_sfr_budgets[2] = {0.0, 0.0};
-      MPI_Allreduce(local_sfr_budgets, global_sfr_budgets, 2,
-                    MPI_DOUBLE, MPI_SUM, run_globals.mpi_comm);
-
-      double raw = global_sfr_budgets[0];
-      double target = global_sfr_budgets[1];
-      if (!isfinite(raw) || !isfinite(target) || raw < 0.0 || target < 0.0) {
-        mlog_error("Cannot recalibrate SFR source: target=%g raw=%g.", target, raw);
-        ABORT(EXIT_FAILURE);
-      }
-
-      double sfr_recalibration_factor = raw > 0.0 ? target / raw : 1.0;
-      if (!isfinite(sfr_recalibration_factor) ||
-          (target > 0.0 && sfr_recalibration_factor == 0.0)) {
-        mlog_error("Invalid SFR source recalibration factor: target=%g raw=%g C=%g.",
-                   target, raw, sfr_recalibration_factor);
-        ABORT(EXIT_FAILURE);
-      }
+      double sfr_recalibration_factor =
+        compute_xray_recalibration_factor(
+            local_sfr_raw,
+            local_sfr_target
+        );
 
       // Match the mean stellar Ly-alpha source; older history slots retain
       // the calibration applied when those snapshots were constructed.

@@ -40,12 +40,12 @@ enum fesc_global_sum_index
   FESC_GLOBAL_NSUM
 };
 
-// X-ray stochasticity related
-enum xray_global_sum_index
+// Global source budgets for X-ray and stellar Ly-alpha recalibration.
+enum source_global_sum_index
 {
-  XRAY_LUMINOSITY_RAW = 0,
-  XRAY_LUMINOSITY_TARGET,
-  XRAY_GLOBAL_NSUM
+  SOURCE_RAW = 0,
+  SOURCE_TARGET,
+  SOURCE_GLOBAL_NSUM
 };
 
 enum stochasticity_calibration_index
@@ -198,45 +198,36 @@ void compute_fesc_recalibration_factors(void)
 #endif
   }  
 }
-// Essentially the same but for xray
-double compute_xray_recalibration_factor(double local_xray_raw,
-                                         double local_xray_target)
+double compute_xray_recalibration_factor(double local_raw,
+                                         double local_target)
 {
-  double local[XRAY_GLOBAL_NSUM] = {0.0};
-  double global[XRAY_GLOBAL_NSUM] = {0.0};
+  double local[SOURCE_GLOBAL_NSUM] = {0.0};
+  double global[SOURCE_GLOBAL_NSUM] = {0.0};
 
-  local[XRAY_LUMINOSITY_RAW] = local_xray_raw;
-  local[XRAY_LUMINOSITY_TARGET] = local_xray_target;
+  local[SOURCE_RAW] = local_raw;
+  local[SOURCE_TARGET] = local_target;
 
   MPI_Allreduce(
       local,
       global,
-      XRAY_GLOBAL_NSUM,
+      SOURCE_GLOBAL_NSUM,
       MPI_DOUBLE,
       MPI_SUM,
       run_globals.mpi_comm
   );
 
-  double correction = 1.0;
-
-  if (global[XRAY_LUMINOSITY_RAW] > 0.0) {
-    correction = global[XRAY_LUMINOSITY_TARGET] /
-                 global[XRAY_LUMINOSITY_RAW];
-  } else if (global[XRAY_LUMINOSITY_TARGET] > 0.0) {
-    mlog_error(
-        "Cannot recalibrate X-ray luminosity: target=%g raw=%g.",
-        global[XRAY_LUMINOSITY_TARGET],
-        global[XRAY_LUMINOSITY_RAW]
-    );
+  double raw = global[SOURCE_RAW];
+  double target = global[SOURCE_TARGET];
+  if (!isfinite(raw) || !isfinite(target) || raw < 0.0 || target < 0.0) {
+    mlog_error("Cannot recalibrate source: target=%g raw=%g.", target, raw);
     ABORT(EXIT_FAILURE);
   }
 
-  if (run_globals.mpi_rank == 0) {
-    mlog(
-        "Global X-ray recalibration: C_X=%.12g.",
-        MLOG_MESG,
-        correction
-    );
+  double correction = raw > 0.0 ? target / raw : 1.0;
+  if (!isfinite(correction) || (target > 0.0 && correction == 0.0)) {
+    mlog_error("Invalid source recalibration factor: target=%g raw=%g C=%g.",
+               target, raw, correction);
+    ABORT(EXIT_FAILURE);
   }
 
   return correction;
@@ -1058,7 +1049,7 @@ void no_sfr_sources_free(void)
 
 
 double extract_recalibration_factors(galaxy_t* gal, int population, bool use_gsm){
-  
+
   if (run_globals.params.physics.Flag_RemoveSFRScatter == 0){
 #if USE_MINI_HALOS
     if (population == 3)
