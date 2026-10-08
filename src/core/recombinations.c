@@ -80,10 +80,10 @@ void init_MHR()
   int TOT_NPTS = RR_ZT_NPTS*RR_lnGamma_NPTS;
   
   FILE *gamma_fp, *rr_fp, *cf_fp, *rnh_fp;
-  char GAMMA_FILENAME[STRLEN + 11];
-  char RR_FILENAME[STRLEN + 11];
-  char CF_FILENAME[STRLEN + 11];
-  char RNH_FILENAME[STRLEN + 11];
+  char GAMMA_FILENAME[2 * STRLEN];
+  char RR_FILENAME[2 * STRLEN];
+  char CF_FILENAME[2 * STRLEN];
+  char RNH_FILENAME[2 * STRLEN];
 
   mlog("Initialising MHR parameter and recombination interpolation tables...", MLOG_OPEN | MLOG_TIMERSTART);
 
