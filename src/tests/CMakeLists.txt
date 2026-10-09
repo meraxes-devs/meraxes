@@ -17,6 +17,7 @@ if(CRITERION_FOUND)
     set_property(TARGET test_cooling PROPERTY C_STANDARD 99)
     target_include_directories(test_cooling PRIVATE ${CRITERION_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR})
     target_link_libraries(test_cooling PRIVATE ${CRITERION_LIBRARY} meraxes_lib)
+    target_compile_definitions(test_cooling PRIVATE COOLING_FUNCS_DIR="${CMAKE_SOURCE_DIR}/input/cooling_functions")
     add_test(NAME test_cooling COMMAND test_cooling)
 
     add_executable(test_blackhole_feedback test_blackhole_feedback.c)

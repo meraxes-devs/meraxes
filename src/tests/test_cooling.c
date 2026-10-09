@@ -20,9 +20,8 @@ void setup(void)
   run_globals.mpi_rank = 0;
   run_globals.mpi_size = 1;
 
-  // Set up the cooling functions directory path
-  // Use relative path from build directory or absolute path
-  strcpy(run_globals.params.CoolingFuncsDir, "../input/cooling_functions");
+  // Absolute source-tree path set by CMake, so the test works from ctest's build directory.
+  snprintf(run_globals.params.CoolingFuncsDir, sizeof(run_globals.params.CoolingFuncsDir), "%s", COOLING_FUNCS_DIR);
 
   // Read the cooling function tables
   read_cooling_functions();
