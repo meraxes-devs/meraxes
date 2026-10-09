@@ -54,3 +54,5 @@ build
 task_plan.md
 findings.md
 progress.md
+/docs/_build/
+.venv/
