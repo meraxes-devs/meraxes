@@ -67,7 +67,7 @@ extern "C"
   void calculate_BHemissivity(double BlackHoleMass, double accreted_mass,
                               double *emissivity,     double *accretion_time,
                               double *quasar_luv,     double *quasar_lx,
-                              double *quasar_lx_soft, double *xray_emissivity);
+                              double *quasar_lx_soft);
 
   void merger_driven_BH_growth(struct galaxy_t* gal, double merger_ratio, int snapshot);
   void previous_merger_driven_BH_growth(struct galaxy_t* gal, int snapshot);

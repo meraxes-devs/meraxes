@@ -114,9 +114,9 @@ static void sweep_bh_emissivity(void)
     printf("%-12s", mass_labels[i]);
     for (int j = 0; j < n_fracs; j++) {
       double accreted_mass = bh_masses[i] * acc_fractions[j];
-      double emissivity, accretion_time, quasar_luv, quasar_lx, quasar_lx_soft, xray_emissivity;
+      double emissivity, accretion_time, quasar_luv, quasar_lx, quasar_lx_soft;
       calculate_BHemissivity(bh_masses[i], accreted_mass, &emissivity, &accretion_time,
-                             &quasar_luv, &quasar_lx, &quasar_lx_soft, &xray_emissivity);
+                             &quasar_luv, &quasar_lx, &quasar_lx_soft);
       
       // Convert accretion time to Myr
       double t_acc_myr = accretion_time * run_globals.units.UnitTime_in_Megayears / run_globals.params.Hubble_h;
@@ -216,9 +216,9 @@ int main(int argc, char* argv[])
     sweep_bh_emissivity();
   } else {
     // Single point evaluation
-    double emissivity, accretion_time, quasar_luv, quasar_lx, quasar_lx_soft, xray_emissivity;
+    double emissivity, accretion_time, quasar_luv, quasar_lx, quasar_lx_soft;
     calculate_BHemissivity(bh_mass, accreted_mass, &emissivity, &accretion_time,
-                           &quasar_luv, &quasar_lx, &quasar_lx_soft, &xray_emissivity);
+                           &quasar_luv, &quasar_lx, &quasar_lx_soft);
 
     double t_acc_myr = accretion_time * run_globals.units.UnitTime_in_Megayears / run_globals.params.Hubble_h;
     double bh_mass_msun = bh_mass * 1e10 / run_globals.params.Hubble_h;

@@ -191,7 +191,7 @@ void get_nh_fracs(double LX_1e10Lsun, double redshift, double f_out[5])
 void calculate_BHemissivity(double BlackHoleMass, double accreted_mass,
                             double *emissivity,     double *accretion_time,
                             double *quasar_luv,     double *quasar_lx,
-                            double *quasar_lx_soft, double *xray_emissivity)
+                            double *quasar_lx_soft)
 {
   double Lbol;
   double kb_uv;
@@ -363,7 +363,7 @@ void previous_merger_driven_BH_growth(galaxy_t* gal, int snapshot)
   double m_reheat;
   double accreted_mass;
   double BHemissivity, accretion_time, quasar_luv;
-  double quasar_lx, quasar_lx_soft, xray_emissivity;
+  double quasar_lx, quasar_lx_soft;
   double obs_fraction_hard;
   double obs_fraction_soft;
   int    NH_bin;
@@ -411,7 +411,7 @@ void previous_merger_driven_BH_growth(galaxy_t* gal, int snapshot)
     calculate_BHemissivity(gal->BlackHoleMass, accreted_mass,
                            &BHemissivity, &accretion_time,
                            &quasar_luv, &quasar_lx,
-                           &quasar_lx_soft, &xray_emissivity);
+                           &quasar_lx_soft);
     apply_xray_obscuration(quasar_lx,
                            run_globals.ZZ[snapshot],
                            &obs_fraction_hard,
