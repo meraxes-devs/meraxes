@@ -51,3 +51,6 @@ build
 /.direnv/
 /.dmypy.json
 /.clangd
+
+/docs/_build/
+.venv/

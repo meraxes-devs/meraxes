@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 1030" role="img" aria-labelledby="title desc">
+<title id="title">Meraxes execution flow</title><desc id="desc">Launch, configure and initialize; then evolve halos, galaxies and radiation through snapshots before assembling the master file.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker></defs>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#203344} .heading{font-weight:700;font-size:17px} .body{font-size:14px} .label{font-size:13px}</style>
+<rect width="980" height="1030" fill="white"/>
+<rect x="205" y="274" width="758" height="596" rx="12" fill="#F5F7F9" stroke="#DCE2E7"/>
+<text x="220" y="299" text-anchor="start" class="label">Snapshot loop</text>
+<rect x="265" y="18" width="440" height="60" rx="8" fill="#F1F6FC" stroke="#427CC0" stroke-width="1.6"/>
+<text x="485.0" y="43" text-anchor="middle" class="heading">Launch Meraxes</text>
+<text x="485.0" y="66" text-anchor="middle" class="body">Initialize MPI</text>
+<rect x="265" y="100" width="440" height="70" rx="8" fill="#F1F6FC" stroke="#427CC0" stroke-width="1.6"/>
+<text x="485.0" y="125" text-anchor="middle" class="heading">Read parameters and tables</text>
+<text x="485.0" y="148" text-anchor="middle" class="body">Run settings, simulation data and physics tables</text>
+<rect x="265" y="193" width="440" height="64" rx="8" fill="#F1F6FC" stroke="#427CC0" stroke-width="1.6"/>
+<text x="485.0" y="218" text-anchor="middle" class="heading">Initialize storage</text>
+<text x="485.0" y="241" text-anchor="middle" class="body">Galaxy records and distributed grids</text>
+<rect x="265" y="310" width="440" height="64" rx="8" fill="#F1F6FC" stroke="#427CC0" stroke-width="1.6"/>
+<text x="485.0" y="335" text-anchor="middle" class="heading">Read halos</text>
+<text x="485.0" y="358" text-anchor="middle" class="body">Update hosts; sample existing UVB feedback</text>
+<rect x="265" y="398" width="440" height="64" rx="8" fill="#FCF6EB" stroke="#BA7D25" stroke-width="1.6"/>
+<text x="485.0" y="423" text-anchor="middle" class="heading">Evolve galaxies</text>
+<text x="485.0" y="446" text-anchor="middle" class="body">Gas, stars, black holes and mergers</text>
+<rect x="265" y="486" width="440" height="64" rx="8" fill="#EFF8F5" stroke="#278470" stroke-width="1.6"/>
+<text x="485.0" y="511" text-anchor="middle" class="heading">Construct source grids</text>
+<text x="485.0" y="534" text-anchor="middle" class="body">Deposit galaxy radiation sources</text>
+<rect x="265" y="574" width="440" height="70" rx="8" fill="#EFF8F5" stroke="#278470" stroke-width="1.6"/>
+<text x="485.0" y="599" text-anchor="middle" class="heading">Update the IGM</text>
+<text x="485.0" y="622" text-anchor="middle" class="body">Heating, ionization and UVB history</text>
+<rect x="265" y="668" width="440" height="64" rx="8" fill="#EFF8F5" stroke="#278470" stroke-width="1.6"/>
+<text x="485.0" y="693" text-anchor="middle" class="heading">Calculate 21-cm brightness</text>
+<text x="485.0" y="716" text-anchor="middle" class="body">Neutral fraction, density and spin temperature</text>
+<rect x="265" y="786" width="440" height="64" rx="8" fill="#FCF2F4" stroke="#BD5864" stroke-width="1.6"/>
+<text x="485.0" y="811" text-anchor="middle" class="heading">Save outputs</text>
+<text x="485.0" y="834" text-anchor="middle" class="body">Selected catalogues, grids and summaries</text>
+<rect x="265" y="943" width="440" height="64" rx="8" fill="#FCF2F4" stroke="#BD5864" stroke-width="1.6"/>
+<text x="485.0" y="968" text-anchor="middle" class="heading">Assemble the master file</text>
+<text x="485.0" y="991" text-anchor="middle" class="body">Link the saved snapshot products</text>
+<path d="M 485 78 L 485 100" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 485 170 L 485 193" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 485 257 L 485 310" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 485 374 L 485 398" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 485 462 L 485 486" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 485 550 L 485 574" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 485 644 L 485 668" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 485 732 L 485 786" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 485 850 L 485 943" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<rect x="745" y="486" width="205" height="64" rx="8" fill="#F1F6FC" stroke="#427CC0" stroke-width="1.6"/>
+<text x="847.5" y="511" text-anchor="middle" class="heading">Simulation grids</text>
+<text x="847.5" y="534" text-anchor="middle" class="body">Density; optional velocity</text>
+<rect x="745" y="660" width="205" height="91" rx="8" fill="#EFF8F5" stroke="#278470" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="847.5" y="685" text-anchor="middle" class="heading">Optional products</text>
+<text x="847.5" y="708" text-anchor="middle" class="body">Power spectrum</text>
+<text x="847.5" y="727" text-anchor="middle" class="body">Lightcone</text>
+<path d="M 745 518 L 705 518" fill="none" stroke="#427CC0" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 705 700 L 745 705.5" fill="none" stroke="#278470" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 847.5 751 L 847.5 818 L 705 818" fill="none" stroke="#278470" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 265 818 L 177 818 L 177 342 L 265 342" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)" stroke-dasharray="6 4"/>
+<text x="99" y="598" text-anchor="middle" class="label">Next snapshot</text>
+<text x="605" y="902" text-anchor="middle" class="label">After the last snapshot</text>
+</svg>
