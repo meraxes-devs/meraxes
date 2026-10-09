@@ -73,6 +73,7 @@ typedef struct galaxy_output_t
   float FescIII;
   float FescIIIWeightedGSM;
   float FescIIIWeightedSfr;
+  float SfrIII; // Pop III SFR; with mini-halos, Sfr holds Pop II only
 
   float RmetalBubble;
   int Flag_ExtMetEnr;

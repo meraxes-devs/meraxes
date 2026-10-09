@@ -111,6 +111,7 @@ void prepare_galaxy_for_output(galaxy_t gal, galaxy_output_t* galout, int i_snap
   galout->FescIII = (float)(gal.FescIII);
   galout->FescIIIWeightedGSM = (float)(gal.FescIIIWeightedGSM);
   galout->FescIIIWeightedSfr = (float)(gal.FescIIIWeightedSfr * units->UnitMass_in_g / units->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS);
+  galout->SfrIII = (float)(gal.SfrIII * units->UnitMass_in_g / units->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS);
 
   galout->MvirCrit_MC = (float)(gal.MvirCrit_MC);
 
@@ -173,7 +174,7 @@ void calc_hdf5_props()
 
     h5props->n_props = 58; /* 57 base + 1: NHbin */
 #if USE_MINI_HALOS
-    h5props->n_props += 15; // Double check later
+    h5props->n_props += 16;
 #endif
 
 #ifdef CALC_MAGS
@@ -432,6 +433,13 @@ void calc_hdf5_props()
     h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, FescIIIWeightedSfr);
     h5props->dst_field_sizes[i] = sizeof(galout.FescIIIWeightedSfr);
     h5props->field_names[i] = "FescIIIWeightedSfr";
+    h5props->field_units[i] = "solMass/yr";
+    h5props->field_h_conv[i] = "None";
+    h5props->field_types[i++] = H5T_NATIVE_FLOAT;
+
+    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, SfrIII);
+    h5props->dst_field_sizes[i] = sizeof(galout.SfrIII);
+    h5props->field_names[i] = "SfrIII";
     h5props->field_units[i] = "solMass/yr";
     h5props->field_h_conv[i] = "None";
     h5props->field_types[i++] = H5T_NATIVE_FLOAT;
