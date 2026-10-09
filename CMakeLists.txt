@@ -64,7 +64,7 @@ set(SECTOR_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src/sector" CACHE PATH "Base direct
 option(BUILD_TESTS "Build criterion tests" OFF)
 option(GDB "Drop into GDB with mpi_debug_here() calls" OFF)
 option(ENABLE_PROFILING "Enable profiling of executable with gperftools." OFF)
-option(USE_CUDA "Build with CUDA support for reionization calculations" OFF)
+option(USE_CUDA "Build with CUDA support for reionization calculations (currently unsupported, see BUILD.md)" OFF)
 
 
 # Build type
@@ -159,6 +159,13 @@ target_include_directories(meraxes BEFORE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/sr
 ##########
 
 if(USE_CUDA)
+    # The GPU path (src/core/*_gpu.cu) predates several CPU reionization
+    # features and no longer compiles. It and the setup below are kept so it
+    # can be ported, but building it is refused until then.
+    message(FATAL_ERROR
+        "USE_CUDA is currently unsupported: the GPU reionization path is out of date with the CPU implementation "
+        "(it lacks the black hole and Pop III ionizing sources, spin temperature coupling, and temperature-dependent "
+        "recombination) and no longer compiles. Reconfigure with -DUSE_CUDA=OFF. See BUILD.md.")
     enable_language(CUDA)
     set_target_properties(meraxes_lib meraxes PROPERTIES
         CUDA_ARCHITECTURES 60

@@ -119,10 +119,13 @@ N_HISTORY_SNAPS
 : Number of snapshots to star formation history for. This is simulation dependent. If the value is too low then Meraxes will crash with an error telling you what the minimum value is for your simulation. Default is 17.
 
 USE_CUDA
-: Use CUDA accelerated reionization calculation. Default is OFF.
+: Use CUDA accelerated reionization calculation. Currently unsupported: the GPU path is out of date with the CPU reionization code (it lacks the black hole and Pop III ionizing sources, spin temperature coupling, and temperature-dependent recombination) and no longer compiles, so CMake stops with an error if this is ON. Default is OFF.
 
 USE_MINI_HALOS
-: Use mini-halos. Default is ON.
+: Use mini-halos. Default is OFF.
+
+USE_STOCHASTICITY
+: Compile the stochastic stellar-source prescriptions. Default is OFF.
 
 You can set these on the command line when running cmake, e.g.:
 
