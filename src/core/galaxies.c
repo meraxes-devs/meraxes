@@ -1,5 +1,6 @@
 #include <assert.h>
 
+#include "angular_momentum.h"
 #include "galaxies.h"
 #include "magnitudes.h"
 #include "meraxes.h"
@@ -31,6 +32,11 @@ galaxy_t* new_galaxy(int snapshot, unsigned long halo_ID)
   gal->Rvir = 0.0;
   gal->Vvir = 0.0;
   gal->Vmax = 0.0;
+#if USE_ANG_MOM
+  gal->VGasDisk = 0.0;
+  gal->VStellarDisk = 0.0;
+  gal->StellarDiskScaleLength = 0.0;
+#endif
   gal->Spin = 0.0;
   gal->DiskScaleLength = 0.0;
   gal->HotGas = 0.0;
@@ -98,6 +104,11 @@ galaxy_t* new_galaxy(int snapshot, unsigned long halo_ID)
   for (int ii = 0; ii < 3; ii++) {
     gal->Pos[ii] = (float)-99999.9;
     gal->Vel[ii] = (float)-99999.9;
+#if USE_ANG_MOM
+    gal->AMstars[ii] = 0.0;
+    gal->AMcold[ii] = 0.0;
+    gal->AMhalo[ii] = 0.0;
+#endif
   }
 
   for (int ii = 0; ii < N_HISTORY_SNAPS; ii++) {
@@ -133,26 +144,36 @@ void copy_halo_props_to_galaxy(halo_t* halo, galaxy_t* gal)
   gal->SnapSkipCounter = halo->SnapOffset;
   gal->HaloDescIndex = halo->DescIndex;
   gal->Mvir = halo->Mvir;
-  gal->Rvir = halo->Rvir;
-  gal->Vvir = halo->Vvir;
+  gal->Rvir = (double)halo->Rvir;
+  gal->Vvir = (double)halo->Vvir;
   gal->TreeFlags = halo->TreeFlags;
   gal->Spin = calculate_spin_param(halo);
   gal->FOFMvirModifier = halo->FOFGroup->FOFMvirModifier;
 
+  // Be careful! Here you might need to remove the DiskScaleLength for when are taking
+  // the updated AngMom calculation
+
   double sqrt_2 = 1.414213562;
   if (gal->Type == 0) {
     gal->Vmax = halo->Vmax;
+#if !USE_ANG_MOM
     gal->DiskScaleLength = gal->Spin * gal->Rvir / sqrt_2;
+#endif
   } else {
     if (!run_globals.params.physics.Flag_FixVmaxOnInfall)
       gal->Vmax = halo->Vmax;
+#if !USE_ANG_MOM
     if (!run_globals.params.physics.Flag_FixDiskRadiusOnInfall)
       gal->DiskScaleLength = gal->Spin * gal->Rvir / sqrt_2;
+#endif
   }
 
   for (int ii = 0; ii < 3; ii++) {
     gal->Pos[ii] = halo->Pos[ii];
     gal->Vel[ii] = halo->Vel[ii];
+#if USE_ANG_MOM
+    gal->AMhalo[ii] = halo->AngMom[ii];
+#endif
   }
 
   // record the maximum Len value if necessary

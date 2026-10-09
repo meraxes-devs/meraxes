@@ -113,7 +113,7 @@ void read_trees__velociraptor(int snapshot,
       mlog_error("Unrecognised input trees identifier (TreesID).");
       break;
   }
-  
+
   int n_tree_entries = 0;
   hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(plist_id, run_globals.mpi_comm, MPI_INFO_NULL);
@@ -136,7 +136,7 @@ void read_trees__velociraptor(int snapshot,
       mlog_error("Unrecognised input trees identifier (TreesID).");
       break;
   }
-    
+
   hid_t fd = H5Fopen(fname, H5F_ACC_RDONLY, plist_id);
   if (fd < 0) {
     mlog("Failed to open file %s", MLOG_MESG, fname);
@@ -175,8 +175,14 @@ void read_trees__velociraptor(int snapshot,
   float* VXc = malloc(sizeof(float) * buffer_size);
   float* VYc = malloc(sizeof(float) * buffer_size);
   float* VZc = malloc(sizeof(float) * buffer_size);
+#if USE_ANG_MOM
+  float* Lx = malloc(sizeof(float) * buffer_size);
+  float* Ly = malloc(sizeof(float) * buffer_size);
+  float* Lz = malloc(sizeof(float) * buffer_size);
+#else
   float* AngMom = malloc(sizeof(float) * buffer_size);
-  unsigned long* ID = malloc(sizeof(unsigned long) * buffer_size); 
+#endif
+  unsigned long* ID = malloc(sizeof(unsigned long) * buffer_size);
   unsigned long* npart = malloc(sizeof(unsigned long) * buffer_size);
 
   plist_id = H5Pcreate(H5P_DATASET_XFER);
@@ -193,38 +199,43 @@ void read_trees__velociraptor(int snapshot,
     if (n_remaining < n_to_read)
       n_to_read = n_remaining;
 
-
     // select a hyperslab in the filespace
     H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, (hsize_t[1]){ n_read }, NULL, (hsize_t[1]){ n_to_read }, NULL);
     hid_t memspace_id = H5Screate_simple(1, (hsize_t[1]){ n_to_read }, NULL);
 
 #define READ_TREE_ENTRY_PROP(name, type, h5type, target_rank)                                                          \
-{                                                                                                                      \
-  if (mpi_rank == target_rank % mpi_size){                                                                             \
-    hid_t dset_id = H5Dopen(snap_group, #name, H5P_DEFAULT);                                                           \
-    herr_t status = H5Dread(dset_id, h5type, memspace_id, fspace_id, plist_id, name);                                  \
-    assert(status >= 0);                                                                                               \
-    H5Dclose(dset_id);                                                                                                 \
-  }                                                                                                                    \
-  MPI_Bcast(name, sizeof(type) * n_to_read, MPI_BYTE, target_rank % mpi_size, run_globals.mpi_comm);                   \
-}                                                                                                                      \
+  {                                                                                                                    \
+    if (mpi_rank == target_rank % mpi_size) {                                                                          \
+      hid_t dset_id = H5Dopen(snap_group, #name, H5P_DEFAULT);                                                         \
+      herr_t status = H5Dread(dset_id, h5type, memspace_id, fspace_id, plist_id, name);                                \
+      assert(status >= 0);                                                                                             \
+      H5Dclose(dset_id);                                                                                               \
+    }                                                                                                                  \
+    MPI_Bcast(name, sizeof(type) * n_to_read, MPI_BYTE, target_rank % mpi_size, run_globals.mpi_comm);                 \
+  }
 
-	READ_TREE_ENTRY_PROP(ForestID,     long, H5T_NATIVE_LONG, 1);
-	READ_TREE_ENTRY_PROP(Head,         long, H5T_NATIVE_LONG, 2);
-	READ_TREE_ENTRY_PROP(hostHaloID,   long, H5T_NATIVE_LONG, 3);
-	READ_TREE_ENTRY_PROP(Mass_200crit, float, H5T_NATIVE_FLOAT, 4);
-	READ_TREE_ENTRY_PROP(Mass_tot,     float, H5T_NATIVE_FLOAT, 5);
-	READ_TREE_ENTRY_PROP(R_200crit,    float, H5T_NATIVE_FLOAT, 6);
-	READ_TREE_ENTRY_PROP(Vmax,         float, H5T_NATIVE_FLOAT, 7);
-	READ_TREE_ENTRY_PROP(Xc,           float, H5T_NATIVE_FLOAT, 8);
-	READ_TREE_ENTRY_PROP(Yc,           float, H5T_NATIVE_FLOAT, 9);
-	READ_TREE_ENTRY_PROP(Zc,           float, H5T_NATIVE_FLOAT, 10);                                                                  
-	READ_TREE_ENTRY_PROP(VXc,          float, H5T_NATIVE_FLOAT, 11);                                                                  
-	READ_TREE_ENTRY_PROP(VYc,          float, H5T_NATIVE_FLOAT, 12);                                                                  
-	READ_TREE_ENTRY_PROP(VZc,          float, H5T_NATIVE_FLOAT, 13);                                                                  
-	READ_TREE_ENTRY_PROP(AngMom,       float, H5T_NATIVE_FLOAT, 14);                                                                  
-	READ_TREE_ENTRY_PROP(ID,           unsigned long, H5T_NATIVE_ULONG, 15);                                                          
-	READ_TREE_ENTRY_PROP(npart,        unsigned long, H5T_NATIVE_ULONG, 16);                                                          
+    READ_TREE_ENTRY_PROP(ForestID, long, H5T_NATIVE_LONG, 1);
+    READ_TREE_ENTRY_PROP(Head, long, H5T_NATIVE_LONG, 2);
+    READ_TREE_ENTRY_PROP(hostHaloID, long, H5T_NATIVE_LONG, 3);
+    READ_TREE_ENTRY_PROP(Mass_200crit, float, H5T_NATIVE_FLOAT, 4);
+    READ_TREE_ENTRY_PROP(Mass_tot, float, H5T_NATIVE_FLOAT, 5);
+    READ_TREE_ENTRY_PROP(R_200crit, float, H5T_NATIVE_FLOAT, 6);
+    READ_TREE_ENTRY_PROP(Vmax, float, H5T_NATIVE_FLOAT, 7);
+    READ_TREE_ENTRY_PROP(Xc, float, H5T_NATIVE_FLOAT, 8);
+    READ_TREE_ENTRY_PROP(Yc, float, H5T_NATIVE_FLOAT, 9);
+    READ_TREE_ENTRY_PROP(Zc, float, H5T_NATIVE_FLOAT, 10);
+    READ_TREE_ENTRY_PROP(VXc, float, H5T_NATIVE_FLOAT, 11);
+    READ_TREE_ENTRY_PROP(VYc, float, H5T_NATIVE_FLOAT, 12);
+    READ_TREE_ENTRY_PROP(VZc, float, H5T_NATIVE_FLOAT, 13);
+    READ_TREE_ENTRY_PROP(ID, unsigned long, H5T_NATIVE_ULONG, 14);
+    READ_TREE_ENTRY_PROP(npart, unsigned long, H5T_NATIVE_ULONG, 15);
+#if USE_ANG_MOM
+    READ_TREE_ENTRY_PROP(Lx, float, H5T_NATIVE_FLOAT, 16);
+    READ_TREE_ENTRY_PROP(Ly, float, H5T_NATIVE_FLOAT, 17);
+    READ_TREE_ENTRY_PROP(Lz, float, H5T_NATIVE_FLOAT, 18);
+#else
+    READ_TREE_ENTRY_PROP(AngMom, float, H5T_NATIVE_FLOAT, 16);
+#endif
 
     H5Sclose(memspace_id);
 
@@ -246,8 +257,8 @@ void read_trees__velociraptor(int snapshot,
 
         if (run_globals.params.FlagIgnoreProgIndex)
           halo->ProgIndex = -1;
-        //else
-        //  halo->ProgIndex = id_to_ind(Tail[ii]);
+        // else
+        //   halo->ProgIndex = id_to_ind(Tail[ii]);
 
         halo->NextHaloInFOFGroup = NULL;
         halo->Type = hostHaloID[ii] == -1 ? 0 : 1;
@@ -258,8 +269,8 @@ void read_trees__velociraptor(int snapshot,
         // need to leave setting those until later...
         if (run_globals.params.FlagIgnoreProgIndex)
           halo->TreeFlags = TREE_CASE_NO_PROGENITORS;
-        //else
-        //  halo->TreeFlags = (unsigned long)Tail[ii] != ID[ii] ? 0 : TREE_CASE_NO_PROGENITORS;
+        // else
+        //   halo->TreeFlags = (unsigned long)Tail[ii] != ID[ii] ? 0 : TREE_CASE_NO_PROGENITORS;
 
         // Here we have a cyclic pointer, indicating that this halo's life ends here
         if ((unsigned long)Head[ii] == ID[ii])
@@ -271,27 +282,27 @@ void read_trees__velociraptor(int snapshot,
         // TODO: What masses and radii should I use for centrals (inclusive vs. exclusive etc.)?
         if (halo->Type == 0) {
           fof_group_t* fof_group = &fof_groups[*n_fof_groups];
-          
-          // This check is to ensure sensible values of mass_200crit and avoid having 
+
+          // This check is to ensure sensible values of mass_200crit and avoid having
           // very weird halos. Put this check back if you feel that the N-body is weird.
-          
+
           /*if ((Mass_200crit[ii] < 5 * Mass_tot[ii])) {
               fof_group->Mvir = Mass_200crit[ii] * hubble_h * mass_unit_to_internal;;
               fof_group->Rvir = R_200crit[ii] * hubble_h;
           }*/
-          //else {
-            // BELOW_VIRIAL_THRESHOLD merger halo swammping
+          // else {
+          //  BELOW_VIRIAL_THRESHOLD merger halo swammping
           if (Mass_200crit[ii] <= 0) {
             halo->TreeFlags |= TREE_CASE_BELOW_VIRIAL_THRESHOLD;
-            fof_group->Mvir = Mass_tot[ii] * hubble_h * mass_unit_to_internal;  
+            fof_group->Mvir = Mass_tot[ii] * hubble_h * mass_unit_to_internal;
             fof_group->Rvir = -1;
           }
-          
+
           else {
             fof_group->Mvir = (double)Mass_200crit[ii] * hubble_h * mass_unit_to_internal;
             fof_group->Rvir = (double)R_200crit[ii] * hubble_h;
           }
-          
+
           fof_group->Vvir = -1;
           fof_group->FOFMvirModifier = 1.0;
 
@@ -328,7 +339,7 @@ void read_trees__velociraptor(int snapshot,
         halo->Vel[0] = VXc[ii] / scale_factor;
         halo->Vel[1] = VYc[ii] / scale_factor;
         halo->Vel[2] = VZc[ii] / scale_factor;
-        halo->Vmax = Vmax[ii]; 
+        halo->Vmax = Vmax[ii];
 
         // TODO: What masses and radii should I use for satellites (inclusive vs. exclusive etc.)?
         halo->Mvir = (double)Mass_tot[ii] * hubble_h * mass_unit_to_internal;
@@ -336,7 +347,13 @@ void read_trees__velociraptor(int snapshot,
         halo->Vvir = -1;
         convert_input_virial_props(&halo->Mvir, &halo->Rvir, &halo->Vvir, NULL, -1, snapshot, false);
 
+#if USE_ANG_MOM
+        halo->AngMom[0] = Lx[ii] / Mass_tot[ii] * hubble_h;
+        halo->AngMom[1] = Ly[ii] / Mass_tot[ii] * hubble_h;
+        halo->AngMom[2] = Lz[ii] / Mass_tot[ii] * hubble_h;
+#else
         halo->AngMom = AngMom[ii] * hubble_h;
+#endif
         halo->Galaxy = NULL;
 
         (*n_halos)++;
@@ -359,7 +376,13 @@ void read_trees__velociraptor(int snapshot,
   free(VXc);
   free(VYc);
   free(VZc);
+#if USE_ANG_MOM
+  free(Lx);
+  free(Ly);
+  free(Lz);
+#else
   free(AngMom);
+#endif
   free(ID);
   free(npart);
   H5Pclose(plist_id);

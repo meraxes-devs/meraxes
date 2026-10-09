@@ -575,6 +575,16 @@ typedef struct galaxy_t
   double FescWeightedGSM;
   double MetalsStellarMass;
   double DiskScaleLength;
+#if USE_ANG_MOM
+  double VGasDisk;
+  double VStellarDisk;
+  double StellarDiskScaleLength;
+
+  // angular momentum
+  double AMstars[3]; // Total angular momentum vector  [Mpc/h *km/s]
+  double AMcold[3];  // Total angular momentum vector  [Mpc/h *km/s]
+  double AMhalo[3];
+#endif
   double Sfr;
   double EjectedGas;
   double MetalsEjectedGas;
@@ -655,9 +665,13 @@ typedef struct halo_t
   struct halo_t* NextHaloInFOFGroup;
   galaxy_t* Galaxy;
 
-  float Pos[3];    //!< Most bound particle position [Mpc/h]
-  float Vel[3];    //!< Centre of mass velocity [Mpc/h]
+  float Pos[3]; //!< Most bound particle position [Mpc/h]
+  float Vel[3]; //!< Centre of mass velocity [Mpc/h]
+#if USE_ANG_MOM
+  float AngMom[3]; // In this case you need the 3D one!
+#else
   float AngMom; //!< Specific angular momentum length [Mpc/h *km/s]
+#endif
 
   double Mvir; //!< virial mass [M_sol/h]
   double Rvir; //!< Virial radius [Mpc/h]

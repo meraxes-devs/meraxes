@@ -1,6 +1,9 @@
 #include <assert.h>
 #include <math.h>
 
+#if USE_ANG_MOM
+#include "core/angular_momentum.h"
+#endif
 #include "core/misc_tools.h"
 #include "core/stellar_feedback.h"
 #if USE_MINI_HALOS
@@ -31,6 +34,32 @@ void update_reservoirs_from_sn_feedback(galaxy_t* gal,
   else
     central = gal->Halo->FOFGroup->FirstOccupiedHalo->Galaxy;
 
+#if USE_ANG_MOM
+  // Adapted from Maddie's version but there is no bulge here.
+  if (gal->StellarMass > 1e-10) {
+    double specific_delta_angmom[3];
+    double total_delta_angmom[3];
+    total_to_specific_angmom(gal->AMstars, gal->StellarMass, specific_delta_angmom);
+    specific_to_total_angmom(specific_delta_angmom, m_recycled, total_delta_angmom);
+    // Update gas disk
+    add_disks(gal,
+              1,
+              m_recycled,
+              vector_magnitude(total_delta_angmom) / (2 * m_recycled * gal->VStellarDisk),
+              gal->VStellarDisk,
+              total_delta_angmom);
+    // Update stellar disk
+    add_disks(gal,
+              0,
+              -m_recycled,
+              vector_magnitude(total_delta_angmom) / (2 * m_recycled * gal->VStellarDisk),
+              gal->VStellarDisk,
+              total_delta_angmom);
+    increment_angular_momentum(gal->AMstars, total_delta_angmom, -1);
+    increment_angular_momentum(gal->AMcold, total_delta_angmom, 1);
+  }
+#endif
+
   gal->StellarMass -= m_recycled;
 #if USE_MINI_HALOS
   gal->StellarMass -= m_remnant;
@@ -58,10 +87,29 @@ void update_reservoirs_from_sn_feedback(galaxy_t* gal,
 
   metallicity = calc_metallicity(gal->ColdGas, gal->MetalsColdGas);
 
+#if USE_ANG_MOM
+  double specific_cold_angmom[3];
+  total_to_specific_angmom(gal->AMcold, gal->ColdGas, specific_cold_angmom);
+
+  increment_angular_momentum(gal->AMcold, specific_cold_angmom, -m_reheat);
+#endif
+
   gal->ColdGas -= m_reheat;
   gal->MetalsColdGas -= m_reheat * metallicity;
   central->MetalsHotGas += m_reheat * metallicity;
   central->HotGas += m_reheat;
+
+  // This check was not present in Maddie's version
+  // But I think we should do this.
+#if USE_ANG_MOM
+  if (gal->ColdGas < 1e-10) {
+    gal->ColdGas = 0.0;
+    gal->VGasDisk = 0.0;
+    gal->DiskScaleLength = 0.0;
+    for (int ii = 0; ii < 3; ii++)
+      gal->AMcold[ii] = 0.0;
+  }
+#endif
 
   // If this is a ghost then we don't know what the real ejected mass is as we
   // don't know the properties of the halo!
@@ -339,7 +387,7 @@ void delayed_supernova_feedback(galaxy_t* gal, int snapshot)
   else
     fof_Vvir = -1;
 
-  m_eject = calc_ejected_mass(&m_reheat, sn_energy, gal->Vvir, fof_Vvir); 
+  m_eject = calc_ejected_mass(&m_reheat, sn_energy, gal->Vvir, fof_Vvir);
 
   // Note that m_eject returned for ghosts by calc_ejected_mass() is
   // meaningless in the current physical prescriptions.  This fact is dealt

@@ -1,6 +1,9 @@
 #include <math.h>
 
 #include "blackhole_feedback.h"
+#if USE_ANG_MOM
+#include "core/angular_momentum.h"
+#endif
 #include "core/magnitudes.h"
 #include "core/misc_tools.h"
 #include "meraxes.h"
@@ -148,6 +151,8 @@ static void merger_driven_starburst(galaxy_t* parent, double merger_ratio, int s
 void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
 {
   galaxy_t* parent = NULL;
+  galaxy_t* primary = NULL;
+  galaxy_t* secondary = NULL;
   double merger_ratio;
   double parent_baryons;
   double gal_baryons;
@@ -169,41 +174,55 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   parent_baryons += parent->Remnant_Mass;
   gal_baryons += gal->Remnant_Mass;
 #endif
-  if (parent_baryons > gal_baryons)
+  if (parent_baryons > gal_baryons) {
     merger_ratio = gal_baryons / parent_baryons;
-  else
+    primary = parent;
+    secondary = gal;
+  } else {
     merger_ratio = parent_baryons / gal_baryons;
+    primary = gal;
+    secondary = parent;
+  }
 
   min_stellar_mass = (gal->StellarMass <= parent->StellarMass) ? gal->StellarMass : parent->StellarMass;
 
   // Add galaxies together
-  parent->StellarMass += gal->StellarMass;
-#if USE_MINI_HALOS
-  parent->StellarMass_II += gal->StellarMass_II;
-  parent->StellarMass_III += gal->StellarMass_III;
-  parent->Remnant_Mass += gal->Remnant_Mass;
-  parent->GrossStellarMassIII += gal->GrossStellarMassIII;
-  parent->FescIIIWeightedGSM += gal->FescIIIWeightedGSM;
+#if USE_ANG_MOM
+  add_disks(primary, 1, secondary->ColdGas, secondary->DiskScaleLength, secondary->VGasDisk, secondary->AMcold);
+  // Differently from Maddie's version, we need to add up also the stellar disks
+  // This would be different if we had bulges/major mergers.
+  add_disks(
+    primary, 0, secondary->StellarMass, secondary->StellarDiskScaleLength, secondary->VStellarDisk, secondary->AMstars);
 #endif
-  parent->GrossStellarMass += gal->GrossStellarMass;
-  parent->FescWeightedGSM += gal->FescWeightedGSM;
-  parent->MetalsStellarMass += gal->MetalsStellarMass;
-  parent->Sfr += gal->Sfr;
-  parent->HotGas += gal->HotGas;
-  parent->MetalsHotGas += gal->MetalsHotGas;
-  parent->ColdGas += gal->ColdGas;
-  parent->MetalsColdGas += gal->MetalsColdGas;
-  parent->EjectedGas += gal->EjectedGas;
-  parent->MetalsEjectedGas += gal->MetalsEjectedGas;
-  parent->BlackHoleAccretedHotMass += gal->BlackHoleAccretedHotMass;
-  parent->BlackHoleAccretedColdMass += gal->BlackHoleAccretedColdMass;
-  parent->BlackHoleAccretingColdMass += gal->BlackHoleAccretingColdMass;
-  parent->BHemissivity += gal->BHemissivity;
-  parent->BlackHoleMass += gal->BlackHoleMass;
-  parent->EffectiveBHM += gal->EffectiveBHM;
-  parent->mwmsa_num += gal->mwmsa_num;
-  parent->mwmsa_denom += gal->mwmsa_denom;
-  parent->MergerBurstMass += gal->MergerBurstMass;
+  // This sum of StellarMass is different from Maddie's model because we don't have major mergers
+  // and we don't have bulge.
+  primary->StellarMass += secondary->StellarMass;
+#if USE_MINI_HALOS
+  primary->StellarMass_II += secondary->StellarMass_II;
+  primary->StellarMass_III += secondary->StellarMass_III;
+  primary->Remnant_Mass += secondary->Remnant_Mass;
+  primary->GrossStellarMassIII += secondary->GrossStellarMassIII;
+  primary->FescIIIWeightedGSM += secondary->FescIIIWeightedGSM;
+#endif
+  primary->GrossStellarMass += secondary->GrossStellarMass;
+  primary->FescWeightedGSM += secondary->FescWeightedGSM;
+  primary->MetalsStellarMass += secondary->MetalsStellarMass;
+  primary->Sfr += secondary->Sfr;
+  primary->HotGas += secondary->HotGas;
+  primary->MetalsHotGas += secondary->MetalsHotGas;
+  primary->ColdGas += secondary->ColdGas;
+  primary->MetalsColdGas += secondary->MetalsColdGas;
+  primary->EjectedGas += secondary->EjectedGas;
+  primary->MetalsEjectedGas += secondary->MetalsEjectedGas;
+  primary->BlackHoleAccretedHotMass += secondary->BlackHoleAccretedHotMass;
+  primary->BlackHoleAccretedColdMass += secondary->BlackHoleAccretedColdMass;
+  primary->BlackHoleAccretingColdMass += secondary->BlackHoleAccretingColdMass;
+  primary->BHemissivity += secondary->BHemissivity;
+  primary->BlackHoleMass += secondary->BlackHoleMass;
+  primary->EffectiveBHM += secondary->EffectiveBHM;
+  primary->mwmsa_num += secondary->mwmsa_num;
+  primary->mwmsa_denom += secondary->mwmsa_denom;
+  primary->MergerBurstMass += secondary->MergerBurstMass;
 
 #if USE_MINI_HALOS
   // If I have a Merger between Pop III and Pop II the result is a Pop. II. Actually I should compute metallicity
@@ -217,28 +236,46 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   }
 #endif
 
+#if USE_ANG_MOM
+  for (int ii = 0; ii < 3; ii++) {
+    // This is an artificial choice which must be made due to the lack of
+    // orbital information about the infalling satellite, however, here we say
+    // that the specific angular momentum of gas and stars added to the primary
+    // is dictated by the host halo.
+
+    // Here we use the AM of the satellite gas and stellar disks
+    // But potentially we could use the AM of halo as in Tonini.
+    // primary->AMcold[ii]   += secondary->ColdGas *
+    // secondary->Halo->FOFGroup->AngMom[ii];  primary->AMstars[ii] +=
+    // secondary->StellarMass * secondary->Halo->FOFGroup->AngMom[ii];
+    primary->AMcold[ii] += secondary->AMcold[ii];
+    primary->AMstars[ii] += secondary->AMstars[ii];
+  }
+
+#endif
+
   for (int ii = 0; ii < N_HISTORY_SNAPS; ii++) {
-    parent->NewStars[ii] += gal->NewStars[ii];
+    primary->NewStars[ii] += secondary->NewStars[ii];
 #if USE_MINI_HALOS
-    parent->NewStars_II[ii] += gal->NewStars_II[ii];
-    parent->NewStars_III[ii] += gal->NewStars_III[ii];
+    primary->NewStars_II[ii] += secondary->NewStars_II[ii];
+    primary->NewStars_III[ii] += secondary->NewStars_III[ii];
 #endif
   }
 
   for (int ii = 0; ii < N_HISTORY_SNAPS; ii++)
-    parent->NewMetals[ii] += gal->NewMetals[ii];
+    primary->NewMetals[ii] += secondary->NewMetals[ii];
 
 #ifdef CALC_MAGS
-  merge_luminosities(parent, gal);
+  merge_luminosities(primary, secondary);
 #endif
 
   // merger driven starburst prescription
   if (min_stellar_mass >= run_globals.params.physics.MinMergerStellarMass)
-    merger_driven_starburst(parent, merger_ratio, snapshot);
+    merger_driven_starburst(primary, merger_ratio, snapshot);
 
   // TODO: Should this have a stellar mass / baryon limit placed on it?
   if (run_globals.params.physics.Flag_BHFeedback)
-    merger_driven_BH_growth(parent, merger_ratio, snapshot);
+    merger_driven_BH_growth(primary, merger_ratio, snapshot);
 
   // Mark the merged galaxy as dead
   gal->Type = 3;

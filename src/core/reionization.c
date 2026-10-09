@@ -488,9 +488,9 @@ void init_reion_grids()
       grids->sfrIII[ii] = 0;
 #endif
       for (int jj = 0; jj < run_globals.NstoreSnapshots_SFR; jj++) {
-        grids->sfr_histories[jj*run_globals.NstoreSnapshots_SFR+ii] = 0;
+        grids->sfr_histories[jj * run_globals.NstoreSnapshots_SFR + ii] = 0;
 #if USE_MINI_HALOS
-        grids->sfrIII_histories[jj*run_globals.NstoreSnapshots_SFR+ii] = 0;
+        grids->sfrIII_histories[jj * run_globals.NstoreSnapshots_SFR + ii] = 0;
 #endif
       }
     }
@@ -1386,11 +1386,12 @@ void construct_baryon_grids(int snapshot, int local_ngals)
     for (int ii = 0; ii < local_n_complex * 2; ii++) {
       sfr_grid[ii] = 0.0;
       for (int snap = run_globals.NstoreSnapshots_SFR - 2; snap >= 0; snap--)
-          sfr_histories_grid[(snap+1)*local_n_complex * 2+ii] = sfr_histories_grid[snap*local_n_complex * 2+ii];
+        sfr_histories_grid[(snap + 1) * local_n_complex * 2 + ii] = sfr_histories_grid[snap * local_n_complex * 2 + ii];
 #if USE_MINI_HALOS
       sfrIII_grid[ii] = 0.0;
       for (int snap = run_globals.NstoreSnapshots_SFR - 2; snap >= 0; snap--)
-          sfrIII_histories_grid[(snap+1)*local_n_complex * 2+ii] = sfrIII_histories_grid[snap*local_n_complex * 2+ii];
+        sfrIII_histories_grid[(snap + 1) * local_n_complex * 2 + ii] =
+          sfrIII_histories_grid[snap * local_n_complex * 2 + ii];
 #endif
     }
   }
@@ -1606,9 +1607,9 @@ void construct_baryon_grids(int snapshot, int local_ngals)
     MPI_Allreduce(MPI_IN_PLACE, &N_BlackHoleMassLimitReion, 1, MPI_LONG, MPI_SUM, run_globals.mpi_comm);
     if (prop == prop_stellar)
       mlog("%d quasars are smaller than %g",
-         MLOG_MESG,
-         N_BlackHoleMassLimitReion,
-         run_globals.params.physics.BlackHoleMassLimitReion);
+           MLOG_MESG,
+           N_BlackHoleMassLimitReion,
+           run_globals.params.physics.BlackHoleMassLimitReion);
   }
 
   mlog("done", MLOG_CLOSE | MLOG_TIMERSTOP);
@@ -1752,7 +1753,6 @@ void save_reion_input_grids(int snapshot)
   mlog("...done", MLOG_CLOSE);
 }
 
-
 void load_reion_sfr_grids(int snapshot_counter_backwards, float weight, const int new_load)
 {
   // TODO: currently only read sfr
@@ -1761,23 +1761,34 @@ void load_reion_sfr_grids(int snapshot_counter_backwards, float weight, const in
   int local_nix = (int)(run_globals.reion_grids.slab_nix[run_globals.mpi_rank]);
   int local_n_complex = (int)(run_globals.reion_grids.slab_n_complex[run_globals.mpi_rank]);
 
-  if (new_load){
+  if (new_load) {
     for (int ii = 0; ii < local_nix; ii++)
       for (int jj = 0; jj < ReionGridDim; jj++)
-        for (int kk = 0; kk < ReionGridDim; kk++){
-            (grids->sfr)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] = grids->sfr_histories[snapshot_counter_backwards * local_n_complex * 2+grid_index(ii, jj, kk, ReionGridDim, INDEX_REAL)]  * weight;
+        for (int kk = 0; kk < ReionGridDim; kk++) {
+          (grids->sfr)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] =
+            grids->sfr_histories[snapshot_counter_backwards * local_n_complex * 2 +
+                                 grid_index(ii, jj, kk, ReionGridDim, INDEX_REAL)] *
+            weight;
 #if USE_MINI_HALOS
-            (grids->sfrIII)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] = grids->sfrIII_histories[snapshot_counter_backwards * local_n_complex * 2+grid_index(ii, jj, kk, ReionGridDim, INDEX_REAL)]  * weight;
+          (grids->sfrIII)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] =
+            grids->sfrIII_histories[snapshot_counter_backwards * local_n_complex * 2 +
+                                    grid_index(ii, jj, kk, ReionGridDim, INDEX_REAL)] *
+            weight;
 #endif
-		}
-  }
-  else{
+        }
+  } else {
     for (int ii = 0; ii < local_nix; ii++)
       for (int jj = 0; jj < ReionGridDim; jj++)
-        for (int kk = 0; kk < ReionGridDim; kk++){
-            (grids->sfr)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] += grids->sfr_histories[snapshot_counter_backwards * local_n_complex * 2+grid_index(ii, jj, kk, ReionGridDim, INDEX_REAL)]  * weight;
+        for (int kk = 0; kk < ReionGridDim; kk++) {
+          (grids->sfr)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] +=
+            grids->sfr_histories[snapshot_counter_backwards * local_n_complex * 2 +
+                                 grid_index(ii, jj, kk, ReionGridDim, INDEX_REAL)] *
+            weight;
 #if USE_MINI_HALOS
-            (grids->sfrIII)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] += grids->sfrIII_histories[snapshot_counter_backwards * local_n_complex * 2+grid_index(ii, jj, kk, ReionGridDim, INDEX_REAL)]  * weight;
+          (grids->sfrIII)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] +=
+            grids->sfrIII_histories[snapshot_counter_backwards * local_n_complex * 2 +
+                                    grid_index(ii, jj, kk, ReionGridDim, INDEX_REAL)] *
+            weight;
 #endif
         }
   }
