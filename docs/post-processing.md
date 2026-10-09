@@ -1,7 +1,7 @@
 # Post-processing tools
 
-DRAGONS Tools provides Python routines for reading Meraxes outputs and
-processing simulation data.
+DRAGONS Tools, developed by Simon Mutch, provides Python routines for reading
+Meraxes outputs and processing simulation data.
 
 ```{toctree}
 :maxdepth: 2
