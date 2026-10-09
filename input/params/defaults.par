@@ -197,7 +197,6 @@ MergerBurstScaling        : 0.7
 #--------------------------------
 
 Flag_BHFeedback           : 1
-Flag_BHARExponentialCut   : 0 # if 1, accretion starts at a random time and emissivity decays exponentially after accretion stops
 
 RadioModeEff              : 0.3
 QuasarModeEff             : 0.0005

@@ -603,14 +603,23 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
         const double density_over_mean = 1.0 + (double)((float*)deltax)[i_padded];
         const double cell_xH = (double)(xH[i_real]);
         *volume_weighted_global_xH += cell_xH;
-        *volume_weighted_global_Gamma += (double)Gamma12[i_real];
         *mass_weighted_global_xH += cell_xH * density_over_mean;
         mass_weight += density_over_mean;
 
+        // Gamma12 is only allocated when recombinations are on.
         if (Flag_IncludeRecombinations) {
-          const float z_eff = (float)((1. + redshift) * pow(density_over_mean, 1.0 / 3.0) - 1);
-          const float dNrec = splined_recombination_rate(z_eff, Gamma12[i_real] * Hubble_h * Hubble_h) * fabs_dtdz * zstep * (1. - cell_xH);
-          N_rec[i_padded] += dNrec;
+          *volume_weighted_global_Gamma += (double)Gamma12[i_real];
+
+          // The GPU path keeps the isothermal (T = 1e4 K) recombination rate of
+          // the old two-argument API; it does not implement the CPU path's
+          // temperature dependence or residual_xH/clumping/t_resp grids.
+          const double z_eff = (1. + redshift) * pow(density_over_mean, 1.0 / 3.0) - 1;
+          double recombination_rate, rnh, cf;
+          if (splined_recombination(z_eff, (double)Gamma12[i_real] * Hubble_h * Hubble_h, 1e4, &recombination_rate, &rnh, &cf) != 1) {
+            mlog_error("splined_recombination failed. Aborting...");
+            ABORT(EXIT_FAILURE);
+          }
+          N_rec[i_padded] += (float)(recombination_rate * fabs_dtdz * zstep * (1. - cell_xH));
         }
       }
   MPI_Allreduce(MPI_IN_PLACE, volume_weighted_global_xH, 1, MPI_DOUBLE, MPI_SUM, mpi_comm);

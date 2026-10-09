@@ -58,9 +58,10 @@ Test(blackhole_feedback, calculate_BHemissivity_basic)
 {
   double BlackHoleMass = 1e-3;  // 1e7 Msun in internal units (1e10 Msun/h)
   double accreted_mass = 1e-4; // 1e6 Msun accreted
-  double emissivity, accretion_time;
+  double emissivity, accretion_time, quasar_luv, quasar_lx, quasar_lx_soft, xray_emissivity;
 
-  calculate_BHemissivity(BlackHoleMass, accreted_mass, &emissivity, &accretion_time);
+  calculate_BHemissivity(BlackHoleMass, accreted_mass, &emissivity, &accretion_time,
+                         &quasar_luv, &quasar_lx, &quasar_lx_soft, &xray_emissivity);
 
   cr_expect_gt(emissivity, 0.0, "Emissivity should be positive");
   cr_expect_gt(accretion_time, 0.0, "Accretion time should be positive");
@@ -72,9 +73,10 @@ Test(blackhole_feedback, calculate_BHemissivity_zero_accretion)
 {
   double BlackHoleMass = 1e-3;
   double accreted_mass = 0.0;
-  double emissivity, accretion_time;
+  double emissivity, accretion_time, quasar_luv, quasar_lx, quasar_lx_soft, xray_emissivity;
 
-  calculate_BHemissivity(BlackHoleMass, accreted_mass, &emissivity, &accretion_time);
+  calculate_BHemissivity(BlackHoleMass, accreted_mass, &emissivity, &accretion_time,
+                         &quasar_luv, &quasar_lx, &quasar_lx_soft, &xray_emissivity);
 
   // With zero accretion, emissivity should be zero or very small
   cr_expect_float_eq(accretion_time, 0.0, 1e-15, "Accretion time should be zero for zero accretion");
@@ -84,10 +86,13 @@ Test(blackhole_feedback, calculate_BHemissivity_mass_scaling)
 {
   double accreted_mass = 1e-4;
   double emissivity1, emissivity2, accretion_time1, accretion_time2;
+  double quasar_luv, quasar_lx, quasar_lx_soft, xray_emissivity;
 
   // Larger BH mass should have higher luminosity
-  calculate_BHemissivity(1e-3, accreted_mass, &emissivity1, &accretion_time1);
-  calculate_BHemissivity(1e-2, accreted_mass, &emissivity2, &accretion_time2);
+  calculate_BHemissivity(1e-3, accreted_mass, &emissivity1, &accretion_time1,
+                         &quasar_luv, &quasar_lx, &quasar_lx_soft, &xray_emissivity);
+  calculate_BHemissivity(1e-2, accreted_mass, &emissivity2, &accretion_time2,
+                         &quasar_luv, &quasar_lx, &quasar_lx_soft, &xray_emissivity);
 
   cr_expect_gt(emissivity2, emissivity1, "Larger BH should have higher emissivity");
 }
@@ -96,10 +101,13 @@ Test(blackhole_feedback, calculate_BHemissivity_accretion_scaling)
 {
   double BlackHoleMass = 1e-3;
   double emissivity1, emissivity2, accretion_time1, accretion_time2;
+  double quasar_luv, quasar_lx, quasar_lx_soft, xray_emissivity;
 
   // More accretion should lead to higher emissivity
-  calculate_BHemissivity(BlackHoleMass, 1e-5, &emissivity1, &accretion_time1);
-  calculate_BHemissivity(BlackHoleMass, 1e-4, &emissivity2, &accretion_time2);
+  calculate_BHemissivity(BlackHoleMass, 1e-5, &emissivity1, &accretion_time1,
+                         &quasar_luv, &quasar_lx, &quasar_lx_soft, &xray_emissivity);
+  calculate_BHemissivity(BlackHoleMass, 1e-4, &emissivity2, &accretion_time2,
+                         &quasar_luv, &quasar_lx, &quasar_lx_soft, &xray_emissivity);
 
   cr_expect_gt(emissivity2, emissivity1, "More accretion should increase emissivity");
   cr_expect_gt(accretion_time2, accretion_time1, "More accretion should increase accretion time");

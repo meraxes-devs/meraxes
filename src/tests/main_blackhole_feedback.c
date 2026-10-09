@@ -31,8 +31,6 @@
 #include "meraxes.h"
 #include "physics/blackhole_feedback.h"
 
-// Forward declarations
-extern void calculate_BHemissivity(double BlackHoleMass, double accreted_mass, double *emissivity, double *accretion_time);
 void set_units(void);
 
 static void print_usage(const char* progname)
@@ -116,8 +114,9 @@ static void sweep_bh_emissivity(void)
     printf("%-12s", mass_labels[i]);
     for (int j = 0; j < n_fracs; j++) {
       double accreted_mass = bh_masses[i] * acc_fractions[j];
-      double emissivity, accretion_time;
-      calculate_BHemissivity(bh_masses[i], accreted_mass, &emissivity, &accretion_time);
+      double emissivity, accretion_time, quasar_luv, quasar_lx, quasar_lx_soft, xray_emissivity;
+      calculate_BHemissivity(bh_masses[i], accreted_mass, &emissivity, &accretion_time,
+                             &quasar_luv, &quasar_lx, &quasar_lx_soft, &xray_emissivity);
       
       // Convert accretion time to Myr
       double t_acc_myr = accretion_time * run_globals.units.UnitTime_in_Megayears / run_globals.params.Hubble_h;
@@ -139,7 +138,7 @@ static void print_constants(void)
   printf("  VELOCITY_SCALE                 = %.1f km/s\n", VELOCITY_SCALE);
   printf("  EMISSIVITY_CONVERTOR           = %.5e\n", EMISSIVITY_CONVERTOR);
   printf("  LUMINOSITY_CONVERTOR           = %.4f\n", LUMINOSITY_CONVERTOR);
-  printf("  LB2EMISSIVITY                  = %.6e\n", LB2EMISSIVITY);
+  printf("  LUV2EMISSIVITY                 = %.6e\n", LUV2EMISSIVITY);
   printf("\n=== Derived Quantities ===\n");
   printf("  G (internal units)             = %.5e\n", run_globals.G);
   printf("  c^2 (internal units)           = %.5e\n", run_globals.Csquare);
@@ -217,8 +216,9 @@ int main(int argc, char* argv[])
     sweep_bh_emissivity();
   } else {
     // Single point evaluation
-    double emissivity, accretion_time;
-    calculate_BHemissivity(bh_mass, accreted_mass, &emissivity, &accretion_time);
+    double emissivity, accretion_time, quasar_luv, quasar_lx, quasar_lx_soft, xray_emissivity;
+    calculate_BHemissivity(bh_mass, accreted_mass, &emissivity, &accretion_time,
+                           &quasar_luv, &quasar_lx, &quasar_lx_soft, &xray_emissivity);
 
     double t_acc_myr = accretion_time * run_globals.units.UnitTime_in_Megayears / run_globals.params.Hubble_h;
     double bh_mass_msun = bh_mass * 1e10 / run_globals.params.Hubble_h;

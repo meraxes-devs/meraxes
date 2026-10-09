@@ -29,7 +29,7 @@
 #include <string.h>
 
 #include "meraxes.h"
-#include "cooling.h"
+#include "physics/cooling.h"
 
 // Forward declarations from cooling.c
 extern void read_cooling_functions(void);

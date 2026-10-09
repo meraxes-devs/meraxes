@@ -1,7 +1,7 @@
 #------------------------------------------
 #----- Simulation input files  ------------
 #------------------------------------------
-SimName           : Genesis L210_N4320
+SimName           : Genesis L500_N2160
 SimulationDir     : /fred/oz113/yqin/dragons/input_trees/Genesis_L500_N2160
 CatalogFilePrefix : VELOCIraptor.tree.t4.0-131.walkabletree.branchfix.forestID.hdf5
 TreesID           : 0  # 0 -> VELOCIraptor; 1 -> gbpTrees, 2 -> VELOCIraptor augmented
