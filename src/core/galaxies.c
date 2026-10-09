@@ -82,6 +82,8 @@ galaxy_t* new_galaxy(int snapshot, unsigned long halo_ID)
   gal->FOFMvirModifier = 1.0;
   gal->MvirCrit = 0.0;
   gal->tau_cgm = 0.0;
+  // No cutoff until a value is assigned from the t_resp grid.
+  gal->t_resp = 1e30;
   gal->cumulative_ionization = 0.0;
   gal->MergerBurstMass = 0.0;
   gal->MergerStartRadius = 0.0;
@@ -213,7 +215,8 @@ void reset_galaxy_properties(galaxy_t* gal, int snapshot)
   gal->DutyCycleAGN = 0.0;
   gal->BlackHoleAccretedHotMass = 0.0;
   gal->BlackHoleAccretedColdMass = 0.0;
-  gal->t_resp = 1e30;
+  // t_resp is not reset here: ghosts run BH growth (passively_evolve_ghost)
+  // before this snapshot's grid value is assigned, so they keep the last one.
   // MvirCrit is assigned from the reionization grid before the physics step
   // and is consumed by gas_infall() through reionization_modifier(). Keep
   // that value while patchy UVB feedback is active; otherwise clear it so a
