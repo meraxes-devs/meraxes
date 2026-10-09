@@ -206,6 +206,11 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   parent->MetalsStellarMass += gal->MetalsStellarMass;
   parent->Sfr += gal->Sfr;
   parent->FescWeightedSfr += gal->FescWeightedSfr;
+
+  // take the CGM tau from the one with more CGM (compare before merging HotGas)
+  if (parent->HotGas < gal->HotGas)
+    parent->tau_cgm = gal->tau_cgm;
+
   parent->HotGas += gal->HotGas;
   parent->MetalsHotGas += gal->MetalsHotGas;
   parent->ColdGas += gal->ColdGas;
@@ -225,10 +230,6 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   parent->QuasarLX  += gal->QuasarLX;
   parent->BHXrayEmissivity_hard += gal->BHXrayEmissivity_hard;
   parent->BHXrayEmissivity_soft += gal->BHXrayEmissivity_soft;
-
-  // take the CGM tau from the one with more CGM
-  if (parent->HotGas < gal->HotGas)
-    parent->tau_cgm = gal->tau_cgm;
 
   parent->BlackHoleAccretedHotMass += gal->BlackHoleAccretedHotMass;
   parent->BlackHoleAccretedColdMass += gal->BlackHoleAccretedColdMass;
