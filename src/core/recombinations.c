@@ -6,6 +6,11 @@
  * Inclusion of this for Meraxes was written by Bradley Greig.
  */
 
+#include <hdf5.h>
+#include <hdf5_hl.h>
+#include <math.h>
+#include <sys/stat.h>
+
 #include "recombinations.h"
 #include "XRayHeatingFunctions.h"
 #include "meraxes.h"
@@ -72,6 +77,132 @@ int splined_recombination(double z_eff, double gamma12_bg, double temp, double *
   return 1;
 }
 
+typedef struct
+{
+  const char* name;
+  double value;
+} rr_cache_attr_t;
+
+// Everything the cached tables depend on: the interpolation grid, and the
+// cosmology that enters No (Hubble_h, OmegaM, BaryonFrac, Y_He).
+#define RR_CACHE_ATTRS                                                                                                 \
+  {                                                                                                                    \
+    { "lnGamma_min", RR_lnGamma_min },                                                                                 \
+    { "lnGamma_npts", RR_lnGamma_NPTS },                                                                               \
+    { "del_lnGamma", RR_DEL_lnGamma },                                                                                 \
+    { "z_end", RR_Z_END },                                                                                             \
+    { "z_npts", RR_Z_NPTS },                                                                                           \
+    { "del_z", RR_DEL_Z },                                                                                             \
+    { "log10T_start", RR_T_STA },                                                                                      \
+    { "T_npts", RR_T_NPTS },                                                                                           \
+    { "del_log10T", RR_DEL_T },                                                                                        \
+    { "Hubble_h", run_globals.params.Hubble_h },                                                                       \
+    { "OmegaM", run_globals.params.OmegaM },                                                                           \
+    { "BaryonFrac", run_globals.params.BaryonFrac },                                                                   \
+    { "Y_He", run_globals.params.physics.Y_He },                                                                       \
+  }
+
+static bool read_rr_cache_table(hid_t fd, const char* name, double* buf, hsize_t n_expected)
+{
+  int rank;
+  hsize_t dims[3];
+  H5T_class_t type_class;
+  size_t type_size;
+
+  if (H5LTget_dataset_ndims(fd, name, &rank) < 0 || rank < 1 || rank > 3)
+    return false;
+  if (H5LTget_dataset_info(fd, name, dims, &type_class, &type_size) < 0)
+    return false;
+
+  hsize_t n = 1;
+  for (int ii = 0; ii < rank; ii++)
+    n *= dims[ii];
+
+  return n == n_expected && H5LTread_dataset_double(fd, name, buf) >= 0;
+}
+
+// Rank 0 only. Returns true if fname holds tables built for this grid and
+// cosmology and they were read in full; otherwise the caller rebuilds them.
+static bool load_rr_cache(const char* fname, double* lnGamma, double* rr, double* cf, double* rnh, hsize_t n_table)
+{
+  // A missing or stale cache is expected, so don't print HDF5's error stack for it.
+  H5E_auto2_t old_func;
+  void* old_client_data;
+  H5Eget_auto2(H5E_DEFAULT, &old_func, &old_client_data);
+  H5Eset_auto2(H5E_DEFAULT, NULL, NULL);
+
+  bool ok = false;
+  hid_t fd = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
+  if (fd < 0) {
+    mlog("No recombination table cache found at %s.", MLOG_MESG, fname);
+  } else {
+    double cached;
+    ok = true;
+    const rr_cache_attr_t attrs[] = RR_CACHE_ATTRS;
+    for (size_t ii = 0; ii < sizeof(attrs) / sizeof(attrs[0]); ii++) {
+      if (H5LTget_attribute_double(fd, "/", attrs[ii].name, &cached) < 0) {
+        mlog("WARNING: %s has no %s attribute.", MLOG_MESG, fname, attrs[ii].name);
+        ok = false;
+      } else if (fabs(cached - attrs[ii].value) > REL_TOL * fabs(attrs[ii].value)) {
+        mlog("WARNING: recombination tables in %s were built with %s = %.10g, but this run uses %.10g.",
+             MLOG_MESG,
+             fname,
+             attrs[ii].name,
+             cached,
+             attrs[ii].value);
+        ok = false;
+      }
+    }
+
+    if (ok && !(read_rr_cache_table(fd, "lnGamma", lnGamma, RR_lnGamma_NPTS) &&
+                read_rr_cache_table(fd, "RR", rr, n_table) && read_rr_cache_table(fd, "CF", cf, n_table) &&
+                read_rr_cache_table(fd, "RNH", rnh, n_table))) {
+      mlog("WARNING: could not read the recombination tables in %s.", MLOG_MESG, fname);
+      ok = false;
+    }
+
+    H5Fclose(fd);
+  }
+
+  H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
+  return ok;
+}
+
+static bool same_file(const char* a, const char* b)
+{
+  struct stat sa, sb;
+  return stat(a, &sa) == 0 && stat(b, &sb) == 0 && sa.st_dev == sb.st_dev && sa.st_ino == sb.st_ino;
+}
+
+// Rank 0 only. RR and RNH are stored as natural logs, laid out as
+// [z][T][lnGamma]. The attributes are written last, so a file whose
+// attributes all match also has complete tables.
+static void save_rr_cache(const char* fname, const double* lnGamma, const double* rr, const double* cf, const double* rnh)
+{
+  hid_t fd = H5Fcreate(fname, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  bool ok = fd >= 0;
+
+  if (ok) {
+    const hsize_t lnGamma_dims[1] = { RR_lnGamma_NPTS };
+    const hsize_t table_dims[3] = { RR_Z_NPTS, RR_T_NPTS, RR_lnGamma_NPTS };
+    ok = H5LTmake_dataset_double(fd, "lnGamma", 1, lnGamma_dims, lnGamma) >= 0 &&
+         H5LTmake_dataset_double(fd, "RR", 3, table_dims, rr) >= 0 &&
+         H5LTmake_dataset_double(fd, "CF", 3, table_dims, cf) >= 0 &&
+         H5LTmake_dataset_double(fd, "RNH", 3, table_dims, rnh) >= 0;
+
+    const rr_cache_attr_t attrs[] = RR_CACHE_ATTRS;
+    for (size_t ii = 0; ok && ii < sizeof(attrs) / sizeof(attrs[0]); ii++)
+      ok = H5LTset_attribute_double(fd, "/", attrs[ii].name, &attrs[ii].value, 1) >= 0;
+
+    H5Fclose(fd);
+  }
+
+  if (ok)
+    mlog("Saved recombination tables to %s.", MLOG_MESG, fname);
+  else
+    mlog("Warning: Failed to save recombination tables to %s.", MLOG_MESG, fname);
+}
+
 void init_MHR()
 {
   int z_ct, gamma_ct, t_ct, idx, flag_recalc;
@@ -79,11 +210,9 @@ void init_MHR()
   int RR_ZT_NPTS = RR_Z_NPTS*RR_T_NPTS;
   int TOT_NPTS = RR_ZT_NPTS*RR_lnGamma_NPTS;
   
-  FILE *gamma_fp, *rr_fp, *cf_fp, *rnh_fp;
-  char GAMMA_FILENAME[2 * STRLEN];
-  char RR_FILENAME[2 * STRLEN];
-  char CF_FILENAME[2 * STRLEN];
-  char RNH_FILENAME[2 * STRLEN];
+  char cache_fname[2 * STRLEN];
+  char out_fname[2 * STRLEN];
+  bool save_tables = false;
 
   mlog("Initialising MHR parameter and recombination interpolation tables...", MLOG_OPEN | MLOG_TIMERSTART);
 
@@ -102,35 +231,28 @@ void init_MHR()
   }
 
   if (run_globals.mpi_rank == 0) {
-    snprintf(GAMMA_FILENAME, sizeof(GAMMA_FILENAME), "%s/lnGamma_table_%g-%d-%g.bin", run_globals.params.RecombinationDir, RR_lnGamma_min, RR_lnGamma_NPTS, RR_DEL_lnGamma);
-    snprintf(RR_FILENAME, sizeof(RR_FILENAME), "%s/RR_table_%g-%d-%g_%g-%d-%g_%g-%d-%g.bin", run_globals.params.RecombinationDir, RR_lnGamma_min, RR_lnGamma_NPTS, RR_DEL_lnGamma, RR_Z_END, RR_Z_NPTS, RR_DEL_Z, RR_T_STA, RR_T_NPTS, RR_DEL_T);
-    snprintf(CF_FILENAME, sizeof(CF_FILENAME), "%s/CF_table_%g-%d-%g_%g-%d-%g_%g-%d-%g.bin", run_globals.params.RecombinationDir, RR_lnGamma_min, RR_lnGamma_NPTS, RR_DEL_lnGamma, RR_Z_END, RR_Z_NPTS, RR_DEL_Z, RR_T_STA, RR_T_NPTS, RR_DEL_T);
-    snprintf(RNH_FILENAME, sizeof(RNH_FILENAME), "%s/RNH_table_%g-%d-%g_%g-%d-%g_%g-%d-%g.bin", run_globals.params.RecombinationDir, RR_lnGamma_min, RR_lnGamma_NPTS, RR_DEL_lnGamma, RR_Z_END, RR_Z_NPTS, RR_DEL_Z, RR_T_STA, RR_T_NPTS, RR_DEL_T);
-    gamma_fp = fopen(GAMMA_FILENAME, "rb");
-    rr_fp = fopen(RR_FILENAME, "rb");
-    cf_fp = fopen(CF_FILENAME, "rb");
-    rnh_fp = fopen(RNH_FILENAME, "rb");
+    snprintf(cache_fname, sizeof(cache_fname), "%s/recombination_tables.h5", run_globals.params.RecombinationDir);
+    snprintf(out_fname, sizeof(out_fname), "%s/recombination_tables.h5", run_globals.params.OutputDir);
 
-    bool loaded = false;
-    if (gamma_fp && rr_fp && cf_fp && rnh_fp) {
-      loaded = fread(lnGamma_values, sizeof(double), RR_lnGamma_NPTS, gamma_fp) == (size_t)RR_lnGamma_NPTS &&
-               fread(RR_table, sizeof(double), TOT_NPTS, rr_fp) == (size_t)TOT_NPTS &&
-               fread(CF_table, sizeof(double), TOT_NPTS, cf_fp) == (size_t)TOT_NPTS &&
-               fread(RNH_table, sizeof(double), TOT_NPTS, rnh_fp) == (size_t)TOT_NPTS;
-      if (!loaded)
-        mlog("WARNING: recombination table files on disk are incomplete; recomputing them.", MLOG_MESG);
-    }
-    if (gamma_fp) fclose(gamma_fp);
-    if (rr_fp)    fclose(rr_fp);
-    if (cf_fp)    fclose(cf_fp);
-    if (rnh_fp)   fclose(rnh_fp);
-
-    if (loaded) {
+    if (load_rr_cache(cache_fname, lnGamma_values, RR_table, CF_table, RNH_table, (hsize_t)TOT_NPTS)) {
       flag_recalc = 0;
-      mlog("Loaded recombination tables from disk.", MLOG_MESG);
+      mlog("Loaded recombination tables from %s.", MLOG_MESG, cache_fname);
     }
     else{
       flag_recalc = 1;
+      // Rebuilt tables go to OutputDir, never over the cache in RecombinationDir.
+      save_tables = !same_file(cache_fname, out_fname);
+      if (save_tables)
+        mlog("WARNING: rebuilding the recombination tables. They will be saved to %s; move that file to %s to "
+             "reuse them in later runs.",
+             MLOG_MESG,
+             out_fname,
+             run_globals.params.RecombinationDir);
+      else
+        mlog("WARNING: rebuilding the recombination tables, but not saving them: OutputDir is the same directory "
+             "as RecombinationDir and %s would be overwritten.",
+             MLOG_MESG,
+             cache_fname);
       mlog("Recomputing recombination tables in parallel.", MLOG_MESG | MLOG_TIMERSTART);
       for (gamma_ct = 0; gamma_ct < RR_lnGamma_NPTS; gamma_ct++)
         lnGamma_values[gamma_ct] = RR_lnGamma_min + gamma_ct * RR_DEL_lnGamma; // ln of Gamma12
@@ -186,32 +308,8 @@ void init_MHR()
       free(local_CF);
       free(local_RNH);
 
-      if (run_globals.mpi_rank == 0){
-
-        // Save to disk
-        gamma_fp = fopen(GAMMA_FILENAME, "wb");
-        rr_fp = fopen(RR_FILENAME, "wb");
-        cf_fp = fopen(CF_FILENAME, "wb");
-        rnh_fp = fopen(RNH_FILENAME, "wb");
-        if (gamma_fp && rr_fp && cf_fp && rnh_fp) {
-          fwrite(lnGamma_values, sizeof(double), RR_lnGamma_NPTS, gamma_fp);
-          fwrite(RR_table, sizeof(double), TOT_NPTS, rr_fp);
-          fwrite(CF_table, sizeof(double), TOT_NPTS, cf_fp);
-          fwrite(RNH_table, sizeof(double), TOT_NPTS, rnh_fp);
-          fclose(gamma_fp);
-          fclose(rr_fp);
-          fclose(cf_fp);
-          fclose(rnh_fp);
-          mlog("Saved RR_table and RNH_table to disk.", MLOG_MESG);
-        } 
-        else{
-          if (gamma_fp) fclose(gamma_fp);
-          if (rr_fp)    fclose(rr_fp);
-          if (cf_fp)    fclose(cf_fp);
-          if (rnh_fp)   fclose(rnh_fp);
-          mlog("Warning: Failed to save lookup tables to disk.", MLOG_MESG);
-        }
-      }
+      if (run_globals.mpi_rank == 0 && save_tables)
+        save_rr_cache(out_fname, lnGamma_values, RR_table, CF_table, RNH_table);
       mlog("...done.", MLOG_CONT | MLOG_TIMERSTOP);
   }
   else{
