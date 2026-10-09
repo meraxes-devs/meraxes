@@ -39,6 +39,7 @@ add_executable(main_cooling main_cooling.c)
 set_property(TARGET main_cooling PROPERTY C_STANDARD 99)
 target_include_directories(main_cooling PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR})
 target_link_libraries(main_cooling PRIVATE meraxes_lib)
+target_compile_definitions(main_cooling PRIVATE COOLING_FUNCS_DIR="${CMAKE_SOURCE_DIR}/input/cooling_functions")
 
 # Standalone test driver for blackhole feedback module (no Criterion required)
 add_executable(main_blackhole_feedback main_blackhole_feedback.c)
