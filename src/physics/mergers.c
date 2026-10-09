@@ -212,9 +212,7 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   parent->MetalsColdGas += gal->MetalsColdGas;
   parent->EjectedGas += gal->EjectedGas;
   parent->MetalsEjectedGas += gal->MetalsEjectedGas;
-  parent->LOIII += gal->LOIII;
-  parent->ionization_param += gal->ionization_param;
-  
+
   // parent has not prior accretion but sallite does
   if (parent->BHAccretionOnTime < 0 && gal->BHAccretionOnTime > 0)
     parent->BHAccretionOnTime = gal->BHAccretionOnTime;

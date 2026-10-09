@@ -3,8 +3,9 @@
 
 static bool has_valid_loiii_inputs(const galaxy_t* gal)
 {
-  return gal->MetalsColdGas > 0.0 && gal->ColdGas > 0.0 && gal->Mvir > 0.0 && gal->DiskScaleLength > 0.0 && gal->Rvir > 0.0 &&
-         gal->dt > 0.0 && gal->Vmax > 0.0 && gal->StellarMass >= 0.0 && gal->Mcool >= 0.0 && gal->Spin > 0.0;
+  return gal->Sfr > 0.0 && gal->MetalsColdGas > 0.0 && gal->ColdGas > 0.0 && gal->Mvir > 0.0 && gal->DiskScaleLength > 0.0 &&
+         gal->Rvir > 0.0 && gal->dt > 0.0 && gal->Vmax > 0.0 && gal->StellarMass >= 0.0 && gal->Mcool >= 0.0 &&
+         gal->Spin > 0.0;
 }
 
 static double clamp_non_finite(double value)
@@ -31,9 +32,13 @@ void set_OIII_coeffs(double T)
   run_globals.loiii_params.branching_ratio = LOIII_A32 / (LOIII_A32 + LOIII_A31);
 }
 
+// Sets (does not accumulate) the galaxy's snapshot LOIII and ionization_param;
+// call once per snapshot after all star formation and mergers.
 void compute_LOIII(galaxy_t* gal, int snapshot)
 {
   if (!has_valid_loiii_inputs(gal)) {
+    gal->LOIII = 0.0;
+    gal->ionization_param = 0.0;
     return;
   }
 
@@ -77,7 +82,7 @@ void compute_LOIII(galaxy_t* gal, int snapshot)
   ionization_param = 1.5874 * ionizing_photon_rate /
                       (4.0 * M_PI * stromgren_radius_sq * density);
 
-  gal->ionization_param += clamp_non_finite(ionization_param);
+  gal->ionization_param = clamp_non_finite(ionization_param);
 
   double metallicity = gal->MetalsColdGas / gal->ColdGas;
   double oiii_volume_fraction = 0.8;
@@ -87,5 +92,5 @@ void compute_LOIII(galaxy_t* gal, int snapshot)
                        run_globals.loiii_params.excitation_rate * run_globals.loiii_params.branching_ratio *
                        (ionizing_photon_rate * bubble_count / ALPHA_HII) * PLANCK * nu32 * oiii_volume_fraction * 1e-40;
 
-  gal->LOIII += clamp_non_finite(loiii);
+  gal->LOIII = clamp_non_finite(loiii);
 }

@@ -156,6 +156,14 @@ int evolve_galaxies(fof_group_t* fof_group, int snapshot, int NGal, int NFof)
     }
   }
 
+  // [O III] is computed once per snapshot from each galaxy's final state, after
+  // all in-situ star formation and merger-driven bursts above are complete.
+  for (int i_fof = 0; i_fof < NFof; i_fof++)
+    for (halo = fof_group[i_fof].FirstHalo; halo != NULL; halo = halo->NextHaloInFOFGroup)
+      for (gal = halo->Galaxy; gal != NULL; gal = gal->NextGalInHalo)
+        if (gal->Type < 3)
+          compute_LOIII(gal, snapshot);
+
   if (gal_counter + (run_globals.NGhosts) != NGal) {
     mlog_error("We have not processed the expected number of galaxies...");
     mlog("gal_counter = %d but NGal = %d", MLOG_MESG, gal_counter, NGal);
