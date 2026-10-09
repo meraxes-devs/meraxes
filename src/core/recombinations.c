@@ -102,32 +102,34 @@ void init_MHR()
   }
 
   if (run_globals.mpi_rank == 0) {
-    sprintf(GAMMA_FILENAME, "%s/lnGamma_table_%g-%d-%g.bin", run_globals.params.RecombinationDir, RR_lnGamma_min, RR_lnGamma_NPTS, RR_DEL_lnGamma);
-    sprintf(RR_FILENAME, "%s/RR_table_%g-%d-%g_%g-%d-%g_%g-%d-%g.bin", run_globals.params.RecombinationDir, RR_lnGamma_min, RR_lnGamma_NPTS, RR_DEL_lnGamma, RR_Z_END, RR_Z_NPTS, RR_DEL_Z, RR_T_STA, RR_T_NPTS, RR_DEL_T);
-    sprintf(CF_FILENAME, "%s/CF_table_%g-%d-%g_%g-%d-%g_%g-%d-%g.bin", run_globals.params.RecombinationDir, RR_lnGamma_min, RR_lnGamma_NPTS, RR_DEL_lnGamma, RR_Z_END, RR_Z_NPTS, RR_DEL_Z, RR_T_STA, RR_T_NPTS, RR_DEL_T);
-    sprintf(RNH_FILENAME, "%s/RNH_table_%g-%d-%g_%g-%d-%g_%g-%d-%g.bin", run_globals.params.RecombinationDir, RR_lnGamma_min, RR_lnGamma_NPTS, RR_DEL_lnGamma, RR_Z_END, RR_Z_NPTS, RR_DEL_Z, RR_T_STA, RR_T_NPTS, RR_DEL_T);
+    snprintf(GAMMA_FILENAME, sizeof(GAMMA_FILENAME), "%s/lnGamma_table_%g-%d-%g.bin", run_globals.params.RecombinationDir, RR_lnGamma_min, RR_lnGamma_NPTS, RR_DEL_lnGamma);
+    snprintf(RR_FILENAME, sizeof(RR_FILENAME), "%s/RR_table_%g-%d-%g_%g-%d-%g_%g-%d-%g.bin", run_globals.params.RecombinationDir, RR_lnGamma_min, RR_lnGamma_NPTS, RR_DEL_lnGamma, RR_Z_END, RR_Z_NPTS, RR_DEL_Z, RR_T_STA, RR_T_NPTS, RR_DEL_T);
+    snprintf(CF_FILENAME, sizeof(CF_FILENAME), "%s/CF_table_%g-%d-%g_%g-%d-%g_%g-%d-%g.bin", run_globals.params.RecombinationDir, RR_lnGamma_min, RR_lnGamma_NPTS, RR_DEL_lnGamma, RR_Z_END, RR_Z_NPTS, RR_DEL_Z, RR_T_STA, RR_T_NPTS, RR_DEL_T);
+    snprintf(RNH_FILENAME, sizeof(RNH_FILENAME), "%s/RNH_table_%g-%d-%g_%g-%d-%g_%g-%d-%g.bin", run_globals.params.RecombinationDir, RR_lnGamma_min, RR_lnGamma_NPTS, RR_DEL_lnGamma, RR_Z_END, RR_Z_NPTS, RR_DEL_Z, RR_T_STA, RR_T_NPTS, RR_DEL_T);
     gamma_fp = fopen(GAMMA_FILENAME, "rb");
     rr_fp = fopen(RR_FILENAME, "rb");
     cf_fp = fopen(CF_FILENAME, "rb");
     rnh_fp = fopen(RNH_FILENAME, "rb");
 
+    bool loaded = false;
     if (gamma_fp && rr_fp && cf_fp && rnh_fp) {
-      fread(lnGamma_values, sizeof(double), RR_lnGamma_NPTS, gamma_fp);
-      fread(RR_table, sizeof(double), TOT_NPTS, rr_fp);
-      fread(CF_table, sizeof(double), TOT_NPTS, cf_fp);
-      fread(RNH_table, sizeof(double), TOT_NPTS, rnh_fp);
-      fclose(gamma_fp);
-      fclose(rr_fp);
-      fclose(cf_fp);
-      fclose(rnh_fp);
+      loaded = fread(lnGamma_values, sizeof(double), RR_lnGamma_NPTS, gamma_fp) == (size_t)RR_lnGamma_NPTS &&
+               fread(RR_table, sizeof(double), TOT_NPTS, rr_fp) == (size_t)TOT_NPTS &&
+               fread(CF_table, sizeof(double), TOT_NPTS, cf_fp) == (size_t)TOT_NPTS &&
+               fread(RNH_table, sizeof(double), TOT_NPTS, rnh_fp) == (size_t)TOT_NPTS;
+      if (!loaded)
+        mlog("WARNING: recombination table files on disk are incomplete; recomputing them.", MLOG_MESG);
+    }
+    if (gamma_fp) fclose(gamma_fp);
+    if (rr_fp)    fclose(rr_fp);
+    if (cf_fp)    fclose(cf_fp);
+    if (rnh_fp)   fclose(rnh_fp);
+
+    if (loaded) {
       flag_recalc = 0;
       mlog("Loaded recombination tables from disk.", MLOG_MESG);
     }
     else{
-      if (gamma_fp) fclose(gamma_fp);
-      if (rr_fp)    fclose(rr_fp);
-      if (cf_fp)    fclose(cf_fp);
-      if (rnh_fp)   fclose(rnh_fp);
       flag_recalc = 1;
       mlog("Recomputing recombination tables in parallel.", MLOG_MESG | MLOG_TIMERSTART);
       for (gamma_ct = 0; gamma_ct < RR_lnGamma_NPTS; gamma_ct++)
