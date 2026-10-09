@@ -75,6 +75,45 @@ Test(emission_lines, set_OIII_coeffs_non_positive_temperature_falls_back_to_1e4)
   cr_expect_float_eq(run_globals.loiii_params.branching_ratio, ref.branching_ratio, 1e-15);
 }
 
+Test(emission_lines, compute_LOIII_valid_inputs_give_finite_positive_outputs)
+{
+  reset_run_globals();
+  configure_default_units_and_params();
+  set_OIII_coeffs(1e4);
+
+  double zz[] = {7.0};
+  run_globals.ZZ = zz;
+
+  galaxy_t gal = make_valid_test_galaxy();
+  compute_LOIII(&gal, 0);
+
+  cr_expect(isfinite(gal.LOIII));
+  cr_expect_gt(gal.LOIII, 0.0);
+  cr_expect(isfinite(gal.ionization_param));
+  cr_expect_gt(gal.ionization_param, 0.0);
+}
+
+// compute_LOIII sets the snapshot value rather than accumulating, so a
+// second call on the same galaxy must not change it.
+Test(emission_lines, compute_LOIII_does_not_accumulate)
+{
+  reset_run_globals();
+  configure_default_units_and_params();
+  set_OIII_coeffs(1e4);
+
+  double zz[] = {7.0};
+  run_globals.ZZ = zz;
+
+  galaxy_t gal = make_valid_test_galaxy();
+  compute_LOIII(&gal, 0);
+  const double loiii = gal.LOIII;
+  const double ionization_param = gal.ionization_param;
+
+  compute_LOIII(&gal, 0);
+  cr_expect_float_eq(gal.LOIII, loiii, 1e-12 * loiii);
+  cr_expect_float_eq(gal.ionization_param, ionization_param, 1e-12 * ionization_param);
+}
+
 Test(emission_lines, compute_LOIII_invalid_inputs_set_zero)
 {
   reset_run_globals();
