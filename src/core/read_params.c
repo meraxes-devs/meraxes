@@ -20,7 +20,7 @@ static void check_problem_params(run_params_t* run_params)
       "Spin temperature features are not currently available in the GPU version of find_HII_bubbles!  Exiting...");
     ABORT(EXIT_FAILURE);
 #endif
-    if (run_globals.params.FlagMCMC != 0){
+    if (run_globals.params.FlagMCMC != 0) {
       mlog_error("Currently we have to store input sfr grids for all snapshots, so cannot MCMC :(");
       ABORT(EXIT_FAILURE);
     }

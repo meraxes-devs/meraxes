@@ -655,8 +655,8 @@ typedef struct halo_t
   struct halo_t* NextHaloInFOFGroup;
   galaxy_t* Galaxy;
 
-  float Pos[3];    //!< Most bound particle position [Mpc/h]
-  float Vel[3];    //!< Centre of mass velocity [Mpc/h]
+  float Pos[3]; //!< Most bound particle position [Mpc/h]
+  float Vel[3]; //!< Centre of mass velocity [Mpc/h]
   float AngMom; //!< Specific angular momentum length [Mpc/h *km/s]
 
   double Mvir; //!< virial mass [M_sol/h]
