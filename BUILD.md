@@ -4,7 +4,7 @@ Meraxes has been compiled and run successfully on the following operating system
 
 - Mac OS X >=10.10 (Yosemite) on x86_64
 - Mac OS X >=10.13 (Sierra) on aarch64
-- Linux (Ubuntu 16.04, 18.04) on x86_64
+- Linux (Ubuntu 16.04, 18.04, 20.04, 22.04) on x86_64
 - Linux (CentOS 7) on x86_64
 
 We expect things to work without any problem on any modern Linux or Mac system.  If you have any problems then please open an issue.

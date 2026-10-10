@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 700" role="img" aria-labelledby="title desc">
+<title id="title">Galaxy physics and radiation feedback</title><desc id="desc">Gas supply and cooling feed star formation and black holes; stellar and UV background feedback couple the galaxy and intergalactic calculations.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker></defs>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#203344} .heading{font-weight:700;font-size:17px} .body{font-size:14px} .label{font-size:13px}</style>
+<rect width="1150" height="700" fill="white"/>
+<rect x="35" y="25" width="315" height="90" rx="8" fill="#F1F6FC" stroke="#427CC0" stroke-width="1.6"/>
+<text x="192.5" y="50" text-anchor="middle" class="heading">Halo assembly</text>
+<text x="192.5" y="73" text-anchor="middle" class="body">Growth, host changes and mergers</text>
+<text x="192.5" y="92" text-anchor="middle" class="body">Baryonic gas supply</text>
+<rect x="35" y="225" width="315" height="110" rx="8" fill="#FCF6EB" stroke="#BA7D25" stroke-width="1.6"/>
+<text x="192.5" y="250" text-anchor="middle" class="heading">Gas reservoirs</text>
+<text x="192.5" y="273" text-anchor="middle" class="body">Infall; reincorporation</text>
+<text x="192.5" y="292" text-anchor="middle" class="body">Cooling: hot → cold gas</text>
+<text x="192.5" y="311" text-anchor="middle" class="body">Enrichment and ejection</text>
+<rect x="35" y="465" width="315" height="100" rx="8" fill="#FCF6EB" stroke="#BA7D25" stroke-width="1.6"/>
+<text x="192.5" y="490" text-anchor="middle" class="heading">Star formation</text>
+<text x="192.5" y="513" text-anchor="middle" class="body">Disk star formation and merger bursts</text>
+<text x="192.5" y="532" text-anchor="middle" class="body">Stellar populations and recycling</text>
+<rect x="435" y="225" width="285" height="110" rx="8" fill="#FCF6EB" stroke="#BA7D25" stroke-width="1.6"/>
+<text x="577.5" y="250" text-anchor="middle" class="heading">Black holes and AGN</text>
+<text x="577.5" y="273" text-anchor="middle" class="body">Hot- and cold-mode accretion</text>
+<text x="577.5" y="292" text-anchor="middle" class="body">Enabled radiative sources</text>
+<text x="577.5" y="311" text-anchor="middle" class="body">Radio-mode heating</text>
+<rect x="435" y="465" width="285" height="100" rx="8" fill="#EFF8F5" stroke="#278470" stroke-width="1.6"/>
+<text x="577.5" y="490" text-anchor="middle" class="heading">Escaped radiation</text>
+<text x="577.5" y="513" text-anchor="middle" class="body">Ionizing stellar and AGN photons</text>
+<text x="577.5" y="532" text-anchor="middle" class="body">X-rays when enabled</text>
+<rect x="810" y="465" width="285" height="100" rx="8" fill="#EFF8F5" stroke="#278470" stroke-width="1.6"/>
+<text x="952.5" y="490" text-anchor="middle" class="heading">IGM evolution</text>
+<text x="952.5" y="513" text-anchor="middle" class="body">Hydrogen ionization</text>
+<text x="952.5" y="532" text-anchor="middle" class="body">Thermal and radiation history</text>
+<path d="M 192.5 115 L 192.5 225" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 192.5 335 L 192.5 465" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 350 280 L 435 280" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)" stroke-dasharray="6 4"/>
+<path d="M 350 515 L 435 515" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 577.5 335 L 577.5 465" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 720 515 L 810 515" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 35 515 L 12 515 L 12 280 L 35 280" fill="none" stroke="#8260A2" stroke-width="1.7" marker-end="url(#arrow)" stroke-dasharray="6 4"/>
+<text x="200" y="400" text-anchor="middle" class="label">Stellar feedback and recycled material</text>
+<path d="M 952.5 465 L 952.5 155 L 192.5 155 L 192.5 225" fill="none" stroke="#8260A2" stroke-width="1.7" marker-end="url(#arrow)" stroke-dasharray="6 4"/>
+<text x="640" y="145" text-anchor="middle" class="label">UVB history suppresses infall in later snapshots</text>
+<text x="560" y="635" text-anchor="middle" class="label">Physical connections; execution order is given in the workflow diagram.</text>
+</svg>
