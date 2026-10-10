@@ -4,6 +4,7 @@
 #include <fftw3-mpi.h>
 #include <hdf5_hl.h>
 #include <math.h>
+#include <string.h>
 #include <sys/stat.h>
 
 #if USE_MINI_HALOS
