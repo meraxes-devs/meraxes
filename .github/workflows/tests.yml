@@ -1,6 +1,9 @@
 name: Build and test
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch: # manual runs always test every configuration
 
 permissions:
   contents: read
@@ -10,20 +13,63 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Pick the configurations to test. default always runs. mini-halos and
+  # calc-mags run only if a changed C source/header mentions their compile
+  # flags, or the build system changed, or the changes can't be determined.
+  configs:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          all=false
+          if [ "$EVENT" = pull_request ]; then
+            # The checkout is the merge commit; its first parent is the base.
+            base=HEAD^1
+          elif [ "$EVENT" = push ] && [ -n "$BEFORE" ] && [ "${BEFORE//0/}" != "" ] \
+               && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            base=$BEFORE
+          else
+            all=true # manual run, new branch, or history we can't see
+          fi
+
+          mini=$all
+          mags=$all
+          if [ "$all" = false ]; then
+            while IFS= read -r f; do
+              case "$f" in
+                CMakeLists.txt | */CMakeLists.txt | cmake/* | .github/workflows/tests.yml)
+                  mini=true; mags=true ;;
+                *.c | *.h | *.cu | *.in)
+                  # Check the new version, or the old one if the file was deleted.
+                  if [ -f "$f" ]; then show=(cat -- "$f"); else show=(git show "$base:$f"); fi
+                  "${show[@]}" | grep -qw USE_MINI_HALOS && mini=true
+                  "${show[@]}" | grep -qwE 'CALC_MAGS|USE_JWST|USE_HST' && mags=true ;;
+              esac
+            done < <(git diff --name-only "$base" HEAD)
+          fi
+
+          m='{"name":"default","cmake_args":""}'
+          if [ "$mini" = true ]; then m+=',{"name":"mini-halos","cmake_args":"-DUSE_MINI_HALOS=ON"}'; fi
+          if [ "$mags" = true ]; then m+=',{"name":"calc-mags","cmake_args":"-DCALC_MAGS=ON","needs_sector":true}'; fi
+          echo "matrix={\"include\":[$m]}" >> "$GITHUB_OUTPUT"
+          echo "Configurations: default, mini-halos=$mini, calc-mags=$mags" | tee -a "$GITHUB_STEP_SUMMARY"
+
   test:
     name: ${{ matrix.name }}
+    needs: configs
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: default
-            cmake_args: ""
-          - name: mini-halos
-            cmake_args: "-DUSE_MINI_HALOS=ON"
-          - name: calc-mags
-            cmake_args: "-DCALC_MAGS=ON"
-            needs_sector: true
+      matrix: ${{ fromJSON(needs.configs.outputs.matrix) }}
 
     env:
       # MPI and HDF5 keep allocations alive until exit; only report real memory errors.
