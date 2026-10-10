@@ -207,9 +207,12 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   parent->Sfr += gal->Sfr;
   parent->FescWeightedSfr += gal->FescWeightedSfr;
 
-  // take the CGM tau from the one with more CGM (compare before merging HotGas)
-  if (parent->HotGas < gal->HotGas)
+  // take the CGM tau, and the accumulated ionization CGM suppression mode 2
+  // derives it from, from the one with more CGM (compare before merging HotGas)
+  if (parent->HotGas < gal->HotGas) {
     parent->tau_cgm = gal->tau_cgm;
+    parent->cumulative_ionization = gal->cumulative_ionization;
+  }
 
   parent->HotGas += gal->HotGas;
   parent->MetalsHotGas += gal->MetalsHotGas;

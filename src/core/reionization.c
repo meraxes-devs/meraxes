@@ -1933,7 +1933,7 @@ void assign_Mvir_crit_to_galaxies(int ngals_in_slabs, int flag_feed)
                 break;
                 
               case 2: {
-                // Mode 2: Gamma12 * dt for current snapshot (smoothed instantaneous)
+                // Mode 2: Gamma12 * dt accumulated over the galaxy's history
                 gamma12_local = grid_value * run_globals.params.Hubble_h * run_globals.params.Hubble_h;
                 CLAMP_NEGATIVE(gamma12_local);
                 double dt_myr = gal->dt * run_globals.units.UnitTime_in_s / SEC_PER_MEGAYEAR;

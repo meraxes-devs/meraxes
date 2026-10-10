@@ -202,7 +202,8 @@ void reset_galaxy_properties(galaxy_t* gal, int snapshot)
   gal->Mcool = 0.0;
   gal->Rcool = 0.0;
   gal->tau_cgm = 0.0;
-  gal->cumulative_ionization = 0.0;
+  // cumulative_ionization is not reset: CGM suppression mode 2 integrates it
+  // over the galaxy's history (initialised to 0 in new_galaxy).
   gal->BHemissivity = 0.0;
   gal->QuasarLuv = 0.0;
   gal->QuasarLX = 0.0;
