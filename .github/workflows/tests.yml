@@ -13,9 +13,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Pick the configurations to test. default always runs. mini-halos and
-  # calc-mags run only if a changed C source/header mentions their compile
-  # flags, or the build system changed, or the changes can't be determined.
+  # Pick the configurations to test. default always runs. The others run only
+  # if a changed C source/header mentions their compile flag, or the build
+  # system changed, or the changes can't be determined.
   configs:
     runs-on: ubuntu-24.04
     outputs:
@@ -43,16 +43,18 @@ jobs:
 
           mini=$all
           mags=$all
+          stoch=$all
           if [ "$all" = false ]; then
             while IFS= read -r f; do
               case "$f" in
                 CMakeLists.txt | */CMakeLists.txt | cmake/* | .github/workflows/tests.yml)
-                  mini=true; mags=true ;;
+                  mini=true; mags=true; stoch=true ;;
                 *.c | *.h | *.cu | *.in)
                   # Check the new version, or the old one if the file was deleted.
                   if [ -f "$f" ]; then show=(cat -- "$f"); else show=(git show "$base:$f"); fi
                   "${show[@]}" | grep -qw USE_MINI_HALOS && mini=true
-                  "${show[@]}" | grep -qwE 'CALC_MAGS|USE_JWST|USE_HST' && mags=true ;;
+                  "${show[@]}" | grep -qwE 'CALC_MAGS|USE_JWST|USE_HST' && mags=true
+                  "${show[@]}" | grep -qw USE_STOCHASTICITY && stoch=true ;;
               esac
             done < <(git diff --name-only "$base" HEAD)
           fi
@@ -60,8 +62,13 @@ jobs:
           m='{"name":"default","cmake_args":""}'
           if [ "$mini" = true ]; then m+=',{"name":"mini-halos","cmake_args":"-DUSE_MINI_HALOS=ON"}'; fi
           if [ "$mags" = true ]; then m+=',{"name":"calc-mags","cmake_args":"-DCALC_MAGS=ON","needs_sector":true}'; fi
+          # Stochasticity has separate branches with and without mini-halos.
+          if [ "$stoch" = true ]; then
+            m+=',{"name":"stochasticity","cmake_args":"-DUSE_STOCHASTICITY=ON"}'
+            m+=',{"name":"stochasticity-mini-halos","cmake_args":"-DUSE_STOCHASTICITY=ON -DUSE_MINI_HALOS=ON"}'
+          fi
           echo "matrix={\"include\":[$m]}" >> "$GITHUB_OUTPUT"
-          echo "Configurations: default, mini-halos=$mini, calc-mags=$mags" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Configurations: default, mini-halos=$mini, calc-mags=$mags, stochasticity=$stoch" | tee -a "$GITHUB_STEP_SUMMARY"
 
   test:
     name: ${{ matrix.name }}
