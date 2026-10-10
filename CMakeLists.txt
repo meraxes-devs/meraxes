@@ -195,15 +195,6 @@ if(USE_CUDA)
 endif()
 
 
-#########
-# TESTS #
-#########
-
-if(BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(src/tests)
-endif()
-
 
 ################
 # DEPENDENCIES # 
@@ -298,6 +289,18 @@ endif()
 find_package(FFTW REQUIRED)
 target_include_directories(meraxes_lib PUBLIC ${FFTW_INCLUDE_DIRS})
 target_link_libraries(meraxes_lib PUBLIC ${FFTW_LIBRARIES})
+
+#########
+# TESTS #
+#########
+
+# Must come after every add_definitions() above: a subdirectory only inherits
+# the definitions added before it, and the tests have to see the same
+# galaxy_t layout (USE_MINI_HALOS, CALC_MAGS, ...) as meraxes_lib.
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(src/tests)
+endif()
 
 # Exports for other codes to build against this version of Meraxes
 if(CALC_MAGS)
