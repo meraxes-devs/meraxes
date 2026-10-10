@@ -19,9 +19,9 @@ html_css_files = ["guide.css"]
 html_theme_options = {"navigation_depth": 3, "collapse_navigation": True}
 html_context = {
     "display_github": True,
-    "github_user": "ChangqIngovo",
-    "github_repo": "meraxes-devs_qyxnew",
-    "github_version": "ReadDoc-main",
+    "github_user": "meraxes-devs",
+    "github_repo": "meraxes",
+    "github_version": "master",
     "conf_py_path": "/docs/",
 }
 
