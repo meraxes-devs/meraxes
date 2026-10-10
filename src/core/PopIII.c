@@ -418,9 +418,11 @@ double CCSN_PopIII_Number(int i_burst, int curr_snap, int flagMW)
 
   double DeltaTime = (LTTime[curr_snap - i_burst] - LTTime[curr_snap]) * time_unit;
   double DeltaTimeSnap = (LTTime[curr_snap - i_burst - 1] - LTTime[curr_snap - i_burst]) * time_unit;
-  double DeltaTimeSnap2 = (LTTime[curr_snap - i_burst] - LTTime[curr_snap - i_burst + 1]) * time_unit;
 
   if (i_burst != 0) {
+    // Only needed here: for i_burst == 0 on the last snapshot, the next
+    // snapshot would be past the end of LTTime.
+    double DeltaTimeSnap2 = (LTTime[curr_snap - i_burst] - LTTime[curr_snap - i_burst + 1]) * time_unit;
     m_min = interp_mass(DeltaTime + DeltaTimeSnap / 2);
     m_max = interp_mass(DeltaTime - DeltaTimeSnap2 / 2);
   }
@@ -504,11 +506,13 @@ double CCSN_PopIII_Yield(
   double TotalMassSN = run_globals.MassSNII;
 
   double DeltaTime = (LTTime[curr_snap - i_burst] - LTTime[curr_snap]) * time_unit;
-  double DeltaTimeSnap2 = (LTTime[curr_snap - i_burst] - LTTime[curr_snap - i_burst + 1]) * time_unit;
 
-  if (i_burst != 0)
+  if (i_burst != 0) {
+    // As in CCSN_PopIII_Number: only bursts from earlier snapshots have a next
+    // snapshot to look at.
+    double DeltaTimeSnap2 = (LTTime[curr_snap - i_burst] - LTTime[curr_snap - i_burst + 1]) * time_unit;
     m_max = interp_mass(DeltaTime - DeltaTimeSnap2 / 2);
-  else
+  } else
     m_max = MmaxSnII;
   if (m_max > MmaxSnII) // Firstly, you are only interested in stars in the CCSN mass range
     m_max = MmaxSnII;
