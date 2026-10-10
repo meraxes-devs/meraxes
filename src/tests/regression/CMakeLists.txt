@@ -47,6 +47,24 @@ endif()
 set(regression_nproc 2)
 set(INPUT_FILE_DIR "${CMAKE_SOURCE_DIR}/input")
 
+# Comparing a run with its reference (compare.py) needs Python with h5py and
+# numpy. strict suits CI, whose references come from the same environment;
+# loose allows for compiler and library differences on other machines.
+set(REGRESSION_COMPARE "loose" CACHE STRING "Regression comparison mode: strict or loose")
+set_property(CACHE REGRESSION_COMPARE PROPERTY STRINGS strict loose)
+find_package(Python3 COMPONENTS Interpreter)
+set(can_compare FALSE)
+if(Python3_Interpreter_FOUND)
+    execute_process(COMMAND ${Python3_EXECUTABLE} -c "import h5py, numpy"
+                    RESULT_VARIABLE python_modules_missing OUTPUT_QUIET ERROR_QUIET)
+    if(NOT python_modules_missing)
+        set(can_compare TRUE)
+    endif()
+endif()
+if(NOT can_compare)
+    message(STATUS "Regression runs enabled, but comparisons disabled: need Python 3 with h5py and numpy")
+endif()
+
 foreach(setup IN LISTS setups)
     set(run_dir "${CMAKE_CURRENT_BINARY_DIR}/${setup}")
     configure_file(setups/${setup}.par.in "${run_dir}/input.par" @ONLY)
@@ -64,4 +82,23 @@ foreach(setup IN LISTS setups)
     set_tests_properties(regression_${setup} PROPERTIES
         LABELS regression FIXTURES_REQUIRED regression_${setup}_clean
         FIXTURES_SETUP regression_${setup}_run TIMEOUT 1800)
+
+    if(can_compare)
+        # summary.h5 in the run directory is this run's summary: CI uploads it,
+        # and it becomes the new reference when results change on purpose.
+        set(reference "${CMAKE_CURRENT_SOURCE_DIR}/reference/${setup}.h5")
+        if(EXISTS "${reference}")
+            add_test(NAME regression_${setup}_compare
+                     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py check output "${reference}"
+                             --mode ${REGRESSION_COMPARE} --save summary.h5
+                     WORKING_DIRECTORY "${run_dir}")
+        else()
+            message(STATUS "No reference for regression setup ${setup}: its test only writes ${run_dir}/summary.h5")
+            add_test(NAME regression_${setup}_compare
+                     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py write output summary.h5
+                     WORKING_DIRECTORY "${run_dir}")
+        endif()
+        set_tests_properties(regression_${setup}_compare PROPERTIES
+            LABELS regression FIXTURES_REQUIRED regression_${setup}_run)
+    endif()
 endforeach()
