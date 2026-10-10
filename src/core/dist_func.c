@@ -94,12 +94,12 @@ void df_mpi_reduce(distribution_function_t* df, int mpi_rank, int mpi_size)
     // Sum counts across all processes to rank 0 only
     if (mpi_rank == 0) {
       // Rank 0 uses MPI_IN_PLACE to reduce in-place into df->bin_counts
-      MPI_Reduce(MPI_IN_PLACE, df->bin_counts, df->n_bins, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-      MPI_Reduce(MPI_IN_PLACE, df->bin_variance, df->n_bins, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, df->bin_counts, df->n_bins, MPI_DOUBLE, MPI_SUM, 0, run_globals.mpi_comm);
+      MPI_Reduce(MPI_IN_PLACE, df->bin_variance, df->n_bins, MPI_DOUBLE, MPI_SUM, 0, run_globals.mpi_comm);
     } else {
       // Other ranks send their data (recvbuf is ignored for non-root ranks)
-      MPI_Reduce(df->bin_counts, NULL, df->n_bins, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-      MPI_Reduce(df->bin_variance, NULL, df->n_bins, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(df->bin_counts, NULL, df->n_bins, MPI_DOUBLE, MPI_SUM, 0, run_globals.mpi_comm);
+      MPI_Reduce(df->bin_variance, NULL, df->n_bins, MPI_DOUBLE, MPI_SUM, 0, run_globals.mpi_comm);
     }
   }
 }
