@@ -1,3 +1,4 @@
+#include <gsl/gsl_errno.h>
 #include <gsl/gsl_integration.h>
 #include <string.h>
 #include <time.h>
@@ -9,7 +10,13 @@
 #include "magnitudes.h"
 #include "meraxes.h"
 #include "misc_tools.h"
+#if USE_STOCHASTICITY
+#include "Stochasticity.h"
+#endif
+#include "XRayHeatingFunctions.h"
 #include "parse_paramfile.h"
+#include "physics/blackhole_feedback.h"
+#include "physics/emission_lines.h"
 #include "read_halos.h"
 #include "recombinations.h"
 #include "reionization.h"
@@ -146,6 +153,18 @@ static void read_snap_list()
     run_globals.rhocrit = malloc(sizeof(double) * run_globals.params.SnaplistLength);
   }
   MPI_Bcast(run_globals.AA, run_globals.params.SnaplistLength, MPI_DOUBLE, 0, run_globals.mpi_comm);
+
+  if (run_globals.params.Flag_IncludeSpinTemp) {
+    stored_fcoll = calloc((size_t)run_globals.params.SnaplistLength, sizeof(double));
+    stored_fcollIII = calloc((size_t)run_globals.params.SnaplistLength, sizeof(double));
+    stored_XrayEmissivity_hard = calloc((size_t)run_globals.params.SnaplistLength, sizeof(double));
+    stored_XrayEmissivity_soft = calloc((size_t)run_globals.params.SnaplistLength, sizeof(double));
+    stored_XrayEmissivity_HMXB = calloc((size_t)run_globals.params.SnaplistLength, sizeof(double));
+
+#if USE_MINI_HALOS
+    init_LW_diagnostics();
+#endif
+  }
 }
 
 double integrand_time_to_present(double a, void* params)
@@ -199,6 +218,7 @@ void set_units()
 
   // convert some physical input parameters to internal units
   run_globals.Hubble = HUBBLE * units->UnitTime_in_s;
+  run_globals.EddingtonTimescale = EDDINGTON_TIME_SCALE * run_globals.params.Hubble_h / units->UnitTime_in_Megayears;
 
   // compute a few quantitites
   run_globals.RhoCrit = 3 * run_globals.Hubble * run_globals.Hubble / (8 * M_PI * run_globals.G);
@@ -225,6 +245,17 @@ void init_meraxes()
   int i;
   int snaplist_len;
 
+  // Printed via a direct fprintf (not mlog()) so it always shows up on
+  // stdout, even when mhysa redirects mlog's info stream to /dev/null
+  // because it wasn't launched with --debug.
+  if (run_globals.mpi_rank == 0) {
+    fprintf(
+      stdout, "Meraxes git commit: %s%s\n", MERAXES_GITREF_STR, (strlen(MERAXES_GITDIFF_STR) > 0) ? "-dirty" : "");
+    fflush(stdout);
+  }
+
+  gsl_set_error_handler_off();
+
   // initialize GPU
   init_gpu();
 
@@ -235,12 +266,19 @@ void init_meraxes()
   // set the units
   set_units();
 
+  // Right now we assume T=1e4 K for collisional rate coefficients in LOIII.
+  set_OIII_coeffs(1e4);
+
   // init the stdlib random number generator (for CN exceptions only)
   srand((unsigned)time(NULL));
 
   // read the input snaps list
   read_snap_list();
 
+#if USE_STOCHASTICITY
+  if (run_globals.params.physics.Flag_RemoveSFRScatter == 1)
+    no_sfr_sources_init();
+#endif
   // parse the requested output snaps
   parse_output_snaps(run_globals.params.OutputSnapsString);
 
@@ -250,6 +288,8 @@ void init_meraxes()
     run_globals.LTTime[i] = time_to_present(run_globals.ZZ[i]);
     run_globals.rhocrit[i] = 3 * pow(hubble_at_snapshot(i), 2) / (8 * M_PI * run_globals.G);
   }
+  run_globals.tau_e_postEoR =
+    (run_globals.NOutputSnaps > 0) ? integrate_tau_e_postEoR(run_globals.ZZ[run_globals.LastOutputSnap]) : 0.0;
 
   // validation checks
   if (run_globals.params.Flag_IncludeSpinTemp) {
@@ -292,9 +332,11 @@ void init_meraxes()
   set_ReionEfficiency();
   set_quasar_fobs();
 
-  if (run_globals.params.Flag_IncludeSpinTemp){
-    run_globals.NstoreSnapshots_SFR = set_sfr_history();
-    mlog("Storing %d snapshots of SFR histories for Ts.", MLOG_MESG, run_globals.NstoreSnapshots_SFR);
+  init_xray_obscuration_tables();
+
+  if (run_globals.params.Flag_IncludeSpinTemp) {
+    run_globals.NstoreSnapshots_Heating = set_sfr_history();
+    mlog("Storing %d snapshots of SFR histories for Ts.", MLOG_MESG, run_globals.NstoreSnapshots_Heating);
   }
 
   // Determine the size of the light-cone for initialising the light-cone grid

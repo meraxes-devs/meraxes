@@ -217,9 +217,11 @@ double reionization_modifier(galaxy_t* gal, double Mvir, int snapshot)
   double redshift;
   double modifier;
 
+  if (run_globals.params.physics.Flag_ReionizationModifier == 0)
+    return 1.0;
   redshift = run_globals.ZZ[snapshot];
 
-  if ((run_globals.params.ReionUVBFlag) && (run_globals.params.Flag_PatchyReion)) {
+  if (run_globals.params.ReionUVBFlag && run_globals.params.Flag_PatchyReion) {
     modifier = tocf_modifier(gal, Mvir);
     return modifier;
   }

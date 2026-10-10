@@ -47,23 +47,34 @@ typedef struct galaxy_output_t
   float GrossStellarMass;
   float Fesc;
   float FescWeightedGSM;
+  float FescWeightedSfr;
   float MetalsStellarMass;
   float Sfr;
+  float LOIII;
+#ifdef CALC_MAGS
+  float LOIII_dusty;
+#endif
+  float ionization_param;
   float EjectedGas;
   float MetalsEjectedGas;
   float BlackHoleMass;
   float FescBH;
   float BHemissivity;
+  float QuasarMag;
+  float QuasarLX; //!< Intrinsic hard X-ray luminosity [1e10 L_sun, 2-10 keV]; 0 if inactive
+  int NHbin; //!< Which of the 5 NH bins this snapshot's draw landed in (0-4), or -1 if no AGN activity — see meraxes.h
+             //!< galaxy_t.NHbin for detail.
+  float BHXrayEmissivity; //!< Observed hard X-ray emissivity [1e10 L_sun, 2-10 keV], obscuration-weighted
   float EffectiveBHM;
   float BlackHoleAccretedHotMass;
   float BlackHoleAccretedColdMass;
-
-  int Galaxy_Population; // You need it also if you are not disentangling PopIII/PopII (when Mini_halos is off, this is
-                         // = 2)
+  float DutyCycleAGN;
 #if USE_MINI_HALOS
   float GrossStellarMassIII;
   float FescIII;
   float FescIIIWeightedGSM;
+  float FescIIIWeightedSfr;
+  float SfrIII; // Pop III SFR; with mini-halos, Sfr holds Pop II only
 
   float RmetalBubble;
   int Flag_ExtMetEnr;
@@ -72,6 +83,8 @@ typedef struct galaxy_output_t
   float StellarMass_II;
   float StellarMass_III;
   float Remnant_Mass;
+  int
+    Galaxy_Population; // Disentangles Pop III/Pop II; not needed when Mini_halos is off, since all galaxies are Pop II
   float MvirCrit_MC;
 #endif
 
@@ -83,6 +96,7 @@ typedef struct galaxy_output_t
   float BaryonFracModifier;
   float FOFMvirModifier;
   float MvirCrit;
+  float tau_cgm;
   float dt;
   float MergerBurstMass;
 
@@ -103,6 +117,7 @@ extern "C"
   void prepare_galaxy_for_output(struct galaxy_t gal, galaxy_output_t* galout, int i_snap);
   void calc_hdf5_props(void);
   void prep_hdf5_file(void);
+  void close_hdf5_file(void);
   void create_master_file(void);
   void write_snapshot(int n_write, int i_out, int* last_n_write);
 

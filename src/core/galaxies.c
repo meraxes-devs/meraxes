@@ -46,25 +46,45 @@ galaxy_t* new_galaxy(int snapshot, unsigned long halo_ID)
   gal->Rcool = 0.0;
   gal->StellarMass = 0.0;
   gal->GrossStellarMass = 0.0;
+#if USE_STOCHASTICITY
+  gal->GrossStellarMassNoScatter = 0.0;
+  gal->SfrNoScatter = 0.0;
+  gal->StochasticityTreatedFescWeightedGSM = 0.0;
+  gal->StochasticityTreatedFescWeightedSfr = 0.0;
+#endif
   gal->Fesc = 1.0;
   gal->FescWeightedGSM = 0.0;
   gal->MetalsStellarMass = 0.0;
+  gal->LOIII = 0.0;
+  gal->ionization_param = 0.0;
   gal->mwmsa_num = 0.0;
   gal->mwmsa_denom = 0.0;
   gal->BlackHoleMass = run_globals.params.physics.BlackHoleSeed;
   gal->FescBH = 1.0;
   gal->BHemissivity = 0.0;
+  gal->QuasarLuv = 0.0;
+  gal->QuasarLX = 0.0;
+  gal->NHbin = -1;
+  gal->BHXrayEmissivity_hard = 0.0;
+  gal->BHXrayEmissivity_soft = 0.0;
   gal->EffectiveBHM = 0.0;
+  gal->EffectiveBHAR = 0.0;
+  gal->DutyCycleAGN = 0.0;
   gal->BlackHoleAccretedHotMass = 0.0;
   gal->BlackHoleAccretedColdMass = 0.0;
   gal->BlackHoleAccretingColdMass = 0.0;
+  gal->BHAccretionOnTime = -1.0;
   gal->Sfr = 0.0;
+  gal->FescWeightedSfr = 0.0;
   gal->Cos_Inc = gsl_rng_uniform(run_globals.random_generator);
   gal->MergTime = 99999.9;
   gal->BaryonFracModifier = 1.0;
   gal->FOFMvirModifier = 1.0;
   gal->MvirCrit = 0.0;
-  gal->MvirCrit_MC = 0.0;
+  gal->tau_cgm = 0.0;
+  // No cutoff until a value is assigned from the t_resp grid.
+  gal->t_resp = 1e30;
+  gal->cumulative_ionization = 0.0;
   gal->MergerBurstMass = 0.0;
   gal->MergerStartRadius = 0.0;
 
@@ -72,9 +92,19 @@ galaxy_t* new_galaxy(int snapshot, unsigned long halo_ID)
   gal->StellarMass_II = 0.;
   gal->StellarMass_III = 0.;
   gal->GrossStellarMassIII = 0.0;
+  gal->SfrIII = 0.0;
   gal->FescIII = 1.0;
   gal->FescIIIWeightedGSM = 0.0;
+  gal->FescIIIWeightedSfr = 0.0;
+#if USE_STOCHASTICITY
+  gal->GrossStellarMassIIINoScatter = 0.0;
+  gal->FescIIIWeightedGSMNoScatter = 0.0;
+  gal->SfrIIINoScatter = 0.0;
+  gal->StochasticityTreatedFescIIIWeightedGSM = 0.0;
+  gal->StochasticityTreatedFescIIIWeightedSfr = 0.0;
+#endif
   gal->Remnant_Mass = 0.;
+  gal->MvirCrit_MC = 0.0;
   gal->Metal_Probability = 0.0;
   gal->Metals_IGM = 0.0;
   gal->Gas_IGM = 0.0;
@@ -90,9 +120,6 @@ galaxy_t* new_galaxy(int snapshot, unsigned long halo_ID)
   if (run_globals.params.Flag_IncludeMetalEvo ==
       false) // If you don't have the external metal enrichment all galaxies will start as pristine (Pop.III forming)
     gal->Galaxy_Population = 3;
-#else // If you are not computing PopIII , all the galaxies are PopII. Again you need to initialize the variable
-      // otherwise star_formation.c will fail!
-  gal->Galaxy_Population = 2;
 #endif
 
   for (int ii = 0; ii < 3; ii++) {
@@ -165,15 +192,51 @@ void reset_galaxy_properties(galaxy_t* gal, int snapshot)
   // Here we reset any galaxy properties which are calculated on a snapshot by
   // snapshot basis.
   gal->Sfr = 0.0;
+  gal->LOIII = 0.0;
+  gal->ionization_param = 0.0;
+  gal->FescWeightedSfr = 0.0;
+#if USE_STOCHASTICITY
+  gal->StochasticityTreatedFescWeightedSfr = 0.0;
+  gal->SfrNoScatter = 0.0;
+#endif
   gal->Mcool = 0.0;
   gal->Rcool = 0.0;
-  gal->MvirCrit = 0.0;
-  gal->MvirCrit_MC = 0.0;
+  gal->tau_cgm = 0.0;
+  // cumulative_ionization is not reset: CGM suppression mode 2 integrates it
+  // over the galaxy's history (initialised to 0 in new_galaxy).
   gal->BHemissivity = 0.0;
+  gal->QuasarLuv = 0.0;
+  gal->QuasarLX = 0.0;
+  gal->NHbin = -1;
+  gal->BHXrayEmissivity_hard = 0.0;
+  gal->BHXrayEmissivity_soft = 0.0;
   gal->BaryonFracModifier = 1.0;
   gal->FOFMvirModifier = 1.0;
+  gal->EffectiveBHAR = 0.0;
+  gal->DutyCycleAGN = 0.0;
   gal->BlackHoleAccretedHotMass = 0.0;
   gal->BlackHoleAccretedColdMass = 0.0;
+  // t_resp is not reset here: ghosts run BH growth (passively_evolve_ghost)
+  // before this snapshot's grid value is assigned, so they keep the last one.
+  // MvirCrit is assigned from the reionization grid before the physics step
+  // and is consumed by gas_infall() through reionization_modifier(). Keep
+  // that value while patchy UVB feedback is active; otherwise clear it so a
+  // stale value cannot leak into a later branch or diagnostic.
+  if (!(run_globals.params.ReionUVBFlag && run_globals.params.Flag_PatchyReion &&
+        run_globals.params.physics.Flag_ReionizationModifier != 0)) {
+    gal->MvirCrit = 0.0;
+#if USE_MINI_HALOS
+    gal->MvirCrit_MC = 0.0;
+#endif
+  }
+#if USE_MINI_HALOS
+  gal->SfrIII = 0.0;
+  gal->FescIIIWeightedSfr = 0.0;
+#if USE_STOCHASTICITY
+  gal->StochasticityTreatedFescIIIWeightedSfr = 0.0;
+  gal->SfrIIINoScatter = 0.0;
+#endif
+#endif
 
   // Update the stellar mass weighted mean age values.  This only needs to be
   // done for snapshots shich are passing out of what we are able to track
@@ -348,7 +411,7 @@ void kill_galaxy(galaxy_t* gal, galaxy_t* prev_gal, int* NGal, int* kill_counter
     }
   }
 
-  // Finally deallocated the galaxy and decrement any necessary counters
+  // Finally deallocated the galaxy and decremented any necessary counters
   free(gal);
   *NGal = *NGal - 1;
   *kill_counter = *kill_counter + 1;

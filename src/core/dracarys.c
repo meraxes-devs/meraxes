@@ -59,6 +59,7 @@ void dracarys()
   trees_info_t* snapshot_trees_info = run_globals.SnapshotTreesInfo;
   double* LTTime = run_globals.LTTime;
   int NOutputSnaps = run_globals.NOutputSnaps;
+  int flag_output;
 
   // Find what the last requested output snapshot is
   for (int ii = 0; ii < NOutputSnaps; ii++)
@@ -110,6 +111,8 @@ void dracarys()
                             &(snapshot_fof_group[i_snap]),
                             &(snapshot_index_lookup[i_snap]),
                             snapshot_trees_info);
+
+    log_memory_usage("after read_halos", snapshot, NGal);
 
     // Set the relevant pointers to this snapshot
     halo = snapshot_halo[i_snap];
@@ -317,6 +320,12 @@ void dracarys()
         if (run_globals.params.Flag_IncludeLymanWerner)
           assign_Mvir_crit_to_galaxies(ngals_in_slabs, 2);
 #endif
+        if (run_globals.params.Flag_IncludeRecombinations) {
+          assign_Mvir_crit_to_galaxies(ngals_in_slabs, 3);
+          // Compute tau_cgm for CGM suppression of fesc
+          if (run_globals.params.physics.Flag_FescCGMSuppression)
+            assign_Mvir_crit_to_galaxies(ngals_in_slabs, 4);
+        }
       }
     }
 
@@ -345,6 +354,8 @@ void dracarys()
 #endif
     else
       nout_gals = 0;
+
+    log_memory_usage("after evolve_galaxies", snapshot, NGal);
 
     // Add the ghost galaxies into the nout_gals count
     nout_gals += ghost_counter;
@@ -397,10 +408,17 @@ void dracarys()
 
 #if USE_MINI_HALOS
     if (run_globals.params.Flag_IncludeMetalEvo) {
+      int flag_output_metal = 0;
 
       construct_metal_grids(snapshot, nout_gals);
       smooth_Densitygrid_real(snapshot);
-      save_metal_input_grids(snapshot);
+
+      for (int i_out = 0; i_out < NOutputSnaps; i_out++)
+        if (snapshot == run_globals.ListOutputSnaps[i_out]) {
+          save_metal_input_grids(snapshot);
+          flag_output_metal = 1;
+        }
+
       free(run_globals.metal_grids.galaxy_to_slab_map_metals);
     }
 #endif
@@ -428,11 +446,19 @@ void dracarys()
 #endif
 #endif
 
+    flag_output = 0;
     // Write the results if this is a requested snapshot
-    if (!run_globals.params.FlagMCMC)
+    if (!run_globals.params.FlagMCMC) {
       for (int i_out = 0; i_out < NOutputSnaps; i_out++)
-        if (snapshot == run_globals.ListOutputSnaps[i_out])
+        if (snapshot == run_globals.ListOutputSnaps[i_out]) {
           write_snapshot(nout_gals, i_out, &last_nout_gals);
+          flag_output = 1;
+        }
+
+      if ((!flag_output) && (run_globals.params.Flag_PatchyReion) && check_if_reionization_ongoing(snapshot) &&
+          (run_globals.mpi_rank == 0))
+        save_reion_output_attributes(snapshot);
+    }
 
     // Update the LastIdentSnap values for non-ghosts
     gal = run_globals.FirstGal;
@@ -481,6 +507,11 @@ void dracarys()
   }
   run_globals.FirstGal = NULL;
   mlog("...done", MLOG_CLOSE);
+
+  // Close the per-rank galaxy HDF5 file (was kept open across all snapshots
+  // to avoid HDF5 1.10.x open-close fragmentation; see prep_hdf5_file()).
+  if (!run_globals.params.FlagMCMC)
+    close_hdf5_file();
 
   // Create the master file
   MPI_Barrier(run_globals.mpi_comm);

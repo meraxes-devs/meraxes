@@ -179,28 +179,68 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   // Add galaxies together
   parent->StellarMass += gal->StellarMass;
 #if USE_MINI_HALOS
+  parent->SfrIII += gal->SfrIII;
   parent->StellarMass_II += gal->StellarMass_II;
   parent->StellarMass_III += gal->StellarMass_III;
   parent->Remnant_Mass += gal->Remnant_Mass;
   parent->GrossStellarMassIII += gal->GrossStellarMassIII;
   parent->FescIIIWeightedGSM += gal->FescIIIWeightedGSM;
+  parent->FescIIIWeightedSfr += gal->FescIIIWeightedSfr;
+#if USE_STOCHASTICITY
+  parent->SfrIIINoScatter += gal->SfrIIINoScatter;
+  parent->GrossStellarMassIIINoScatter += gal->GrossStellarMassIIINoScatter;
+  parent->StochasticityTreatedFescIIIWeightedGSM += gal->StochasticityTreatedFescIIIWeightedGSM;
+  parent->StochasticityTreatedFescIIIWeightedSfr += gal->StochasticityTreatedFescIIIWeightedSfr;
+#endif
 #endif
   parent->GrossStellarMass += gal->GrossStellarMass;
   parent->FescWeightedGSM += gal->FescWeightedGSM;
+#if USE_STOCHASTICITY
+  // Cumulative no-scatter source histories.
+  parent->SfrNoScatter += gal->SfrNoScatter;
+  parent->GrossStellarMassNoScatter += gal->GrossStellarMassNoScatter;
+  parent->StochasticityTreatedFescWeightedGSM += gal->StochasticityTreatedFescWeightedGSM;
+  parent->StochasticityTreatedFescWeightedSfr += gal->StochasticityTreatedFescWeightedSfr;
+#endif
   parent->MetalsStellarMass += gal->MetalsStellarMass;
   parent->Sfr += gal->Sfr;
+  parent->FescWeightedSfr += gal->FescWeightedSfr;
+
+  // take the CGM tau, and the accumulated ionization CGM suppression mode 2
+  // derives it from, from the one with more CGM (compare before merging HotGas)
+  if (parent->HotGas < gal->HotGas) {
+    parent->tau_cgm = gal->tau_cgm;
+    parent->cumulative_ionization = gal->cumulative_ionization;
+  }
+
   parent->HotGas += gal->HotGas;
   parent->MetalsHotGas += gal->MetalsHotGas;
   parent->ColdGas += gal->ColdGas;
   parent->MetalsColdGas += gal->MetalsColdGas;
   parent->EjectedGas += gal->EjectedGas;
   parent->MetalsEjectedGas += gal->MetalsEjectedGas;
+
+  // parent has not prior accretion but sallite does
+  if (parent->BHAccretionOnTime < 0 && gal->BHAccretionOnTime > 0)
+    parent->BHAccretionOnTime = gal->BHAccretionOnTime;
+  // take the duty cycle and t_resp of the bigger BH
+  if (parent->BlackHoleMass < gal->BlackHoleMass) {
+    parent->DutyCycleAGN = gal->DutyCycleAGN;
+    parent->t_resp = gal->t_resp;
+  }
+  parent->QuasarLuv += gal->QuasarLuv;
+  parent->QuasarLX += gal->QuasarLX;
+  parent->BHXrayEmissivity_hard += gal->BHXrayEmissivity_hard;
+  parent->BHXrayEmissivity_soft += gal->BHXrayEmissivity_soft;
+
   parent->BlackHoleAccretedHotMass += gal->BlackHoleAccretedHotMass;
   parent->BlackHoleAccretedColdMass += gal->BlackHoleAccretedColdMass;
   parent->BlackHoleAccretingColdMass += gal->BlackHoleAccretingColdMass;
   parent->BHemissivity += gal->BHemissivity;
   parent->BlackHoleMass += gal->BlackHoleMass;
   parent->EffectiveBHM += gal->EffectiveBHM;
+  parent->EffectiveBHAR += gal->EffectiveBHAR;
+
   parent->mwmsa_num += gal->mwmsa_num;
   parent->mwmsa_denom += gal->mwmsa_denom;
   parent->MergerBurstMass += gal->MergerBurstMass;

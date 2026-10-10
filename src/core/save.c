@@ -1,10 +1,16 @@
 #include <assert.h>
 #include <hdf5_hl.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
+#include "XRayHeatingFunctions.h"
+#include "dist_func.h"
 #include "magnitudes.h"
 #include "meraxes.h"
 #include "parse_paramfile.h"
+#include "physics/blackhole_feedback.h"
 #include "reionization.h"
 #include "save.h"
 #if USE_MINI_HALOS
@@ -22,8 +28,10 @@ static float current_mwmsa(galaxy_t* gal, int i_snap)
     mwmsa_num += gal->NewStars[ii] * LTTime[jj];
     mwmsa_denom += gal->NewStars[ii];
   }
-
-  return (float)((mwmsa_num / mwmsa_denom) - LTTime[snapshot]);
+  if (mwmsa_denom > 0)
+    return (float)((mwmsa_num / mwmsa_denom) - LTTime[snapshot]);
+  else
+    return 0;
 }
 
 void prepare_galaxy_for_output(galaxy_t gal, galaxy_output_t* galout, int i_snap)
@@ -70,12 +78,21 @@ void prepare_galaxy_for_output(galaxy_t gal, galaxy_output_t* galout, int i_snap
   galout->BlackHoleMass = (float)(gal.BlackHoleMass);
   galout->FescBH = (float)(gal.FescBH);
   galout->BHemissivity = (float)(gal.BHemissivity);
+  galout->QuasarMag = (gal.QuasarLuv > 0.0) ? (float)(-19.07395 - 2.5 * log10(gal.QuasarLuv)) : 999.9f;
+  galout->QuasarLX = (float)gal.QuasarLX;
+  galout->NHbin = gal.NHbin;
+  galout->BHXrayEmissivity = (float)gal.BHXrayEmissivity_hard;
+  galout->DutyCycleAGN = (float)(gal.DutyCycleAGN);
   galout->EffectiveBHM = (float)(gal.EffectiveBHM);
   galout->BlackHoleAccretedHotMass = (float)(gal.BlackHoleAccretedHotMass);
   galout->BlackHoleAccretedColdMass = (float)(gal.BlackHoleAccretedColdMass);
   galout->DiskScaleLength = (float)(gal.DiskScaleLength);
   galout->MetalsStellarMass = (float)(gal.MetalsStellarMass);
   galout->Sfr = (float)(gal.Sfr * units->UnitMass_in_g / units->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS);
+  galout->LOIII = (float)gal.LOIII; // gal.LOIII is already stored in units of 1e40 erg/s
+  galout->ionization_param = (float)(gal.ionization_param);
+  galout->FescWeightedSfr =
+    (float)(gal.FescWeightedSfr * units->UnitMass_in_g / units->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS);
   galout->EjectedGas = (float)(gal.EjectedGas);
   galout->MetalsEjectedGas = (float)(gal.MetalsEjectedGas);
   galout->Rcool = (float)(gal.Rcool);
@@ -83,6 +100,7 @@ void prepare_galaxy_for_output(galaxy_t gal, galaxy_output_t* galout, int i_snap
   galout->BaryonFracModifier = (float)(gal.BaryonFracModifier);
   galout->FOFMvirModifier = (float)(gal.FOFMvirModifier);
   galout->MvirCrit = (float)(gal.MvirCrit);
+  galout->tau_cgm = (float)(gal.tau_cgm);
   galout->dt = (float)(gal.dt * units->UnitTime_in_Megayears);
   galout->MergerBurstMass = (float)(gal.MergerBurstMass);
   galout->MergTime = (float)(gal.MergTime * units->UnitTime_in_Megayears);
@@ -93,6 +111,9 @@ void prepare_galaxy_for_output(galaxy_t gal, galaxy_output_t* galout, int i_snap
   galout->GrossStellarMassIII = (float)(gal.GrossStellarMassIII);
   galout->FescIII = (float)(gal.FescIII);
   galout->FescIIIWeightedGSM = (float)(gal.FescIIIWeightedGSM);
+  galout->FescIIIWeightedSfr =
+    (float)(gal.FescIIIWeightedSfr * units->UnitMass_in_g / units->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS);
+  galout->SfrIII = (float)(gal.SfrIII * units->UnitMass_in_g / units->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS);
 
   galout->MvirCrit_MC = (float)(gal.MvirCrit_MC);
 
@@ -115,7 +136,26 @@ void prepare_galaxy_for_output(galaxy_t gal, galaxy_output_t* galout, int i_snap
   }
 
 #ifdef CALC_MAGS
+  galout->LOIII_dusty = galout->LOIII;
   get_output_magnitudes(galout->Mags, galout->DustyMags, &gal, run_globals.ListOutputSnaps[i_snap]);
+
+  const int loiii_band_idx = run_globals.loiii_rest_band_mag_index;
+  if (loiii_band_idx >= 0) {
+    const float mag = galout->Mags[loiii_band_idx];
+    const float dusty_mag = galout->DustyMags[loiii_band_idx];
+
+    if (isfinite(mag) && isfinite(dusty_mag) && mag < 900.0f && dusty_mag < 900.0f) {
+      const double attenuation_mag = (double)mag - (double)dusty_mag;
+      const double attenuation_factor = pow(10.0, 0.4 * attenuation_mag);
+      const double loiii_dusty = (double)galout->LOIII * attenuation_factor;
+
+      if (isfinite(loiii_dusty) && loiii_dusty >= 0.0)
+        galout->LOIII_dusty = (float)loiii_dusty;
+      else
+        galout->LOIII_dusty = 0.0f;
+    }
+  }
+
 #if USE_MINI_HALOS
   get_output_magnitudesIII(galout->MagsIII, &gal, run_globals.ListOutputSnaps[i_snap]);
 #endif
@@ -134,13 +174,13 @@ void calc_hdf5_props()
     galaxy_output_t galout;
     int i; // dummy
 
-    h5props->n_props = 49;
+    h5props->n_props = 58; /* 57 base + 1: NHbin */
 #if USE_MINI_HALOS
-    h5props->n_props += 14; // Double check later
+    h5props->n_props += 16;
 #endif
 
 #ifdef CALC_MAGS
-    h5props->n_props += 2;
+    h5props->n_props += 3;
     h5props->array_nmag_f_tid = H5Tarray_create(H5T_NATIVE_FLOAT, 1, (hsize_t[]){ MAGS_N_BANDS });
 #if USE_MINI_HALOS
     h5props->n_props += 1;
@@ -391,6 +431,20 @@ void calc_hdf5_props()
     h5props->field_units[i] = "1e10 solMass";
     h5props->field_h_conv[i] = "v/h";
     h5props->field_types[i++] = H5T_NATIVE_FLOAT;
+
+    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, FescIIIWeightedSfr);
+    h5props->dst_field_sizes[i] = sizeof(galout.FescIIIWeightedSfr);
+    h5props->field_names[i] = "FescIIIWeightedSfr";
+    h5props->field_units[i] = "solMass/yr";
+    h5props->field_h_conv[i] = "None";
+    h5props->field_types[i++] = H5T_NATIVE_FLOAT;
+
+    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, SfrIII);
+    h5props->dst_field_sizes[i] = sizeof(galout.SfrIII);
+    h5props->field_names[i] = "SfrIII";
+    h5props->field_units[i] = "solMass/yr";
+    h5props->field_h_conv[i] = "None";
+    h5props->field_types[i++] = H5T_NATIVE_FLOAT;
 #endif
 
     h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, GrossStellarMass);
@@ -410,6 +464,36 @@ void calc_hdf5_props()
     h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, Sfr);
     h5props->dst_field_sizes[i] = sizeof(galout.Sfr);
     h5props->field_names[i] = "Sfr";
+    h5props->field_units[i] = "solMass/yr";
+    h5props->field_h_conv[i] = "None";
+    h5props->field_types[i++] = H5T_NATIVE_FLOAT;
+
+    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, LOIII);
+    h5props->dst_field_sizes[i] = sizeof(galout.LOIII);
+    h5props->field_names[i] = "LOIII";
+    h5props->field_units[i] = "1e40 erg/s";
+    h5props->field_h_conv[i] = "None";
+    h5props->field_types[i++] = H5T_NATIVE_FLOAT;
+
+#ifdef CALC_MAGS
+    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, LOIII_dusty);
+    h5props->dst_field_sizes[i] = sizeof(galout.LOIII_dusty);
+    h5props->field_names[i] = "LOIII_dusty";
+    h5props->field_units[i] = "1e40 erg/s";
+    h5props->field_h_conv[i] = "None";
+    h5props->field_types[i++] = H5T_NATIVE_FLOAT;
+#endif
+
+    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, ionization_param);
+    h5props->dst_field_sizes[i] = sizeof(galout.ionization_param);
+    h5props->field_names[i] = "ionization_param";
+    h5props->field_units[i] = "cm/s";
+    h5props->field_h_conv[i] = "None";
+    h5props->field_types[i++] = H5T_NATIVE_FLOAT;
+
+    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, FescWeightedSfr);
+    h5props->dst_field_sizes[i] = sizeof(galout.FescWeightedSfr);
+    h5props->field_names[i] = "FescWeightedSfr";
     h5props->field_units[i] = "solMass/yr";
     h5props->field_h_conv[i] = "None";
     h5props->field_types[i++] = H5T_NATIVE_FLOAT;
@@ -541,6 +625,13 @@ void calc_hdf5_props()
     h5props->field_types[i++] = H5T_NATIVE_FLOAT;
 #endif
 
+    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, tau_cgm);
+    h5props->dst_field_sizes[i] = sizeof(galout.tau_cgm);
+    h5props->field_names[i] = "tau_cgm";
+    h5props->field_units[i] = "None";
+    h5props->field_h_conv[i] = "None";
+    h5props->field_types[i++] = H5T_NATIVE_FLOAT;
+
     h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, MergerBurstMass);
     h5props->dst_field_sizes[i] = sizeof(galout.MergerBurstMass);
     h5props->field_names[i] = "MergerBurstMass";
@@ -621,6 +712,41 @@ void calc_hdf5_props()
     h5props->field_h_conv[i] = "None";
     h5props->field_types[i++] = H5T_NATIVE_FLOAT;
 
+    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, QuasarMag);
+    h5props->dst_field_sizes[i] = sizeof(galout.QuasarMag);
+    h5props->field_names[i] = "QuasarMag";
+    h5props->field_units[i] = "AB mag (M1450)";
+    h5props->field_h_conv[i] = "None";
+    h5props->field_types[i++] = H5T_NATIVE_FLOAT;
+
+    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, QuasarLX);
+    h5props->dst_field_sizes[i] = sizeof(galout.QuasarLX);
+    h5props->field_names[i] = "QuasarLX";
+    h5props->field_units[i] = "LX [1e10 L_sun, 2-10 keV, intrinsic]";
+    h5props->field_h_conv[i] = "None";
+    h5props->field_types[i++] = H5T_NATIVE_FLOAT;
+
+    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, NHbin);
+    h5props->dst_field_sizes[i] = sizeof(galout.NHbin);
+    h5props->field_names[i] = "NHbin";
+    h5props->field_units[i] = "0-4 = drawn logNH bin (20-21/21-22/22-23/23-24/24-26 CTK); -1 = no AGN";
+    h5props->field_h_conv[i] = "None";
+    h5props->field_types[i++] = H5T_NATIVE_INT;
+
+    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, BHXrayEmissivity);
+    h5props->dst_field_sizes[i] = sizeof(galout.BHXrayEmissivity);
+    h5props->field_names[i] = "BHXrayEmissivity";
+    h5props->field_units[i] = "LX [1e10 L_sun, 2-10 keV, observed/obscured]";
+    h5props->field_h_conv[i] = "None";
+    h5props->field_types[i++] = H5T_NATIVE_FLOAT;
+
+    h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, DutyCycleAGN);
+    h5props->dst_field_sizes[i] = sizeof(galout.DutyCycleAGN);
+    h5props->field_names[i] = "DutyCycleAGN";
+    h5props->field_units[i] = "None";
+    h5props->field_h_conv[i] = "None";
+    h5props->field_types[i++] = H5T_NATIVE_FLOAT;
+
     h5props->dst_offsets[i] = HOFFSET(galaxy_output_t, EffectiveBHM);
     h5props->dst_field_sizes[i] = sizeof(galout.EffectiveBHM);
     h5props->field_names[i] = "EffectiveBHM";
@@ -659,19 +785,38 @@ void calc_hdf5_props()
 
 void prep_hdf5_file()
 {
-  hid_t file_id;
-
-  // create a new file
+  /*
+   * Create the per-rank galaxy output file and write the two root attributes
+   * (iCore, NCores).  The file is stored in run_globals.output_file_id and
+   * kept open for the lifetime of the run so that HDF5 1.10.x's free-space
+   * manager never accumulates the open-close-cycle fragmentation that causes
+   * the "duplicate entry in cache" / H5Acreate2 failure when many snapshots
+   * have been written to the same file.  The caller (dracarys) must call
+   * close_hdf5_file() after the snapshot loop.
+   */
   if (access(run_globals.FNameOut, F_OK) != -1)
     remove(run_globals.FNameOut);
-  file_id = H5Fcreate(run_globals.FNameOut, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  run_globals.output_file_id = H5Fcreate(run_globals.FNameOut, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
   // store the file number and total number of cores
-  H5LTset_attribute_int(file_id, "/", "iCore", &(run_globals.mpi_rank), 1);
-  H5LTset_attribute_int(file_id, "/", "NCores", &(run_globals.mpi_size), 1);
+  H5LTset_attribute_int(run_globals.output_file_id, "/", "iCore", &(run_globals.mpi_rank), 1);
+  H5LTset_attribute_int(run_globals.output_file_id, "/", "NCores", &(run_globals.mpi_size), 1);
 
-  // close the file
-  H5Fclose(file_id);
+  // Do NOT close the file here; write_snapshot() will reuse output_file_id.
+}
+
+void close_hdf5_file()
+{
+  /*
+   * Flush and close the per-rank galaxy HDF5 file that was kept open since
+   * prep_hdf5_file().  Call this once at the end of the dracarys snapshot
+   * loop (or after FlagInteractive/FlagMCMC mode is done).
+   */
+  if (H5Iis_valid(run_globals.output_file_id)) {
+    H5Fflush(run_globals.output_file_id, H5F_SCOPE_GLOBAL);
+    H5Fclose(run_globals.output_file_id);
+    run_globals.output_file_id = H5I_INVALID_HID;
+  }
 }
 
 void create_master_file()
@@ -765,19 +910,27 @@ void create_master_file()
       const char* group_name = { "Units/Grids" };
       group_id = H5Gcreate(file_id, group_name, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
       H5LTset_attribute_string(file_id, group_name, "xH", "None");
-      H5LTset_attribute_string(file_id, group_name, "J_21", "10e-21 erg/s/Hz/cm/cm/sr");
+      H5LTset_attribute_string(file_id, group_name, "Gamma12", "1e-12 /s");
       H5LTset_attribute_string(file_id, group_name, "J_21_at_ionization", "10e-21 erg/s/Hz/cm/cm/sr");
       H5LTset_attribute_string(file_id, group_name, "z_at_ionization", "None");
       H5LTset_attribute_string(file_id, group_name, "r_bubble", "Mpc");
       H5LTset_attribute_string(file_id, group_name, "Mvir_crit", "1e10 solMass");
-      H5LTset_attribute_string(file_id, group_name, "StellarMass", "1e10 solMass");
-      H5LTset_attribute_string(file_id, group_name, "Sfr", "solMass/yr");
+      H5LTset_attribute_string(file_id, group_name, "effective_bhar", "solMass/yr");
+      H5LTset_attribute_string(file_id, group_name, "stars", "1e10 solMass");
+      H5LTset_attribute_string(file_id, group_name, "weighted_sfr", "solMass/yr");
       H5LTset_attribute_string(file_id, group_name, "deltax", "None");
+      H5LTset_attribute_string(file_id, group_name, "residual_xH", "1e4");
+      H5LTset_attribute_string(file_id, group_name, "clumping_factor", "None");
+      H5LTset_attribute_string(file_id, group_name, "temp_kinetic_all_gas", "K");
+      H5LTset_attribute_string(file_id, group_name, "N_rec", "None");
+      H5LTset_attribute_string(file_id, group_name, "t_resp", "Myr");
 
 #if USE_MINI_HALOS
       if (run_globals.params.Flag_IncludeLymanWerner) {
-        H5LTset_attribute_string(file_id, group_name, "JLW_box", "1e-21erg/s/Hz/cm/cm/sr");
-        H5LTset_attribute_string(file_id, group_name, "JLW_box_II", "1e-21erg/s/Hz/cm/cm/sr");
+        H5LTset_attribute_string(file_id, group_name, "starsIII", "1e10 solMass");
+        H5LTset_attribute_string(file_id, group_name, "weighted_sfrIII", "solMass/yr");
+        H5LTset_attribute_string(file_id, group_name, "JLW_box", "1e-21 erg/s/Hz/cm/cm/sr");
+        H5LTset_attribute_string(file_id, group_name, "JLW_box_II", "1e-21 erg/s/Hz/cm/cm/sr");
         H5LTset_attribute_string(file_id, group_name, "Mvir_crit_MC", "1e10 solMass");
       }
 #endif
@@ -813,17 +966,25 @@ void create_master_file()
       const char* group_name = { "HubbleConversions/Grids" };
       group_id = H5Gcreate(file_id, group_name, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
       H5LTset_attribute_string(file_id, group_name, "xH", "None");
-      H5LTset_attribute_string(file_id, group_name, "J_21", "v*(h**2)");
+      H5LTset_attribute_string(file_id, group_name, "Gamma12", "v*(h**2)");
       H5LTset_attribute_string(file_id, group_name, "J_21_at_ionization", "v*(h**2)");
       H5LTset_attribute_string(file_id, group_name, "z_at_ionization", "None");
       H5LTset_attribute_string(file_id, group_name, "r_bubble", "v/h");
       H5LTset_attribute_string(file_id, group_name, "Mvir_crit", "v/h");
-      H5LTset_attribute_string(file_id, group_name, "StellarMass", "v/h");
-      H5LTset_attribute_string(file_id, group_name, "Sfr", "None");
+      H5LTset_attribute_string(file_id, group_name, "stars", "v/h");
+      H5LTset_attribute_string(file_id, group_name, "weighted_sfr", "None");
+      H5LTset_attribute_string(file_id, group_name, "effective_bhar", "None");
       H5LTset_attribute_string(file_id, group_name, "deltax", "None");
+      H5LTset_attribute_string(file_id, group_name, "residual_xH", "None");
+      H5LTset_attribute_string(file_id, group_name, "clumping_factor", "None");
+      H5LTset_attribute_string(file_id, group_name, "temp_kinetic_all_gas", "None");
+      H5LTset_attribute_string(file_id, group_name, "N_rec", "None");
+      H5LTset_attribute_string(file_id, group_name, "t_resp", "None");
 
 #if USE_MINI_HALOS
       if (run_globals.params.Flag_IncludeLymanWerner) {
+        H5LTset_attribute_string(file_id, group_name, "starsIII", "v/h");
+        H5LTset_attribute_string(file_id, group_name, "weighted_sfrIII", "None");
         H5LTset_attribute_string(file_id, group_name, "JLW_box", "v");
         H5LTset_attribute_string(file_id, group_name, "JLW_box_II", "v");
         H5LTset_attribute_string(file_id, group_name, "Mvir_crit_MC", "v/h");
@@ -867,6 +1028,42 @@ void create_master_file()
   // save the number of cores used in this run
   H5LTset_attribute_int(file_id, "/", "NCores", &(run_globals.mpi_size), 1);
 
+  if (run_globals.params.Flag_OutputXrayLF) {
+    double s_T_vals[5];
+    get_nh_transmission(s_T_vals);
+    hsize_t nhtrans_dim = 5;
+    H5LTmake_dataset_double(file_id, "NHTrans", 1, &nhtrans_dim, s_T_vals);
+
+    // Same bins as the XrayLF distribution functions
+    int n_lx_bins_nhfrac = df_n_bins(
+      run_globals.params.XrayLF_MinLogL, run_globals.params.XrayLF_MaxLogL, run_globals.params.XrayLF_BinsPerDex);
+    double lx_bin_width_nhfrac =
+      (run_globals.params.XrayLF_MaxLogL - run_globals.params.XrayLF_MinLogL) / n_lx_bins_nhfrac;
+
+    double f_det[5];
+    double lx_log_center, lx_lin_1e10Lsun;
+    double* nhfrac_table = malloc((size_t)n_lx_bins_nhfrac * 5 * sizeof(double));
+    for (int ilx = 0; ilx < n_lx_bins_nhfrac; ilx++) {
+      lx_log_center = run_globals.params.XrayLF_MinLogL + (ilx + 0.5) * lx_bin_width_nhfrac;
+      lx_lin_1e10Lsun = pow(10.0, lx_log_center - 10.0 - LOG_10_SOLAR_LUM);
+      get_nh_fracs(lx_lin_1e10Lsun, 2.0, f_det); // this model assume the z-dependency plateaus at z>=2.0
+      for (int ib = 0; ib < 5; ib++)
+        nhfrac_table[ilx * 5 + ib] = f_det[ib];
+    }
+    hsize_t nhfrac_dims[2] = { (hsize_t)n_lx_bins_nhfrac, 5 };
+    H5LTmake_dataset_double(file_id, "NHfrac", 2, nhfrac_dims, nhfrac_table);
+    free(nhfrac_table);
+  }
+
+  // Box-averaged X-ray emissivity histories of the spin-temperature heating
+  // sources; the arrays only exist (and are filled by ComputeTs) when it runs.
+  if (run_globals.params.Flag_IncludeSpinTemp) {
+    hsize_t n_xray_snaps = (hsize_t)run_globals.params.SnaplistLength;
+    H5LTmake_dataset_double(file_id, "XrayEmissivity_hard", 1, &n_xray_snaps, stored_XrayEmissivity_hard);
+    H5LTmake_dataset_double(file_id, "XrayEmissivity_soft", 1, &n_xray_snaps, stored_XrayEmissivity_soft);
+    H5LTmake_dataset_double(file_id, "XrayEmissivity_HMXB", 1, &n_xray_snaps, stored_XrayEmissivity_HMXB);
+  }
+
   char target_group[50];
   char source_ds[50];
   char source_group[50];
@@ -889,16 +1086,19 @@ void create_master_file()
 
       sprintf(source_file, "%s/%s_%d.hdf5", run_globals.params.OutputDir, run_globals.params.FileNameGalaxies, i_core);
       sprintf(relative_source_file, "%s_%d.hdf5", run_globals.params.FileNameGalaxies, i_core);
-      sprintf(source_ds, "Snap%03d/Galaxies", run_globals.ListOutputSnaps[i_out]);
-      H5Lcreate_external(relative_source_file, source_ds, group_id, "Galaxies", H5P_DEFAULT, H5P_DEFAULT);
 
       source_file_id = H5Fopen(source_file, H5F_ACC_RDONLY, H5P_DEFAULT);
-      H5TBget_table_info(source_file_id, source_ds, NULL, &core_n_gals);
-      snap_n_gals += (int)core_n_gals;
 
-      // if they exists, then also create a link to walk indices
+      // if they exist, create links to galaxies and walk indices
       sprintf(source_group, "Snap%03d", run_globals.ListOutputSnaps[i_out]);
       source_group_id = H5Gopen(source_file_id, source_group, H5P_DEFAULT);
+      if (H5LTfind_dataset(source_group_id, "Galaxies")) {
+        sprintf(source_ds, "Snap%03d/Galaxies", run_globals.ListOutputSnaps[i_out]);
+        H5Lcreate_external(relative_source_file, source_ds, group_id, "Galaxies", H5P_DEFAULT, H5P_DEFAULT);
+        H5TBget_table_info(source_file_id, source_ds, NULL, &core_n_gals);
+        snap_n_gals += (int)core_n_gals;
+      }
+
       if (H5LTfind_dataset(source_group_id, "FirstProgenitorIndices")) {
         sprintf(source_ds, "Snap%03d/FirstProgenitorIndices", run_globals.ListOutputSnaps[i_out]);
         H5Lcreate_external(
@@ -942,6 +1142,64 @@ void create_master_file()
       }
 #endif
     }
+
+    // Create links to distribution functions from rank 0's core file
+    // Distribution functions are only computed by rank 0 after MPI reduction
+    sprintf(source_file, "%s/%s_0.hdf5", run_globals.params.OutputDir, run_globals.params.FileNameGalaxies);
+    sprintf(relative_source_file, "%s_0.hdf5", run_globals.params.FileNameGalaxies);
+    sprintf(source_group, "Snap%03d", run_globals.ListOutputSnaps[i_out]);
+
+    source_file_id = H5Fopen(source_file, H5F_ACC_RDONLY, H5P_DEFAULT);
+    source_group_id = H5Gopen(source_file_id, source_group, H5P_DEFAULT);
+
+    if (run_globals.params.Flag_OutputHMF && H5LTfind_dataset(source_group_id, "HMF")) {
+      sprintf(source_ds, "Snap%03d/HMF", run_globals.ListOutputSnaps[i_out]);
+      H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "HMF", H5P_DEFAULT, H5P_DEFAULT);
+    }
+
+    if (run_globals.params.Flag_OutputSMF && H5LTfind_dataset(source_group_id, "SMF")) {
+      sprintf(source_ds, "Snap%03d/SMF", run_globals.ListOutputSnaps[i_out]);
+      H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "SMF", H5P_DEFAULT, H5P_DEFAULT);
+    }
+
+#ifdef CALC_MAGS
+    if (run_globals.params.Flag_OutputUVLF && H5LTfind_dataset(source_group_id, "UVLF")) {
+      sprintf(source_ds, "Snap%03d/UVLF", run_globals.ListOutputSnaps[i_out]);
+      H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "UVLF", H5P_DEFAULT, H5P_DEFAULT);
+    }
+
+    if (run_globals.params.Flag_OutputDustyLF && H5LTfind_dataset(source_group_id, "DustyLF")) {
+      sprintf(source_ds, "Snap%03d/DustyLF", run_globals.ListOutputSnaps[i_out]);
+      H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "DustyLF", H5P_DEFAULT, H5P_DEFAULT);
+    }
+
+    if (run_globals.params.Flag_OutputOIIILF && H5LTfind_dataset(source_group_id, "OIIIDustyLF")) {
+      sprintf(source_ds, "Snap%03d/OIIIDustyLF", run_globals.ListOutputSnaps[i_out]);
+      H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "OIIIDustyLF", H5P_DEFAULT, H5P_DEFAULT);
+    }
+#endif
+
+    // QuasarLF external link (not dependent on CALC_MAGS)
+    if (run_globals.params.Flag_OutputQuasarLF && H5LTfind_dataset(source_group_id, "QuasarLF")) {
+      sprintf(source_ds, "Snap%03d/QuasarLF", run_globals.ListOutputSnaps[i_out]);
+      H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "QuasarLF", H5P_DEFAULT, H5P_DEFAULT);
+    }
+
+    if (run_globals.params.Flag_OutputOIIILF && H5LTfind_dataset(source_group_id, "OIIILF")) {
+      sprintf(source_ds, "Snap%03d/OIIILF", run_globals.ListOutputSnaps[i_out]);
+      H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "OIIILF", H5P_DEFAULT, H5P_DEFAULT);
+    }
+
+    if (run_globals.params.Flag_OutputXrayLF && H5LTfind_dataset(source_group_id, "XrayLF")) {
+      sprintf(source_ds, "Snap%03d/XrayLF", run_globals.ListOutputSnaps[i_out]);
+      H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "XrayLF", H5P_DEFAULT, H5P_DEFAULT);
+    }
+    if (run_globals.params.Flag_OutputXrayLF && H5LTfind_dataset(source_group_id, "XrayLF_obs")) {
+      sprintf(source_ds, "Snap%03d/XrayLF_obs", run_globals.ListOutputSnaps[i_out]);
+      H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "XrayLF_obs", H5P_DEFAULT, H5P_DEFAULT);
+    }
+    H5Gclose(source_group_id);
+    H5Fclose(source_file_id);
 
     // Save a few useful attributes
     sprintf(target_group, "Snap%03d", run_globals.ListOutputSnaps[i_out]);
@@ -1075,8 +1333,28 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
   int calc_descendants_i_out = -1;
   int prev_snapshot = -1;
   int write_count = 0;
+  int index;
 
-  mlog("Writing output file (n_write = %d)...", MLOG_OPEN | MLOG_TIMERSTART, n_write);
+  // Distribution function structures
+  distribution_function_t hmf, smf;
+  distribution_function_t quasarlf;
+  distribution_function_t oiiilf;
+  distribution_function_t xraylf;
+  distribution_function_t xraylf_obs;
+#ifdef CALC_MAGS
+  distribution_function_t uvlf, dustylf, oiiidustylf;
+#endif
+
+  // Volume will be set during initialization
+  double df_volume = (run_globals.params.BoxSize / run_globals.params.Hubble_h);
+  df_volume = df_volume * df_volume * df_volume;
+
+  // n_write is this rank's local count; report the global total across all
+  // ranks in the log instead, since that's what's actually meaningful here.
+  int n_write_global = 0;
+  MPI_Reduce(&n_write, &n_write_global, 1, MPI_INT, MPI_SUM, 0, run_globals.mpi_comm);
+
+  mlog("Writing output file (n_write = %d)...", MLOG_OPEN | MLOG_TIMERSTART, n_write_global);
 
   // We aren't going to write any galaxies that have zero stellar mass, so
   // modify n_write appropriately...
@@ -1093,8 +1371,9 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
     n_write = write_count;
   }
 
-  // Create the file.
-  file_id = H5Fopen(run_globals.FNameOut, H5F_ACC_RDWR, H5P_DEFAULT);
+  // Use the persistently-open per-rank file (avoids HDF5 1.10.x open-close
+  // fragmentation that causes "duplicate entry in cache" after ~17 snapshots).
+  file_id = run_globals.output_file_id;
 
   // Create the relevant group.
   sprintf(target_group, "Snap%03d", (run_globals.ListOutputSnaps)[i_out]);
@@ -1104,25 +1383,179 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
   if ((int)chunk_size < n_write)
     chunk_size = (hsize_t)n_write;
 
-  // Make the table
-  H5TBmake_table("Galaxies",
-                 group_id,
-                 "Galaxies",
-                 (hsize_t)h5props.n_props,
-                 (hsize_t)n_write,
-                 h5props.dst_size,
-                 h5props.field_names,
-                 h5props.dst_offsets,
-                 h5props.field_types,
-                 chunk_size,
-                 fill_data,
-                 1,
-                 NULL);
+  // Make the table (skip for FlagInteractive==2 which only outputs distribution functions)
+  if (run_globals.params.FlagInteractive != 2) {
+    H5TBmake_table("Galaxies",
+                   group_id,
+                   "Galaxies",
+                   (hsize_t)h5props.n_props,
+                   (hsize_t)n_write,
+                   h5props.dst_size,
+                   h5props.field_names,
+                   h5props.dst_offsets,
+                   h5props.field_types,
+                   chunk_size,
+                   fill_data,
+                   1,
+                   NULL);
+  }
+
+  // Initialize distribution functions
+  if (run_globals.params.Flag_OutputHMF) {
+    if (run_globals.params.HMF_MaxMass <= run_globals.params.HMF_MinMass) {
+      mlog_error("HMF_MaxMass must be greater than HMF_MinMass.");
+      ABORT(EXIT_FAILURE);
+    }
+    if (run_globals.params.HMF_BinsPerDex <= 0) {
+      mlog_error("HMF_BinsPerDex must be > 0.");
+      ABORT(EXIT_FAILURE);
+    }
+    df_init(&hmf,
+            run_globals.params.HMF_MinMass,
+            run_globals.params.HMF_MaxMass,
+            run_globals.params.HMF_BinsPerDex,
+            "Halo Mass Function");
+    hmf.volume = df_volume;
+  }
+
+  if (run_globals.params.Flag_OutputSMF) {
+    if (run_globals.params.SMF_MaxMass <= run_globals.params.SMF_MinMass) {
+      mlog_error("SMF_MaxMass must be greater than SMF_MinMass.");
+      ABORT(EXIT_FAILURE);
+    }
+    if (run_globals.params.SMF_BinsPerDex <= 0) {
+      mlog_error("SMF_BinsPerDex must be > 0.");
+      ABORT(EXIT_FAILURE);
+    }
+    df_init(&smf,
+            run_globals.params.SMF_MinMass,
+            run_globals.params.SMF_MaxMass,
+            run_globals.params.SMF_BinsPerDex,
+            "Stellar Mass Function");
+    smf.volume = df_volume;
+  }
+
+#ifdef CALC_MAGS
+  // Check if this snapshot is a target snapshot for magnitude calculations
+  int is_target_snap = 0;
+  for (int iS = 0; iS < MAGS_N_SNAPS; ++iS) {
+    if (run_globals.ListOutputSnaps[i_out] == run_globals.mag_params.targetSnap[iS]) {
+      is_target_snap = 1;
+      break;
+    }
+  }
+
+  const int do_oiii_dusty_lf =
+    is_target_snap && run_globals.params.Flag_OutputOIIILF && (run_globals.loiii_rest_band_mag_index >= 0);
+
+  if (is_target_snap && run_globals.params.Flag_OutputUVLF) {
+    if (run_globals.params.UVLF_MaxMag <= run_globals.params.UVLF_MinMag) {
+      mlog_error("UVLF_MaxMag must be greater than UVLF_MinMag.");
+      ABORT(EXIT_FAILURE);
+    }
+    if (run_globals.params.UVLF_BinsPerMag <= 0) {
+      mlog_error("UVLF_BinsPerMag must be > 0.");
+      ABORT(EXIT_FAILURE);
+    }
+    df_init(&uvlf,
+            run_globals.params.UVLF_MinMag,
+            run_globals.params.UVLF_MaxMag,
+            run_globals.params.UVLF_BinsPerMag,
+            "UV Luminosity Function");
+    uvlf.volume = df_volume;
+  }
+
+  if (is_target_snap && run_globals.params.Flag_OutputDustyLF) {
+    if (run_globals.params.UVLF_MaxMag <= run_globals.params.UVLF_MinMag) {
+      mlog_error("UVLF_MaxMag must be greater than UVLF_MinMag for DustyLF.");
+      ABORT(EXIT_FAILURE);
+    }
+    if (run_globals.params.UVLF_BinsPerMag <= 0) {
+      mlog_error("UVLF_BinsPerMag must be > 0 for DustyLF.");
+      ABORT(EXIT_FAILURE);
+    }
+    df_init(&dustylf,
+            run_globals.params.UVLF_MinMag,
+            run_globals.params.UVLF_MaxMag,
+            run_globals.params.UVLF_BinsPerMag,
+            "Dusty UV Luminosity Function");
+    dustylf.volume = df_volume;
+  }
+#endif
+
+  // QuasarLF uses same mag bins as UVLF but weighted by duty cycle
+  if (run_globals.params.Flag_OutputQuasarLF) {
+    if (run_globals.params.UVLF_MaxMag <= run_globals.params.UVLF_MinMag) {
+      mlog_error("UVLF_MaxMag must be greater than UVLF_MinMag for QuasarLF.");
+      ABORT(EXIT_FAILURE);
+    }
+    if (run_globals.params.UVLF_BinsPerMag <= 0) {
+      mlog_error("UVLF_BinsPerMag must be > 0 for QuasarLF.");
+      ABORT(EXIT_FAILURE);
+    }
+    df_init(&quasarlf,
+            run_globals.params.UVLF_MinMag,
+            run_globals.params.UVLF_MaxMag,
+            run_globals.params.UVLF_BinsPerMag,
+            "Quasar UV Luminosity Function");
+    quasarlf.volume = df_volume;
+  }
+
+  if (run_globals.params.Flag_OutputOIIILF) {
+    if (run_globals.params.OIIILF_MaxLogL <= run_globals.params.OIIILF_MinLogL) {
+      mlog_error("OIIILF_MaxLogL must be greater than OIIILF_MinLogL.");
+      ABORT(EXIT_FAILURE);
+    }
+    if (run_globals.params.OIIILF_BinsPerDex <= 0) {
+      mlog_error("OIIILF_BinsPerDex must be > 0.");
+      ABORT(EXIT_FAILURE);
+    }
+    df_init(&oiiilf,
+            run_globals.params.OIIILF_MinLogL,
+            run_globals.params.OIIILF_MaxLogL,
+            run_globals.params.OIIILF_BinsPerDex,
+            "OIII Luminosity Function");
+    oiiilf.volume = df_volume;
+
+#ifdef CALC_MAGS
+    if (do_oiii_dusty_lf) {
+      df_init(&oiiidustylf,
+              run_globals.params.OIIILF_MinLogL,
+              run_globals.params.OIIILF_MaxLogL,
+              run_globals.params.OIIILF_BinsPerDex,
+              "Dusty OIII Luminosity Function");
+      oiiidustylf.volume = df_volume;
+    }
+#endif
+  }
+
+  if (run_globals.params.Flag_OutputXrayLF) {
+    if (run_globals.params.XrayLF_MaxLogL <= run_globals.params.XrayLF_MinLogL) {
+      mlog_error("XrayLF_MaxLogL must be greater than XrayLF_MinLogL.");
+      ABORT(EXIT_FAILURE);
+    }
+    if (run_globals.params.XrayLF_BinsPerDex <= 0) {
+      mlog_error("XrayLF_BinsPerDex must be > 0.");
+      ABORT(EXIT_FAILURE);
+    }
+    df_init(&xraylf,
+            run_globals.params.XrayLF_MinLogL,
+            run_globals.params.XrayLF_MaxLogL,
+            run_globals.params.XrayLF_BinsPerDex,
+            "X-ray Luminosity Function (2-10 keV, intrinsic)");
+    xraylf.volume = df_volume;
+    df_init(&xraylf_obs,
+            run_globals.params.XrayLF_MinLogL,
+            run_globals.params.XrayLF_MaxLogL,
+            run_globals.params.XrayLF_BinsPerDex,
+            "X-ray Luminosity Function (2-10 keV, observed after obscuration)");
+    xraylf_obs.volume = df_volume;
+  }
 
   // If the immediately preceding snapshot was also written, then save the
-  // descendent indices
+  // descendent indices (skip for FlagInteractive==2)
   prev_snapshot = run_globals.ListOutputSnaps[i_out] - 1;
-  if (i_out > 0) {
+  if (i_out > 0 && run_globals.params.FlagInteractive != 2) {
     for (int ii = 0; ii < run_globals.NOutputSnaps; ii++)
       if (run_globals.ListOutputSnaps[ii] == prev_snapshot) {
         calc_descendants_i_out = ii;
@@ -1178,7 +1611,7 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
 
         assert(gal->MergerTarget->output_index < n_write);
         if (gal->MergerTarget->output_index >= 0) {
-          int index = first_progenitor_index[gal->MergerTarget->output_index];
+          index = first_progenitor_index[gal->MergerTarget->output_index];
           if (index > -1) {
             while (next_progenitor_index[index] > -1)
               index = next_progenitor_index[index];
@@ -1213,10 +1646,13 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
     }
   }
 
-  if (n_write != gal_count) {
-    fprintf(stderr, "We don't have the expected number of galaxies in save...");
-    fprintf(stderr, "gal_count=%d, n_write=%d", gal_count, n_write);
-    ABORT(EXIT_FAILURE);
+  // Skip galaxy count validation for FlagInteractive==2
+  if (run_globals.params.FlagInteractive != 2) {
+    if (n_write != gal_count) {
+      fprintf(stderr, "We don't have the expected number of galaxies in save...");
+      fprintf(stderr, "gal_count=%d, n_write=%d", gal_count, n_write);
+      ABORT(EXIT_FAILURE);
+    }
   }
 
   // Write the galaxies.
@@ -1225,14 +1661,149 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
   gal_count = 0;
   gal = run_globals.FirstGal;
   output_buffer = calloc((int)chunk_size, sizeof(galaxy_output_t));
+  // Accumulate into distribution functions from output buffer
+  double val, weight;
+  int bin_idx;
+  double lx_int_lin, lx_obs_lin;
+
   int buffer_count = 0;
   while (gal != NULL) {
     // Don't output galaxies which merged at this timestep
     if (pass_write_check(gal, false)) {
       prepare_galaxy_for_output(*gal, &(output_buffer[buffer_count]), i_out);
+
+      if (run_globals.params.Flag_OutputHMF && !output_buffer[buffer_count].GhostFlag) {
+        // Extract HMF value (log10 halo mass in solar masses/h)
+        val = log10(output_buffer[buffer_count].Mvir * 1e10 / run_globals.params.Hubble_h);
+        bin_idx = df_bin_index(&hmf, val);
+        if (bin_idx >= 0) {
+          hmf.bin_counts[bin_idx] += 1.0;
+        }
+      }
+
+      if (run_globals.params.Flag_OutputSMF && !output_buffer[buffer_count].GhostFlag) {
+        // Extract SMF value (log10 stellar mass in solar masses)
+        val = output_buffer[buffer_count].StellarMass * 1e10 / run_globals.params.Hubble_h;
+        if (val > 0.0) {
+          val = log10(val);
+          bin_idx = df_bin_index(&smf, val);
+          if (bin_idx >= 0) {
+            smf.bin_counts[bin_idx] += 1.0;
+          }
+        }
+      }
+
+#ifdef CALC_MAGS
+      if (is_target_snap && run_globals.params.Flag_OutputUVLF && !output_buffer[buffer_count].GhostFlag) {
+        // Extract UVLF value (UV magnitude)
+        if (isfinite(output_buffer[buffer_count].Mags[0])) {
+          val = output_buffer[buffer_count].Mags[0];
+          bin_idx = df_bin_index(&uvlf, val);
+          if (bin_idx >= 0) {
+            uvlf.bin_counts[bin_idx] += 1.0;
+          }
+        }
+      }
+
+      if (is_target_snap && run_globals.params.Flag_OutputDustyLF && !output_buffer[buffer_count].GhostFlag) {
+        // Extract DustyLF value (dusty UV magnitude)
+        if (isfinite(output_buffer[buffer_count].DustyMags[0])) {
+          val = output_buffer[buffer_count].DustyMags[0];
+          bin_idx = df_bin_index(&dustylf, val);
+          if (bin_idx >= 0) {
+            dustylf.bin_counts[bin_idx] += 1.0;
+          }
+        }
+      }
+#endif
+
+      // QuasarLF: bin QuasarMag weighted by DutyCycleAGN * quasar_fobs (opening angle)
+      if (run_globals.params.Flag_OutputQuasarLF && !output_buffer[buffer_count].GhostFlag) {
+        val = output_buffer[buffer_count].QuasarMag;
+        weight = output_buffer[buffer_count].DutyCycleAGN * run_globals.params.physics.quasar_fobs;
+        // Only include quasars that are "on" (QuasarMag < 999) and have positive duty cycle
+        if (val < 900.0 && weight > 0.0 && isfinite(val)) {
+          bin_idx = df_bin_index(&quasarlf, val);
+          if (bin_idx >= 0) {
+            quasarlf.bin_counts[bin_idx] += weight;                    // Weight by duty cycle
+            quasarlf.bin_variance[bin_idx] += weight * (1.0 - weight); // Bernoulli variance
+          }
+        }
+      }
+
+      if (run_globals.params.Flag_OutputOIIILF && !output_buffer[buffer_count].GhostFlag) {
+        val = output_buffer[buffer_count].LOIII;
+        if (val > 0.0 && isfinite(val)) {
+          val = log10(val) + 40;
+          bin_idx = df_bin_index(&oiiilf, val);
+          if (bin_idx >= 0) {
+            oiiilf.bin_counts[bin_idx] += 1.0;
+          }
+        }
+      }
+
+#ifdef CALC_MAGS
+      if (do_oiii_dusty_lf && !output_buffer[buffer_count].GhostFlag) {
+        val = output_buffer[buffer_count].LOIII_dusty;
+        if (val > 0.0 && isfinite(val)) {
+          val = log10(val) + 40;
+          bin_idx = df_bin_index(&oiiidustylf, val);
+          if (bin_idx >= 0) {
+            oiiidustylf.bin_counts[bin_idx] += 1.0;
+          }
+        }
+      }
+#endif
+
+      if (run_globals.params.Flag_OutputXrayLF) {
+        lx_int_lin = (double)output_buffer[buffer_count].QuasarLX;
+        lx_obs_lin = (double)output_buffer[buffer_count].BHXrayEmissivity;
+        weight = output_buffer[buffer_count].DutyCycleAGN;
+        if (weight > 0.0) {
+          if (lx_int_lin > 0.0) {
+            val = log10(lx_int_lin) + LOG_10_SOLAR_LUM + 10;
+            bin_idx = df_bin_index(&xraylf, val);
+            if (bin_idx >= 0) {
+              xraylf.bin_counts[bin_idx] += weight;
+              xraylf.bin_variance[bin_idx] += weight * (1.0 - weight); /* Bernoulli */
+            }
+          }
+
+          if (lx_obs_lin > 0.0) {
+            val = log10(lx_obs_lin) + LOG_10_SOLAR_LUM + 10;
+            bin_idx = df_bin_index(&xraylf_obs, val);
+            if (bin_idx >= 0) {
+              xraylf_obs.bin_counts[bin_idx] += weight;
+              xraylf_obs.bin_variance[bin_idx] += weight * (1.0 - weight);
+            }
+          }
+        }
+      }
+
       buffer_count++;
+      ;
     }
     if (buffer_count == (int)chunk_size) {
+      // Write galaxies to HDF5 (skip for FlagInteractive==2)
+      if (run_globals.params.FlagInteractive != 2) {
+        H5TBwrite_records(group_id,
+                          "Galaxies",
+                          (hsize_t)gal_count,
+                          (hsize_t)buffer_count,
+                          h5props.dst_size,
+                          h5props.dst_offsets,
+                          h5props.dst_field_sizes,
+                          output_buffer);
+      }
+      gal_count += buffer_count;
+      buffer_count = 0;
+    }
+    gal = gal->Next;
+  }
+
+  // Write any remaining galaxies in the buffer (skip for FlagInteractive==2)
+  if (buffer_count > 0) {
+    if (run_globals.params.FlagInteractive != 2) {
       H5TBwrite_records(group_id,
                         "Galaxies",
                         (hsize_t)gal_count,
@@ -1241,43 +1812,105 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
                         h5props.dst_offsets,
                         h5props.dst_field_sizes,
                         output_buffer);
-      gal_count += buffer_count;
-      buffer_count = 0;
     }
-    gal = gal->Next;
-  }
-
-  // Write any remaining galaxies in the buffer
-  if (buffer_count > 0) {
-    H5TBwrite_records(group_id,
-                      "Galaxies",
-                      (hsize_t)gal_count,
-                      (hsize_t)buffer_count,
-                      h5props.dst_size,
-                      h5props.dst_offsets,
-                      h5props.dst_field_sizes,
-                      output_buffer);
     gal_count += buffer_count;
   }
 
-  if (n_write != gal_count) {
-    mlog("We don't have the expected number of galaxies in save...", MLOG_MESG);
-    mlog("gal_count=%d, n_write=%d", MLOG_MESG, gal_count, n_write);
-    ABORT(EXIT_FAILURE);
+  // Skip galaxy count validation for FlagInteractive==2
+  if (run_globals.params.FlagInteractive != 2) {
+    if (n_write != gal_count) {
+      mlog("We don't have the expected number of galaxies in save...", MLOG_MESG);
+      mlog("gal_count=%d, n_write=%d", MLOG_MESG, gal_count, n_write);
+      ABORT(EXIT_FAILURE);
+    }
   }
 
   // Free the output buffer
   free(output_buffer);
 
-  if (run_globals.params.Flag_PatchyReion && check_if_reionization_ongoing(run_globals.ListOutputSnaps[i_out]) &&
+  if ((run_globals.params.Flag_PatchyReion) && check_if_reionization_ongoing(run_globals.ListOutputSnaps[i_out]) &&
       (run_globals.params.Flag_OutputGrids))
     save_reion_output_grids(run_globals.ListOutputSnaps[i_out]);
+
+  // MPI reduction and output for all distribution functions
+  if (run_globals.params.Flag_OutputHMF) {
+    df_mpi_reduce(&hmf, run_globals.mpi_rank, run_globals.mpi_size);
+    if (run_globals.mpi_rank == 0) {
+      df_write_hdf5(file_id, target_group, &hmf, "HMF", "per Mpc^3 per dex");
+    }
+    df_free(&hmf);
+  }
+
+  if (run_globals.params.Flag_OutputSMF) {
+    df_mpi_reduce(&smf, run_globals.mpi_rank, run_globals.mpi_size);
+    if (run_globals.mpi_rank == 0) {
+      df_write_hdf5(file_id, target_group, &smf, "SMF", "per Mpc^3 per dex");
+    }
+    df_free(&smf);
+  }
+
+#ifdef CALC_MAGS
+  if (is_target_snap && run_globals.params.Flag_OutputUVLF) {
+    df_mpi_reduce(&uvlf, run_globals.mpi_rank, run_globals.mpi_size);
+    if (run_globals.mpi_rank == 0) {
+      df_write_hdf5(file_id, target_group, &uvlf, "UVLF", "per Mpc^3 per mag");
+    }
+    df_free(&uvlf);
+  }
+
+  if (is_target_snap && run_globals.params.Flag_OutputDustyLF) {
+    df_mpi_reduce(&dustylf, run_globals.mpi_rank, run_globals.mpi_size);
+    if (run_globals.mpi_rank == 0) {
+      df_write_hdf5(file_id, target_group, &dustylf, "DustyLF", "per Mpc^3 per mag");
+    }
+    df_free(&dustylf);
+  }
+#endif
+
+  // QuasarLF - uses weighted MPI reduce and write
+  if (run_globals.params.Flag_OutputQuasarLF) {
+    df_mpi_reduce(&quasarlf, run_globals.mpi_rank, run_globals.mpi_size);
+    if (run_globals.mpi_rank == 0) {
+      df_write_hdf5(file_id, target_group, &quasarlf, "QuasarLF", "per Mpc^3 per mag");
+    }
+    df_free(&quasarlf);
+  }
+
+  if (run_globals.params.Flag_OutputOIIILF) {
+    df_mpi_reduce(&oiiilf, run_globals.mpi_rank, run_globals.mpi_size);
+    if (run_globals.mpi_rank == 0) {
+      df_write_hdf5(file_id, target_group, &oiiilf, "OIIILF", "per Mpc^3 per dex");
+    }
+    df_free(&oiiilf);
+
+#ifdef CALC_MAGS
+    if (do_oiii_dusty_lf) {
+      df_mpi_reduce(&oiiidustylf, run_globals.mpi_rank, run_globals.mpi_size);
+      if (run_globals.mpi_rank == 0) {
+        df_write_hdf5(file_id, target_group, &oiiidustylf, "OIIIDustyLF", "per Mpc^3 per dex");
+      }
+      df_free(&oiiidustylf);
+    }
+#endif
+  }
+
+  if (run_globals.params.Flag_OutputXrayLF) {
+    df_mpi_reduce(&xraylf, run_globals.mpi_rank, run_globals.mpi_size);
+    df_mpi_reduce(&xraylf_obs, run_globals.mpi_rank, run_globals.mpi_size);
+    if (run_globals.mpi_rank == 0) {
+      df_write_hdf5(file_id, target_group, &xraylf, "XrayLF", "per Mpc^3 per dex");
+      df_write_hdf5(file_id, target_group, &xraylf_obs, "XrayLF_obs", "per Mpc^3 per dex");
+    }
+    df_free(&xraylf);
+    df_free(&xraylf_obs);
+  }
 
   // Close the group.
   H5Gclose(group_id);
 
-  // Close the file.
-  H5Fclose(file_id);
+  // Flush (but do not close) this snapshot's data to disk now, so it survives a crash later in the run rather than
+  // being lost with everything that was never flushed.
+  H5Fflush(run_globals.output_file_id, H5F_SCOPE_GLOBAL);
 
   // Update the value of last_n_write
   *last_n_write = n_write;

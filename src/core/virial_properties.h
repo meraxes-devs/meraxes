@@ -10,6 +10,7 @@ extern "C"
 
   double Tvir_to_Mvir(double T, double z);
   double calculate_Mvir(double Mvir, int len);
+  double hubble_at_z(double z);
   double hubble_at_snapshot(int snapshot);
   double hubble_time(int snapshot);
   double calculate_Rvir(double Mvir, int snapshot);

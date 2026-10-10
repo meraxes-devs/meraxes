@@ -2,6 +2,10 @@
 
 #include "magnitudes.h"
 #include "meraxes.h"
+#if USE_STOCHASTICITY
+#include "Stochasticity.h"
+#endif
+#include "XRayHeatingFunctions.h"
 #include "parse_paramfile.h"
 #include "read_grids.h"
 #include "read_halos.h"
@@ -36,6 +40,10 @@ void cleanup()
     free_reionization_grids();
     fftwf_mpi_cleanup();
   }
+
+#if USE_STOCHASTICITY
+  no_sfr_sources_free();
+#endif
 
   if (run_globals.params.Flag_IncludeRecombinations) {
     free_MHR();
@@ -72,6 +80,15 @@ void cleanup()
   free(run_globals.LTTime);
   free(run_globals.ZZ);
   free(run_globals.AA);
+
+  free(stored_fcoll);
+  free(stored_fcollIII);
+  free(stored_XrayEmissivity_hard);
+  free(stored_XrayEmissivity_soft);
+  free(stored_XrayEmissivity_HMXB);
+#if USE_MINI_HALOS
+  free_LW_diagnostics();
+#endif
 
   if (run_globals.gpu != NULL)
     free(run_globals.gpu);

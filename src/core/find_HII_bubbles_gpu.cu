@@ -97,7 +97,7 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
   const int slab_n_complex = (int)(slabs_n_complex[mpi_rank]);
   const int slab_n_real = local_nix * ReionGridDim * ReionGridDim;
   // preallocated grids
-  float* J_21 = run_globals.reion_grids.J_21;         // real
+  float* Gamma12 = run_globals.reion_grids.Gamma12;   // real
   float* r_bubble = run_globals.reion_grids.r_bubble; // real
   // output grids
   float* xH = run_globals.reion_grids.xH;                                 // real
@@ -105,7 +105,7 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
   float* J_21_at_ionization = run_globals.reion_grids.J_21_at_ionization; // real
   // output values
   double* volume_weighted_global_xH = &(run_globals.reion_grids.volume_weighted_global_xH);
-  double* volume_weighted_global_J_21 = &(run_globals.reion_grids.volume_weighted_global_J_21);
+  double* volume_weighted_global_Gamma = &(run_globals.reion_grids.volume_weighted_global_Gamma);
   double* mass_weighted_global_xH = &(run_globals.reion_grids.mass_weighted_global_xH);
   // a few needed constants
   const double pixel_volume = pow(box_size / (double)ReionGridDim, 3); // (Mpc/h)^3
@@ -145,7 +145,6 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
   float* r_bubble_device = NULL;
   float* z_at_ionization_device = NULL;
   float* J_21_at_ionization_device = NULL;
-  float* J_21_device = NULL;
   float* Gamma12_device = NULL;
 
   try {
@@ -177,9 +176,6 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
                           meraxes_cuda_exception::MALLOC);
       throw_on_cuda_error(cudaMalloc((void**)&J_21_at_ionization_device, sizeof(float) * slab_n_real),
                           meraxes_cuda_exception::MALLOC);
-      if (ReionUVBFlag)
-        throw_on_cuda_error(cudaMalloc((void**)&J_21_device, sizeof(float) * slab_n_real),
-                            meraxes_cuda_exception::MALLOC);
       if (Flag_IncludeRecombinations) {
         throw_on_cuda_error(cudaMalloc((void**)&Gamma12_device, sizeof(float) * slab_n_real),
                             meraxes_cuda_exception::MALLOC);
@@ -301,9 +297,6 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
                             meraxes_cuda_exception::KERNEL_SET_ARRAY);
       throw_on_kernel_error((set_array_gpu<<<grid_real, threads>>>(r_bubble_device, slab_n_real, 0.f)),
                             meraxes_cuda_exception::KERNEL_SET_ARRAY);
-      if (ReionUVBFlag)
-        throw_on_kernel_error((set_array_gpu<<<grid_real, threads>>>(J_21_device, slab_n_real, 0.f)),
-                              meraxes_cuda_exception::KERNEL_SET_ARRAY);
     }
     check_thread_sync(meraxes_cuda_exception::KERNEL_SET_ARRAY);
     // Throw an exception if another rank has thrown one
@@ -480,17 +473,13 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
     }
 
     // Main loop through the box...
-    const double J_21_aux_constant = (1.0 + redshift) * (1.0 + redshift) / (4.0 * M_PI) * ReionAlphaUV * PLANCK *
-                                     1e21 // * ReionEscapeFrac
-                                     * R * UnitLength_in_cm * ReionNionPhotPerBary / PROTONMASS * UnitMass_in_g /
-                                     pow(UnitLength_in_cm, 3) / UnitTime_in_s;
     const double inv_pixel_volume = 1. / pixel_volume;
 
-    double Gamma_R_prefactor = 1.0;
-    if (Flag_IncludeRecombinations) {
-      Gamma_R_prefactor = (1.0 + redshift) * (1.0 + redshift) * R * (UnitLength_in_cm / Hubble_h) * SIGMA_HI *
-                          ReionAlphaUV / (ReionAlphaUV + 2.75) / 1.0e-12; // Converting R h^-1 to R.
-    }
+    double Gamma_R_prefactor = (1.0 + redshift) * (1.0 + redshift) * R * UnitLength_in_cm * ReionAlphaUV;
+    Gamma_R_prefactor *= (units->UnitMass_in_g / units->UnitTime_in_s) / PROTONMASS *
+                         pow(units->UnitLength_in_cm, -3.) * ReionNionPhotPerBary;
+    const double J_21_aux_constant = Gamma_R_prefactor * PLANCK * 1e21 / (4.0 * M_PI) * ReionGammaHaloBias;
+    Gamma_R_prefactor *= SIGMA_HI / (run_globals.params.physics.ReionAlphaUV + 2.75) * 1e12;
 
     try {
       if (slab_n_real > 0) {
@@ -505,15 +494,12 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
                                                                                       ReionEfficiency,
                                                                                       inv_pixel_volume,
                                                                                       J_21_aux_constant,
-                                                                                      ReionGammaHaloBias,
                                                                                       UnitMass_in_g,
                                                                                       UnitTime_in_s,
                                                                                       UnitLength_in_cm,
                                                                                       Hubble_h,
-                                                                                      ReionNionPhotPerBary,
                                                                                       Gamma_R_prefactor,
                                                                                       xH_device,
-                                                                                      J_21_device,
                                                                                       r_bubble_device,
                                                                                       J_21_at_ionization_device,
                                                                                       z_at_ionization_device,
@@ -542,10 +528,6 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
       throw_on_cuda_error(
         cudaMemcpy((void*)r_bubble, (void*)r_bubble_device, sizeof(float) * slab_n_real, cudaMemcpyDeviceToHost),
         meraxes_cuda_exception::MEMCPY);
-      if (ReionUVBFlag)
-        throw_on_cuda_error(
-          cudaMemcpy((void*)J_21, (void*)J_21_device, sizeof(float) * slab_n_real, cudaMemcpyDeviceToHost),
-          meraxes_cuda_exception::MEMCPY);
       throw_on_cuda_error(
         cudaMemcpy(
           (void*)z_at_ionization, (void*)z_at_ionization_device, sizeof(float) * slab_n_real, cudaMemcpyDeviceToHost),
@@ -591,9 +573,6 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
     throw_on_cuda_error(cudaFree(z_at_ionization_device), meraxes_cuda_exception::FREE);
     throw_on_cuda_error(cudaFree(J_21_at_ionization_device), meraxes_cuda_exception::FREE);
 
-    if (ReionUVBFlag)
-      throw_on_cuda_error(cudaFree(J_21_device), meraxes_cuda_exception::FREE);
-
     if (Flag_IncludeRecombinations) {
       throw_on_cuda_error(cudaFree(Gamma12_device), meraxes_cuda_exception::FREE);
     }
@@ -608,7 +587,7 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
   // TODO: The deltax grid will have rounding errors from forward and reverse
   //       FFT. Should cache deltax slabs prior to ffts and reuse here.
   *volume_weighted_global_xH = 0.0;
-  *volume_weighted_global_J_21 = 0.0;
+  *volume_weighted_global_Gamma = 0.0;
   *mass_weighted_global_xH = 0.0;
   double mass_weight = 0.0;
 
@@ -624,22 +603,32 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
         const double density_over_mean = 1.0 + (double)((float*)deltax)[i_padded];
         const double cell_xH = (double)(xH[i_real]);
         *volume_weighted_global_xH += cell_xH;
-        *volume_weighted_global_J_21 += (double)J_21[i_real];
         *mass_weighted_global_xH += cell_xH * density_over_mean;
         mass_weight += density_over_mean;
 
+        // Gamma12 is only allocated when recombinations are on.
         if (Flag_IncludeRecombinations) {
-          const float z_eff = (float)((1. + redshift) * pow(density_over_mean, 1.0 / 3.0) - 1);
-          const float dNrec = splined_recombination_rate(z_eff, Gamma12[i_real]) * fabs_dtdz * zstep * (1. - cell_xH);
-          N_rec[i_padded] += dNrec;
+          *volume_weighted_global_Gamma += (double)Gamma12[i_real];
+
+          // The GPU path keeps the isothermal (T = 1e4 K) recombination rate of
+          // the old two-argument API; it does not implement the CPU path's
+          // temperature dependence or residual_xH/clumping/t_resp grids.
+          const double z_eff = (1. + redshift) * pow(density_over_mean, 1.0 / 3.0) - 1;
+          double recombination_rate, rnh, cf;
+          if (splined_recombination(
+                z_eff, (double)Gamma12[i_real] * Hubble_h * Hubble_h, 1e4, &recombination_rate, &rnh, &cf) != 1) {
+            mlog_error("splined_recombination failed. Aborting...");
+            ABORT(EXIT_FAILURE);
+          }
+          N_rec[i_padded] += (float)(recombination_rate * fabs_dtdz * zstep * (1. - cell_xH));
         }
       }
   MPI_Allreduce(MPI_IN_PLACE, volume_weighted_global_xH, 1, MPI_DOUBLE, MPI_SUM, mpi_comm);
-  MPI_Allreduce(MPI_IN_PLACE, volume_weighted_global_J_21, 1, MPI_DOUBLE, MPI_SUM, mpi_comm);
+  MPI_Allreduce(MPI_IN_PLACE, volume_weighted_global_Gamma, 1, MPI_DOUBLE, MPI_SUM, mpi_comm);
   MPI_Allreduce(MPI_IN_PLACE, mass_weighted_global_xH, 1, MPI_DOUBLE, MPI_SUM, mpi_comm);
   MPI_Allreduce(MPI_IN_PLACE, &mass_weight, 1, MPI_DOUBLE, MPI_SUM, mpi_comm);
   *volume_weighted_global_xH *= inv_total_n_cells;
-  *volume_weighted_global_J_21 *= inv_total_n_cells;
+  *volume_weighted_global_Gamma *= inv_total_n_cells;
   *mass_weighted_global_xH /= mass_weight;
 }
 

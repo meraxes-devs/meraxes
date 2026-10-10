@@ -2,6 +2,7 @@
 #include "blackhole_feedback.h"
 #include "cooling.h"
 #include "core/stellar_feedback.h"
+#include "emission_lines.h"
 #if USE_MINI_HALOS
 #include "core/PopIII.h"
 #include "core/misc_tools.h"
@@ -104,7 +105,7 @@ int evolve_galaxies(fof_group_t* fof_group, int snapshot, int NGal, int NFof)
               delayed_supernova_feedback(gal, snapshot);
 
             if (gal->BlackHoleAccretingColdMass > 0)
-              previous_merger_driven_BH_growth(gal);
+              previous_merger_driven_BH_growth(gal, snapshot);
 
 #if USE_MINI_HALOS
             DiskMetallicity = calc_metallicity(
@@ -154,6 +155,14 @@ int evolve_galaxies(fof_group_t* fof_group, int snapshot, int NGal, int NFof)
     }
   }
 
+  // [O III] is computed once per snapshot from each galaxy's final state, after
+  // all in-situ star formation and merger-driven bursts above are complete.
+  for (int i_fof = 0; i_fof < NFof; i_fof++)
+    for (halo = fof_group[i_fof].FirstHalo; halo != NULL; halo = halo->NextHaloInFOFGroup)
+      for (gal = halo->Galaxy; gal != NULL; gal = gal->NextGalInHalo)
+        if (gal->Type < 3)
+          compute_LOIII(gal, snapshot);
+
   if (gal_counter + (run_globals.NGhosts) != NGal) {
     mlog_error("We have not processed the expected number of galaxies...");
     mlog("gal_counter = %d but NGal = %d", MLOG_MESG, gal_counter, NGal);
@@ -168,7 +177,9 @@ int evolve_galaxies(fof_group_t* fof_group, int snapshot, int NGal, int NFof)
 void passively_evolve_ghost(galaxy_t* gal, int snapshot)
 {
   // Passively evolve ghosts.
-  // Currently, this just means evolving their stellar pops...
+  // Continue processing queued black hole accretion and supernova feedback
+  // even while the galaxy is in ghost state, ensuring consistency with
+  // the treatment of other delayed feedback mechanisms.
 
   bool Flag_IRA = (bool)(run_globals.params.physics.Flag_IRA);
 #if USE_MINI_HALOS
@@ -177,4 +188,7 @@ void passively_evolve_ghost(galaxy_t* gal, int snapshot)
 
   if (!Flag_IRA)
     delayed_supernova_feedback(gal, snapshot);
+
+  if (gal->BlackHoleAccretingColdMass > 0)
+    previous_merger_driven_BH_growth(gal, snapshot);
 }

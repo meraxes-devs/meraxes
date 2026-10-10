@@ -342,15 +342,15 @@ Photometric distributions require a target photometry snapshot. X-ray distributi
 
 ### X-ray diagnostics
 
-`Flag_OutputXrayLF` also writes these float64 datasets at the root of the master file (`output/meraxes.hdf5` in this example). The emissivity histories require Spin and are indexed by simulation snapshot number.
+These float64 datasets sit at the root of the master file (`output/meraxes.hdf5` in this example). The emissivity histories come from the spin-temperature calculation and are indexed by simulation snapshot number.
 
-| Dataset | Shape | Meaning |
-| --- | --- | --- |
-| `NHTrans` | `(5,)` | Hard-X-ray transmission in each obscuring column-density bin. |
-| `NHfrac` | `(n_lx_bins, 5)` | Expected bin fractions at the X-ray luminosity centers, evaluated at redshift 2. |
-| `XrayEmissivity_hard` | `(SnaplistLength,)` | Mean hard-AGN heating-source luminosity density. |
-| `XrayEmissivity_soft` | `(SnaplistLength,)` | Mean soft-AGN heating-source luminosity density. |
-| `XrayEmissivity_HMXB` | `(SnaplistLength,)` | Mean stellar/HMXB heating-source luminosity density. |
+| Dataset | Written when | Shape | Meaning |
+| --- | --- | --- | --- |
+| `NHTrans` | `Flag_OutputXrayLF` | `(5,)` | Hard-X-ray transmission in each obscuring column-density bin. |
+| `NHfrac` | `Flag_OutputXrayLF` | `(n_lx_bins, 5)` | Expected bin fractions at the X-ray luminosity centers, evaluated at redshift 2. |
+| `XrayEmissivity_hard` | `Flag_IncludeSpinTemp` | `(SnaplistLength,)` | Mean hard-AGN heating-source luminosity density. |
+| `XrayEmissivity_soft` | `Flag_IncludeSpinTemp` | `(SnaplistLength,)` | Mean soft-AGN heating-source luminosity density. |
+| `XrayEmissivity_HMXB` | `Flag_IncludeSpinTemp` | `(SnaplistLength,)` | Mean stellar/HMXB heating-source luminosity density. |
 
 Histories use erg/s/cm³ in the internal length normalization, retaining its h convention. Uncomputed entries remain zero. No dedicated unit metadata is attached; `NHfrac` is a model expectation rather than a measured galaxy histogram.
 

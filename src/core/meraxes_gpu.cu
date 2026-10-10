@@ -377,15 +377,12 @@ __global__ void find_HII_bubbles_gpu_main_loop(const float redshift,
                                                const float ReionEfficiency,
                                                const float inv_pixel_volume,
                                                const float J_21_aux_constant,
-                                               const double ReionGammaHaloBias,
                                                const double UnitMass_in_g,
                                                const double UnitTime_in_s,
                                                const double UnitLength_in_cm,
                                                const double Hubble_h,
-                                               const double ReionNionPhotPerBary,
                                                const double Gamma_R_prefactor,
                                                float* xH,
-                                               float* J_21,
                                                float* r_bubble,
                                                float* J_21_at_ionization,
                                                float* z_at_ionization,
@@ -418,25 +415,13 @@ __global__ void find_HII_bubbles_gpu_main_loop(const float redshift,
     if (Flag_IncludeRecombinations)
       rec = (double)((float*)N_rec_filtered_device)[i_padded] / density_over_mean;
 
-    float J_21_aux;
-    if (ReionUVBFlag)
-      J_21_aux = (float)(weighted_sfr_density * J_21_aux_constant);
-
     // Modified reionisation condition, including recombinations.
     if (f_coll_stars > (1.0 / ReionEfficiency) * (1. + rec)) // IONISED!!!!
     {
-      // If it is the first crossing of the ionisation barrier for this cell (largest R), let's record J_21
-      if (xH[i_real] > REL_TOL) {
-        if (ReionUVBFlag)
-          J_21[i_real] = J_21_aux;
-
-        // Store the ionisation background and the reionisation redshift for each cell
-        if (Flag_IncludeRecombinations) {
-          Gamma12[i_real] = (float)(Gamma_R_prefactor * weighted_sfr_density * (UnitMass_in_g / UnitTime_in_s) *
-                                    pow(UnitLength_in_cm / Hubble_h, -3.) * ReionNionPhotPerBary /
-                                    PROTONMASS); // Convert pixel volume (Mpc/h)^3 -> (cm)^3
-        }
-      }
+      // If it is the first crossing of the ionisation barrier for this cell (largest R)
+      // Store the ionisation background and the reionisation redshift for each cell
+      if ((xH[i_real] > REL_TOL) && Flag_IncludeRecombinations)
+        Gamma12[i_real] = (float)(Gamma_R_prefactor * weighted_sfr_density);
 
       // Mark as ionised
       xH[i_real] = 0;
@@ -461,7 +446,7 @@ __global__ void find_HII_bubbles_gpu_main_loop(const float redshift,
     {
       z_in[i_real] = (float)redshift;
       if (ReionUVBFlag)
-        J_21_at_ionization[i_real] = J_21_aux * (float)ReionGammaHaloBias;
+        J_21_at_ionization[i_real] = (float)(weighted_sfr_density * J_21_aux_constant);
     }
   }
 }

@@ -20,6 +20,8 @@ void update_reservoirs_from_sn_feedback(galaxy_t* gal,
                                         double new_metals)
 {
   double metallicity;
+  double retained_fraction;
+  double transferred_fraction;
   galaxy_t* central;
 
   // If this is a ghost then it doesn't have an identified halo at this
@@ -56,12 +58,22 @@ void update_reservoirs_from_sn_feedback(galaxy_t* gal,
   if (m_reheat > gal->ColdGas)
     m_reheat = gal->ColdGas;
 
+  retained_fraction = run_globals.params.physics.SnMetalRetentionFraction;
+  transferred_fraction = 1.0 - retained_fraction;
   metallicity = calc_metallicity(gal->ColdGas, gal->MetalsColdGas);
 
   gal->ColdGas -= m_reheat;
-  gal->MetalsColdGas -= m_reheat * metallicity;
-  central->MetalsHotGas += m_reheat * metallicity;
+  gal->MetalsColdGas -= m_reheat * metallicity * transferred_fraction;
+  central->MetalsHotGas += m_reheat * metallicity * transferred_fraction;
   central->HotGas += m_reheat;
+
+  // With metal retention, heavy reheating can leave more metals than cold gas
+  // to hold them (all of them if every bit is reheated); move the excess to the
+  // hot phase so metal mass is conserved and metallicity stays physical.
+  if (retained_fraction > 0.0 && gal->MetalsColdGas > gal->ColdGas) {
+    central->MetalsHotGas += gal->MetalsColdGas - gal->ColdGas;
+    gal->MetalsColdGas = gal->ColdGas;
+  }
 
   // If this is a ghost then we don't know what the real ejected mass is as we
   // don't know the properties of the halo!
@@ -78,30 +90,19 @@ void update_reservoirs_from_sn_feedback(galaxy_t* gal,
   }
 
   // Check the validity of the modified reservoir values
-  if (central->HotGas < 0)
-    central->HotGas = 0.0;
-  if (central->MetalsHotGas < 0)
-    central->MetalsHotGas = 0.0;
-  if (gal->ColdGas < 0)
-    gal->ColdGas = 0.0;
-  if (gal->MetalsColdGas < 0)
-    gal->MetalsColdGas = 0.0;
-  if (gal->StellarMass < 0)
-    gal->StellarMass = 0.0;
+  CLAMP_NEGATIVE(central->HotGas);
+  CLAMP_NEGATIVE(central->MetalsHotGas);
+  CLAMP_NEGATIVE(gal->ColdGas);
+  CLAMP_NEGATIVE(gal->MetalsColdGas);
+  CLAMP_NEGATIVE(gal->StellarMass);
 #if USE_MINI_HALOS
-  if (gal->StellarMass_II < 0)
-    gal->StellarMass_II = 0.0;
-  if (gal->StellarMass_III < 0)
-    gal->StellarMass_III = 0.0;
-  if (gal->Remnant_Mass < 0)
-    gal->Remnant_Mass = 0.0;
+  CLAMP_NEGATIVE(gal->StellarMass_II);
+  CLAMP_NEGATIVE(gal->StellarMass_III);
+  CLAMP_NEGATIVE(gal->Remnant_Mass);
 #endif
-  if (gal->MetalsStellarMass < 0)
-    gal->MetalsStellarMass = 0.0;
-  if (central->EjectedGas < 0)
-    central->EjectedGas = 0.0;
-  if (central->MetalsEjectedGas < 0)
-    central->MetalsEjectedGas = 0.0;
+  CLAMP_NEGATIVE(gal->MetalsStellarMass);
+  CLAMP_NEGATIVE(central->EjectedGas);
+  CLAMP_NEGATIVE(central->MetalsEjectedGas);
 }
 
 static inline double calc_ejected_mass(double* m_reheat, double sn_energy, double Vvir, double fof_Vvir)
@@ -134,8 +135,7 @@ static inline double calc_ejected_mass(double* m_reheat, double sn_energy, doubl
 
       m_eject = (sn_energy - reheated_energy) / specific_hot_halo_energy;
 
-      if (m_eject < 0)
-        m_eject = 0.0;
+      CLAMP_NEGATIVE(m_eject);
     }
   }
 
@@ -339,7 +339,7 @@ void delayed_supernova_feedback(galaxy_t* gal, int snapshot)
   else
     fof_Vvir = -1;
 
-  m_eject = calc_ejected_mass(&m_reheat, sn_energy, gal->Vvir, fof_Vvir); 
+  m_eject = calc_ejected_mass(&m_reheat, sn_energy, gal->Vvir, fof_Vvir);
 
   // Note that m_eject returned for ghosts by calc_ejected_mass() is
   // meaningless in the current physical prescriptions.  This fact is dealt
@@ -456,8 +456,7 @@ void contemporaneous_supernova_feedback(galaxy_t* gal,
     *m_recycled *= frac;
     *m_remnant *= frac;
   }
-  if (*new_metals < 0) // Just to be sure
-    *new_metals = 0.0;
+  CLAMP_NEGATIVE(*new_metals); // Just to be sure
   assert(*m_recycled >= 0);
   assert(*m_reheat >= 0);
   assert(*m_remnant >= 0);

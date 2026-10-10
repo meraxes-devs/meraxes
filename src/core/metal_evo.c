@@ -4,13 +4,14 @@
 #include <fftw3-mpi.h>
 #include <hdf5_hl.h>
 #include <math.h>
+#include <string.h>
 #include <sys/stat.h>
 
 #if USE_MINI_HALOS
 #include "meraxes.h"
 #include "metal_evo.h"
 #include "misc_tools.h"
-#include "reionization.c"
+#include "reionization.h"
 #include "virial_properties.h"
 
 void assign_slabs_metals()
@@ -225,8 +226,7 @@ void construct_metal_grids(int snapshot, int local_ngals)
                 for (int iz = 0; iz < MetalGridDim; iz++) {
                   float val = buffer_metals[grid_index(ix, iy, iz, MetalGridDim, INDEX_REAL)] /
                               pixel_volume_metals; // You want this comoving
-                  if (val < 0)
-                    val = 0;
+                  CLAMP_NEGATIVE(val);
                   if (val > 1)
                     val = 1; // It's a probability!
                   prob_grid_metals[grid_index(ix, iy, iz, MetalGridDim, INDEX_REAL)] = val;
@@ -238,8 +238,7 @@ void construct_metal_grids(int snapshot, int local_ngals)
               for (int iy = 0; iy < MetalGridDim; iy++)
                 for (int iz = 0; iz < MetalGridDim; iz++) {
                   float val = buffer_metals[grid_index(ix, iy, iz, MetalGridDim, INDEX_REAL)];
-                  if (val < 0)
-                    val = 0;
+                  CLAMP_NEGATIVE(val);
                   count_bubble_metals[grid_index(ix, iy, iz, MetalGridDim, INDEX_REAL)] = val;
                 }
             break;
@@ -249,8 +248,7 @@ void construct_metal_grids(int snapshot, int local_ngals)
               for (int iy = 0; iy < MetalGridDim; iy++)
                 for (int iz = 0; iz < MetalGridDim; iz++) {
                   float val = buffer_metals[grid_index(ix, iy, iz, MetalGridDim, INDEX_REAL)];
-                  if (val < 0)
-                    val = 0;
+                  CLAMP_NEGATIVE(val);
                   if (val > 0)
                     Rave_grid_metals[grid_index(ix, iy, iz, MetalGridDim, INDEX_REAL)] =
                       val / count_bubble_metals[grid_index(ix, iy, iz, MetalGridDim, INDEX_REAL)];
@@ -272,8 +270,7 @@ void construct_metal_grids(int snapshot, int local_ngals)
               for (int iy = 0; iy < MetalGridDim; iy++)
                 for (int iz = 0; iz < MetalGridDim; iz++) {
                   float val = buffer_metals[grid_index(ix, iy, iz, MetalGridDim, INDEX_REAL)];
-                  if (val < 0)
-                    val = 0;
+                  CLAMP_NEGATIVE(val);
                   mass_metals_grid_metals[grid_index(ix, iy, iz, MetalGridDim, INDEX_REAL)] = val;
                 }
             break;
@@ -283,8 +280,7 @@ void construct_metal_grids(int snapshot, int local_ngals)
               for (int iy = 0; iy < MetalGridDim; iy++)
                 for (int iz = 0; iz < MetalGridDim; iz++) {
                   float val = buffer_metals[grid_index(ix, iy, iz, MetalGridDim, INDEX_REAL)];
-                  if (val < 0)
-                    val = 0;
+                  CLAMP_NEGATIVE(val);
                   mass_gas_grid_metals[grid_index(ix, iy, iz, MetalGridDim, INDEX_REAL)] = val;
                 }
             break;

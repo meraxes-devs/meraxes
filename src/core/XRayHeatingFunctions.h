@@ -22,6 +22,8 @@
 #define Pop3_ion run_globals.params.physics.ReionNionPhotPerBaryIII
 
 #define NSPEC_MAX (int)23
+// Row stride for LW_spectral_*: the Lyman loop reaches n_ct = NSPEC_MAX, so rows need NSPEC_MAX+1.
+#define LW_NLEV (NSPEC_MAX + 1)
 #define RECFAST_NPTS (int)501
 #define KAPPA_10_NPTS (int)27
 #define KAPPA_10_elec_NPTS (int)20
@@ -30,13 +32,8 @@
 #define CLUMPING_FACTOR                                                                                                \
   (double)(2) // sub grid scale.  note that if you want to run-down from a very high redshift (>50), you should set this
               // to one..
-#define T21 (double)(0.0628)                /* temperature corresponding to the 21cm photon */
-#define A10_HYPERFINE (double)(2.85e-15)    /* spontaneous emission coefficient in s^-1 */
-#define Ly_alpha_HZ (double)(2.46606727e15) /* frequency of Lyalpha */
-#define NU_over_EV (double)(1.60217646e-12 / PLANCK)
-#define NUIONIZATION (double)(13.60 * NU_over_EV)     /* ionization frequency of H */
-#define HeI_NUIONIZATION (double)(24.59 * NU_over_EV) /* ionization frequency of HeI */
-#define HeII_NUIONIZATION (double)(NUIONIZATION * 4)  /* ionization frequency of HeII */
+#define T21 (double)(0.0628)             /* temperature corresponding to the 21cm photon */
+#define A10_HYPERFINE (double)(2.85e-15) /* spontaneous emission coefficient in s^-1 */
 
 // Define some global variables; yeah i know it isn't "good practice" but doesn't matter
 // NB. Not written by smutch!!! ;)
@@ -46,33 +43,63 @@ double dt_dzpp;
 double dt_dzp;
 double* zpp_edge;
 
-// Have this arbitrarily large for now. Will do this properly later
-double stored_fcoll[1000];
-double stored_fcollIII[1000];
+// One entry per snapshot (indexed directly by snapshot number). Allocated
+// in init.c to run_globals.params.SnaplistLength once that's known, and
+// freed in cleanup.c — same lifecycle as run_globals.ZZ/LTTime/AA.
+double* stored_fcoll;
+double* stored_fcollIII;
+double* stored_XrayEmissivity_hard;
+double* stored_XrayEmissivity_soft;
+double* stored_XrayEmissivity_HMXB;
 double* sum_lyn;
 double* sum_lyn_LW;
 double* sum_lyn_III;
 double* sum_lyn_LW_III;
+double* sum_lyn_LW_AGN;
+// Per-Lyman-level breakdown of the LW sums, indexed [R_ct*LW_NLEV + n_ct]; LW_zpp is each shell's source redshift.
+double* LW_spectral_stellar;
+double* LW_spectral_III;
+double* LW_spectral_AGN;
+double* LW_zpp;
+// Box-averaged source emissivity per filter shell; multiplies LW_spectral_* to give an absolute flux.
+double* LW_emissivity_stellar;
+double* LW_emissivity_III;
+double* LW_emissivity_AGN;
 double growth_factor_zp;
 double dgrowth_factor_dzp;
 double const_zp_prefactor_GAL;
 double const_zp_prefactor_III;
+double const_zp_prefactor_AGN_soft;
+double const_zp_prefactor_AGN_hard;
 float x_int_XHII[x_int_NXHII];
 #else
 extern double x_e_ave;
 extern double dt_dzpp;
 extern double dt_dzp;
 extern double* zpp_edge;
-extern double stored_fcoll[1000];
-extern double stored_fcollIII[1000];
+extern double* stored_fcoll;
+extern double* stored_fcollIII;
+extern double* stored_XrayEmissivity_hard;
+extern double* stored_XrayEmissivity_soft;
+extern double* stored_XrayEmissivity_HMXB;
 extern double* sum_lyn;
 extern double* sum_lyn_LW;
 extern double* sum_lyn_III;
 extern double* sum_lyn_LW_III;
+extern double* sum_lyn_LW_AGN;
+extern double* LW_spectral_stellar;
+extern double* LW_spectral_III;
+extern double* LW_spectral_AGN;
+extern double* LW_zpp;
+extern double* LW_emissivity_stellar;
+extern double* LW_emissivity_III;
+extern double* LW_emissivity_AGN;
 extern double growth_factor_zp;
 extern double dgrowth_factor_dzp;
 extern double const_zp_prefactor_GAL;
 extern double const_zp_prefactor_III;
+extern double const_zp_prefactor_AGN_soft;
+extern double const_zp_prefactor_AGN_hard;
 extern float x_int_XHII[x_int_NXHII];
 #endif
 
@@ -111,6 +138,10 @@ extern "C"
 
   /* returns the spectral emissity */
   double spectral_emissivity(double nu_norm, int flag, int flag_Pop);
+#if USE_MINI_HALOS
+  void init_LW_diagnostics(void);
+  void free_LW_diagnostics(void);
+#endif
 
   /* Ionization fraction from RECFAST. */
   double xion_RECFAST(float z, int flag);
@@ -136,6 +167,7 @@ extern "C"
   double integrate_over_nu(double zp,
                            double local_x_e,
                            double lower_int_limit,
+                           double upper_int_limit,
                            double thresh_energy,
                            double spec_index,
                            int FLAG);
@@ -146,6 +178,8 @@ extern "C"
 
   /* Returns frequency of Lyman-n, in units of Lyman-alpha */
   double nu_n(int n);
+
+  float cT_approx(float z);
 
   /* Returns recycling fraction (=fraction of photons converted into Lyalpha for Ly-n resonance */
   double frecycle(int n);
@@ -180,26 +214,49 @@ extern "C"
   void evolveInt(float zp,
                  float curr_delNL0,
                  const double SFR_GAL[],
+#if USE_STOCHASTICITY
+                 const double XRAY_LUMINOSITY_GAL[],
+#endif
                  const double SFR_III[],
+                 const double XAGN_soft[],
+                 const double XAGN_hard[],
+                 const double AGN_UV[],
                  const double freq_int_heat_GAL[],
                  const double freq_int_ion_GAL[],
                  const double freq_int_lya_GAL[],
                  const double freq_int_heat_III[],
                  const double freq_int_ion_III[],
                  const double freq_int_lya_III[],
+                 const double freq_int_heat_AGN_soft[],
+                 const double freq_int_ion_AGN_soft[],
+                 const double freq_int_lya_AGN_soft[],
+                 const double freq_int_heat_AGN_hard[],
+                 const double freq_int_ion_AGN_hard[],
+                 const double freq_int_lya_AGN_hard[],
                  int COMPUTE_Ts,
                  const double y[],
                  double deriv[]);
 #else
-  void evolveInt(float zp,
-                 float curr_delNL0,
-                 const double SFR_GAL[],
-                 const double freq_int_heat_GAL[],
-                 const double freq_int_ion_GAL[],
-                 const double freq_int_lya_GAL[],
-                 int COMPUTE_Ts,
-                 const double y[],
-                 double deriv[]);
+void evolveInt(float zp,
+               float curr_delNL0,
+               const double SFR_GAL[],
+#if USE_STOCHASTICITY
+               const double XRAY_LUMINOSITY_GAL[],
+#endif
+               const double XAGN_soft[],
+               const double XAGN_hard[],
+               const double freq_int_heat_GAL[],
+               const double freq_int_ion_GAL[],
+               const double freq_int_lya_GAL[],
+               const double freq_int_heat_AGN_soft[],
+               const double freq_int_ion_AGN_soft[],
+               const double freq_int_lya_AGN_soft[],
+               const double freq_int_heat_AGN_hard[],
+               const double freq_int_ion_AGN_hard[],
+               const double freq_int_lya_AGN_hard[],
+               int COMPUTE_Ts,
+               const double y[],
+               double deriv[]);
 #endif
 
 #ifdef __cplusplus

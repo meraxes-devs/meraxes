@@ -2,13 +2,41 @@
 #include "mlog.h"
 #include "parse_paramfile.h"
 #include <string.h>
-
+// test
 static void check_problem_params(run_params_t* run_params)
 {
   if (run_params->NSteps != 1) {
     mlog_error("The current version of the code only works if NSteps = 1. Sorry! Exiting...");
     ABORT(EXIT_FAILURE);
   }
+
+#if USE_STOCHASTICITY
+  if (run_params->physics.EscapeFracScatterDex > ABS_TOL && run_params->physics.Flag_RemoveSFRScatter != 0) {
+    mlog_error("Both EscapeFracScatterDex and Flag_RemoveSFRScatter are set. "
+               "Please choose one or the other.");
+    ABORT(EXIT_FAILURE);
+  }
+  if (run_params->physics.XrayScatterDex > 0.0 && run_params->physics.Flag_RemoveSFRScatter != 0) {
+    mlog("<WARNING> Both XrayScatterDex and Flag_RemoveSFRScatter are set. "
+         "This combination is allowed, but should only be used when a "
+         "no-SFR source model with X-ray luminosity scatter is intended.",
+         MLOG_MESG);
+  }
+  if (run_params->physics.EscapeFracScatterDex <= ABS_TOL && run_params->physics.XrayScatterDex <= 0.0 &&
+      run_params->physics.Flag_RemoveSFRScatter == 0 && run_params->physics.Flag_SourceRecalibration != 0) {
+    mlog_error("Flag_SourceRecalibration is set, but none of EscapeFracScatterDex, "
+               "XrayScatterDex or Flag_RemoveSFRScatter are set. "
+               "Please choose one of these options.");
+    ABORT(EXIT_FAILURE);
+  }
+#else
+  if (run_params->physics.EscapeFracScatterDex > ABS_TOL || run_params->physics.XrayScatterDex > 0.0 ||
+      run_params->physics.Flag_RemoveSFRScatter != 0 || run_params->physics.Flag_SourceRecalibration != 0) {
+    mlog_error("A scatter prescription was requested, but Meraxes was compiled "
+               "with USE_STOCHASTICITY=OFF.");
+    ABORT(EXIT_FAILURE);
+  }
+#endif
 
   if (strlen(run_globals.params.ForestIDFile) != 0) {
     mlog("*** YOU HAVE PROVIDED A REQUESTED FORESTID FILE. THIS FEATURE HAS NOT BE WELL TESTED. YMMV! ***", MLOG_MESG);
@@ -20,10 +48,15 @@ static void check_problem_params(run_params_t* run_params)
       "Spin temperature features are not currently available in the GPU version of find_HII_bubbles!  Exiting...");
     ABORT(EXIT_FAILURE);
 #endif
-    if (run_globals.params.FlagMCMC != 0){
+    if (run_globals.params.FlagMCMC != 0) {
       mlog_error("Currently we have to store input sfr grids for all snapshots, so cannot MCMC :(");
       ABORT(EXIT_FAILURE);
     }
+  }
+
+  if ((run_params->physics.SnMetalRetentionFraction < 0.0) || (run_params->physics.SnMetalRetentionFraction > 1.0)) {
+    mlog_error("SnMetalRetentionFraction must be between 0 and 1.");
+    ABORT(EXIT_FAILURE);
   }
 }
 
@@ -40,19 +73,12 @@ static void store_params(entry_t entry[123],
   char key[STRLEN + 64];
 
   for (int i_entry = 0; i_entry < n_entries; i_entry++) {
-    // DEBUG
-    // mlog("Checking %s", MLOG_MESG, entry[i_entry].key);
-
-    // reset prefix if we have descended an indentation level
     if (entry[i_entry].level < level)
       *prefix = '\0';
 
     strncpy(key, prefix, STRLEN);
     strncat(key, entry[i_entry].key, STRLEN);
     level = entry[i_entry].level;
-
-    // DEBUG
-    // mlog("level = %d :: prefix = %s", MLOG_MESG, level, prefix);
 
     int tag_index = -1;
     for (int ii = 0; ii < n_param; ii++)
@@ -209,6 +235,60 @@ void read_parameter_file(char* fname, int mode)
 #endif
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
 
+      strcpy(params_tag[n_param], "DustMetallicityScale");
+      params_addr[n_param] = &(run_params->DustMetallicityScale);
+#ifndef CALC_MAGS
+      required_tag[n_param] = 0;
+#else
+      required_tag[n_param] = 1;
+#endif
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strcpy(params_tag[n_param], "DustTauUVISM");
+      params_addr[n_param] = &(run_params->DustTauUVISM);
+#ifndef CALC_MAGS
+      required_tag[n_param] = 0;
+#else
+      required_tag[n_param] = 1;
+#endif
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strcpy(params_tag[n_param], "DustNISM");
+      params_addr[n_param] = &(run_params->DustNISM);
+#ifndef CALC_MAGS
+      required_tag[n_param] = 0;
+#else
+      required_tag[n_param] = 1;
+#endif
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strcpy(params_tag[n_param], "DustTauUVBC");
+      params_addr[n_param] = &(run_params->DustTauUVBC);
+#ifndef CALC_MAGS
+      required_tag[n_param] = 0;
+#else
+      required_tag[n_param] = 1;
+#endif
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strcpy(params_tag[n_param], "DustNBC");
+      params_addr[n_param] = &(run_params->DustNBC);
+#ifndef CALC_MAGS
+      required_tag[n_param] = 0;
+#else
+      required_tag[n_param] = 1;
+#endif
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strcpy(params_tag[n_param], "DustAZ");
+      params_addr[n_param] = &(run_params->DustAZ);
+#ifndef CALC_MAGS
+      required_tag[n_param] = 0;
+#else
+      required_tag[n_param] = 1;
+#endif
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
       strcpy(params_tag[n_param], "DeltaT");
       params_addr[n_param] = &(run_params->DeltaT);
 #ifndef CALC_MAGS
@@ -228,6 +308,10 @@ void read_parameter_file(char* fname, int mode)
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_STRING;
 
+      strcpy(params_tag[n_param], "RecombinationDir");
+      params_addr[n_param] = run_params->RecombinationDir;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_STRING;
       strcpy(params_tag[n_param], "StellarFeedbackDir");
       params_addr[n_param] = run_params->StellarFeedbackDir;
       required_tag[n_param] = 1;
@@ -399,6 +483,11 @@ void read_parameter_file(char* fname, int mode)
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_INT;
 
+      strncpy(params_tag[n_param], "Flag_IncludeAGNXray", tag_length);
+      params_addr[n_param] = &(run_params->physics.Flag_IncludeAGNXray);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
       strncpy(params_tag[n_param], "FlagMCMC", tag_length);
       params_addr[n_param] = &(run_params->FlagMCMC);
       required_tag[n_param] = 1;
@@ -443,6 +532,11 @@ void read_parameter_file(char* fname, int mode)
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_INT;
 
+      strncpy(params_tag[n_param], "Flag_BHARExponentialCut", tag_length);
+      params_addr[n_param] = &(run_params->physics).Flag_BHARExponentialCut;
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
       strncpy(params_tag[n_param], "Flag_IRA", tag_length);
       params_addr[n_param] = &(run_params->physics).Flag_IRA;
       required_tag[n_param] = 1;
@@ -463,6 +557,11 @@ void read_parameter_file(char* fname, int mode)
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_INT;
 
+      strncpy(params_tag[n_param], "Flag_FescCGMSuppression", tag_length);
+      params_addr[n_param] = &(run_params->physics).Flag_FescCGMSuppression;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
       strncpy(params_tag[n_param], "InstantSfIII", tag_length);
       params_addr[n_param] = &(run_params->physics).InstantSfIII;
 #if USE_MINI_HALOS
@@ -470,6 +569,11 @@ void read_parameter_file(char* fname, int mode)
 #else
       required_tag[n_param] = 0;
 #endif
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "Flag_SourceRecalibration", tag_length);
+      params_addr[n_param] = &(run_params->physics).Flag_SourceRecalibration;
+      required_tag[n_param] = 0;
       params_type[n_param++] = PARAM_TYPE_INT;
 
       strncpy(params_tag[n_param], "SfEfficiency", tag_length);
@@ -687,6 +791,11 @@ void read_parameter_file(char* fname, int mode)
 #endif
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
 
+      strncpy(params_tag[n_param], "SnMetalRetentionFraction", tag_length);
+      params_addr[n_param] = &(run_params->physics).SnMetalRetentionFraction;
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
       strncpy(params_tag[n_param], "ReincorporationModel", tag_length);
       params_addr[n_param] = &(run_params->physics).ReincorporationModel;
       required_tag[n_param] = 1;
@@ -863,6 +972,21 @@ void read_parameter_file(char* fname, int mode)
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_INT;
 
+      strncpy(params_tag[n_param], "Flag_EvolvingReionRBubbleMax", tag_length);
+      params_addr[n_param] = &(run_params->Flag_EvolvingReionRBubbleMax);
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "Flag_InstantaneousSFR", tag_length);
+      params_addr[n_param] = &(run_params->Flag_InstantaneousSFR);
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "Flag_TemperatureDependentRec", tag_length);
+      params_addr[n_param] = &(run_params->Flag_TemperatureDependentRec);
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
       strncpy(params_tag[n_param], "Flag_Compute21cmBrightTemp", tag_length);
       params_addr[n_param] = &(run_params->Flag_Compute21cmBrightTemp);
       required_tag[n_param] = 1;
@@ -991,6 +1115,31 @@ void read_parameter_file(char* fname, int mode)
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
 
+      strncpy(params_tag[n_param], "EscapeFracScatterDex", tag_length);
+      params_addr[n_param] = &(run_params->physics).EscapeFracScatterDex;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "Flag_RemoveSFRScatter", tag_length);
+      params_addr[n_param] = &(run_params->physics).Flag_RemoveSFRScatter;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "FescCGMSuppressionNorm", tag_length);
+      params_addr[n_param] = &(run_params->physics).FescCGMSuppressionNorm;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "FescCGMSuppressionScaling", tag_length);
+      params_addr[n_param] = &(run_params->physics).FescCGMSuppressionScaling;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "FescCGMGamma12Scaling", tag_length);
+      params_addr[n_param] = &(run_params->physics).FescCGMGamma12Scaling;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
       strncpy(params_tag[n_param], "ReionSMParam_m0", tag_length);
       params_addr[n_param] = &(run_params->physics).ReionSMParam_m0;
       required_tag[n_param] = 1;
@@ -1066,13 +1215,43 @@ void read_parameter_file(char* fname, int mode)
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
 
-      strcpy(params_tag[n_param], "NuXrayGalThreshold");
-      params_addr[n_param] = &(run_params->physics).NuXrayGalThreshold;
+      strcpy(params_tag[n_param], "XrayScatterDex");
+      params_addr[n_param] = &(run_params->physics).XrayScatterDex;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strcpy(params_tag[n_param], "NuXrayThreshold");
+      params_addr[n_param] = &(run_params->physics).NuXrayThreshold;
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
 
       strcpy(params_tag[n_param], "SpecIndexXrayGal");
       params_addr[n_param] = &(run_params->physics).SpecIndexXrayGal;
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strcpy(params_tag[n_param], "SpecIndexXrayAGNSoft");
+      params_addr[n_param] = &(run_params->physics).SpecIndexXrayAGNSoft;
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strcpy(params_tag[n_param], "SpecIndexXrayAGNHard");
+      params_addr[n_param] = &(run_params->physics).SpecIndexXrayAGNHard;
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strcpy(params_tag[n_param], "SpecIndexUVAGNSoft");
+      params_addr[n_param] = &(run_params->physics).SpecIndexUVAGNSoft;
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strcpy(params_tag[n_param], "SpecIndexUVAGNHard");
+      params_addr[n_param] = &(run_params->physics).SpecIndexUVAGNHard;
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strcpy(params_tag[n_param], "AGNLWEfficiency");
+      params_addr[n_param] = &(run_params->physics).AGNLWEfficiency;
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
 
@@ -1165,6 +1344,137 @@ void read_parameter_file(char* fname, int mode)
 #else
       required_tag[n_param] = 0;
 #endif
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      // Distribution function parameters for HMF/SMF/UVLF/DustyLF
+      strncpy(params_tag[n_param], "Flag_OutputHMF", tag_length);
+      params_addr[n_param] = &(run_params->Flag_OutputHMF);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "HMF_MinMass", tag_length);
+      params_addr[n_param] = &(run_params->HMF_MinMass);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "HMF_MaxMass", tag_length);
+      params_addr[n_param] = &(run_params->HMF_MaxMass);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "HMF_BinsPerDex", tag_length);
+      params_addr[n_param] = &(run_params->HMF_BinsPerDex);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "Flag_OutputSMF", tag_length);
+      params_addr[n_param] = &(run_params->Flag_OutputSMF);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "SMF_MinMass", tag_length);
+      params_addr[n_param] = &(run_params->SMF_MinMass);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "SMF_MaxMass", tag_length);
+      params_addr[n_param] = &(run_params->SMF_MaxMass);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "SMF_BinsPerDex", tag_length);
+      params_addr[n_param] = &(run_params->SMF_BinsPerDex);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "Flag_OutputUVLF", tag_length);
+      params_addr[n_param] = &(run_params->Flag_OutputUVLF);
+#ifdef CALC_MAGS
+      required_tag[n_param] = 1;
+#else
+      required_tag[n_param] = 0;
+#endif
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "UVLF_MinMag", tag_length);
+      params_addr[n_param] = &(run_params->UVLF_MinMag);
+#ifdef CALC_MAGS
+      required_tag[n_param] = 1;
+#else
+      required_tag[n_param] = 0;
+#endif
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "UVLF_MaxMag", tag_length);
+      params_addr[n_param] = &(run_params->UVLF_MaxMag);
+#ifdef CALC_MAGS
+      required_tag[n_param] = 1;
+#else
+      required_tag[n_param] = 0;
+#endif
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "UVLF_BinsPerMag", tag_length);
+      params_addr[n_param] = &(run_params->UVLF_BinsPerMag);
+#ifdef CALC_MAGS
+      required_tag[n_param] = 1;
+#else
+      required_tag[n_param] = 0;
+#endif
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "Flag_OutputDustyLF", tag_length);
+      params_addr[n_param] = &(run_params->Flag_OutputDustyLF);
+#ifdef CALC_MAGS
+      required_tag[n_param] = 1;
+#else
+      required_tag[n_param] = 0;
+#endif
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "Flag_OutputQuasarLF", tag_length);
+      params_addr[n_param] = &(run_params->Flag_OutputQuasarLF);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "Flag_OutputOIIILF", tag_length);
+      params_addr[n_param] = &(run_params->Flag_OutputOIIILF);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "OIIILF_MinLogL", tag_length);
+      params_addr[n_param] = &(run_params->OIIILF_MinLogL);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "OIIILF_MaxLogL", tag_length);
+      params_addr[n_param] = &(run_params->OIIILF_MaxLogL);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "OIIILF_BinsPerDex", tag_length);
+      params_addr[n_param] = &(run_params->OIIILF_BinsPerDex);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "Flag_OutputXrayLF", tag_length);
+      params_addr[n_param] = &(run_params->Flag_OutputXrayLF);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "XrayLF_MinLogL", tag_length);
+      params_addr[n_param] = &(run_params->XrayLF_MinLogL);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "XrayLF_MaxLogL", tag_length);
+      params_addr[n_param] = &(run_params->XrayLF_MaxLogL);
+      required_tag[n_param] = 1;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "XrayLF_BinsPerDex", tag_length);
+      params_addr[n_param] = &(run_params->XrayLF_BinsPerDex);
+      required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_INT;
 
       hdf5props->params_count = n_param;

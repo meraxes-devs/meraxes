@@ -47,26 +47,30 @@ void update_reservoirs_from_sf(galaxy_t* gal, double new_stars, int snapshot, SF
 
     // update the galaxy's SFR value
     double sfr = new_stars / gal->dt;
+
+#if USE_MINI_HALOS
+    if (gal->Galaxy_Population == 2) {
+      gal->StellarMass_II += new_stars;
+      gal->Sfr += sfr;
+      assert(gal->Sfr >= 0);
+      gal->GrossStellarMass += new_stars;
+    } else if (gal->Galaxy_Population == 3) {
+      gal->StellarMass_III += new_stars;
+      gal->SfrIII += sfr;
+      assert(gal->SfrIII >= 0);
+      gal->GrossStellarMassIII += new_stars;
+    }
+#else
     gal->Sfr += sfr;
     assert(gal->Sfr >= 0);
+    gal->GrossStellarMass +=
+      new_stars; // If you are not distinguishing III/II you just have one variable which is the total one
+#endif
 
     gal->ColdGas -= new_stars;
     gal->MetalsColdGas -= new_stars * metallicity;
     gal->StellarMass += new_stars;
     gal->MetalsStellarMass += new_stars * metallicity;
-
-#if USE_MINI_HALOS
-    if (gal->Galaxy_Population == 2) {
-      gal->StellarMass_II += new_stars;
-      gal->GrossStellarMass += new_stars;
-    } else if (gal->Galaxy_Population == 3) {
-      gal->StellarMass_III += new_stars;
-      gal->GrossStellarMassIII += new_stars;
-    }
-#else
-    gal->GrossStellarMass +=
-      new_stars; // If you are not distinguishing III/II you just have one variable which is the total one
-#endif
 
     if ((type == INSITU) && !Flag_IRA && (gal->LastIdentSnap < (snapshot - 1))) {
       // If this is a reidentified ghost, then back fill NewStars and
@@ -96,16 +100,12 @@ void update_reservoirs_from_sf(galaxy_t* gal, double new_stars, int snapshot, SF
     // is because some fraction of the stars in this burst will go nova and
     // return mass to the ISM.  This will be accounted for when we update the
     // reservoirs due to supernova feedback.
-    if (gal->StellarMass < 0)
-      gal->StellarMass = 0.0;
+    CLAMP_NEGATIVE(gal->StellarMass);
 #if USE_MINI_HALOS
-    if (gal->StellarMass_II < 0)
-      gal->StellarMass_II = 0.0;
-    if (gal->StellarMass_III < 0)
-      gal->StellarMass_III = 0.0;
+    CLAMP_NEGATIVE(gal->StellarMass_II);
+    CLAMP_NEGATIVE(gal->StellarMass_III);
 #endif
-    if (gal->MetalsStellarMass < 0)
-      gal->MetalsStellarMass = 0.0;
+    CLAMP_NEGATIVE(gal->MetalsStellarMass);
   }
 }
 
@@ -201,6 +201,7 @@ void insitu_star_formation(galaxy_t* gal, int snapshot)
     }
     if (m_stars > gal->ColdGas)
       m_stars = gal->ColdGas;
+
     // calculate the total supernova feedback which would occur if this star
     // formation happened continuously and evenly throughout the snapshot
     contemporaneous_supernova_feedback(

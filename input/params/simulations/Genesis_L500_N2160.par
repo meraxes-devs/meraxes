@@ -1,0 +1,82 @@
+#------------------------------------------
+#----- Simulation input files  ------------
+#------------------------------------------
+SimName           : Genesis L500_N2160
+SimulationDir     : /fred/oz113/yqin/dragons/input_trees/Genesis_L500_N2160
+CatalogFilePrefix : VELOCIraptor.tree.t4.0-131.walkabletree.branchfix.forestID.hdf5
+TreesID           : 0  # 0 -> VELOCIraptor; 1 -> gbpTrees, 2 -> VELOCIraptor augmented
+BoxSize           : 500.0
+VolumeFactor      : 1.0
+
+#------------------------------------------------
+#----- Cosmological and nbody sim parameters ----
+#------------------------------------------------
+OmegaM: 0.3121
+OmegaK: 0.000
+OmegaLambda: 0.6879
+OmegaR: 0.0
+BaryonFrac: 0.15714
+Hubble_h: 0.6751
+SpectralIndex: 0.968
+Sigma8: 0.815
+PartMass: 0.10744
+
+wLambda: -1.0
+NPart: 10077696000
+
+UnitLength_in_cm         : 3.08568e+24       # WATCH OUT : Mpc/h
+UnitMass_in_g            : 1.989e+43         # WATCH OUT : 10^10Msun/h
+UnitVelocity_in_cm_per_s : 100000            # WATCH OUT : km/s
+
+
+#-------------------------------------------------
+#----- Astrophysical parameters since Balu+22 ----
+#-------------------------------------------------
+
+FlagIgnoreProgIndex        : 1
+Flag_IncludePecVelsFor21cm : 2
+ReionMaxHeatingRedshift : 20.0
+Flag_IncludeSpinTemp       : 0
+Flag_ComputePS             : 0
+Flag_Compute21cmBrightTemp : 0
+Flag_IncludeRecombinations : 1
+
+ReionNionPhotPerBary : 6000
+ReionGridDim : 256
+
+ReincorporationModel : 2
+ReincorporationEff        : 18000    # gas reincorporation efficiency from ejected component
+
+SfEfficiency              : 0.07
+SfCriticalSDNorm          : 0.00933
+
+SnModel                   : 2
+SnEjectionEff             : 1.53782     # SN feedback gas reheating efficiency
+SnEjectionScaling         : 1.0
+SnEjectionScaling2        : 3.2
+
+SnReheatRedshiftDep       : 2.0
+SnReheatEff               : 6.97996    # mass loading factor for SN feedback
+SnReheatScaling           : 1.0
+SnReheatScaling2          : 3.2
+SnReheatNorm              : 60.0
+SnReheatLimit             : 10000.0    # maximum allowed mass loading factor for SN feedback
+
+EscapeFracDependency      : 0  # 0->none, 1->redshift, 2->stellar mass, 3->sfr, 4->cold gas surface density, 5->mvir, 6->ssfr
+EscapeFracNorm            : 0.75
+EscapeFracPropScaling     : 0
+EscapeFracRedshiftScaling : 0
+
+Flag_EvolvingReionRBubbleMax : 1
+Flag_TemperatureDependentRec : 1
+Flag_InstantaneousSFR : 1
+
+Flag_BHARExponentialCut : 0
+EscapeFracBHNorm : 0.0
+BlackHoleGrowthRate : 1.0
+RadioModeEff : 0.5
+
+Flag_FescCGMSuppression    : 0
+FescCGMSuppressionNorm     : 0.00008
+FescCGMSuppressionScaling  : 0.2
+FescCGMGamma12Scaling      : 6.0

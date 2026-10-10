@@ -35,6 +35,12 @@
 
 // Parameters taken from 21cmFAST
 #define MAX_TK (float)5e4
+// Floor for Tk_box/Tk_boxII after the trapezoidal-integrator overcooling
+// guard below. 1/TK and 1/TK^2 appear repeatedly in Salpha_tilde()/Tc_eff()
+// (spin-temperature coupling, XRayHeatingFunctions.c) — letting TK reach
+// zero (not just negative) blows those up to Inf/NaN, which get_Ts()'s
+// convergence loop then silently hands back rather than catching.
+#define MIN_TK (float)0.1
 #define L_FACTOR 0.620350491 // Factor relating cube length to filter radius = (4PI/3)^(-1/3)
 #define MAX_DVDR (float)(0.2)
 
@@ -58,6 +64,7 @@ extern "C"
   void assign_slabs(void);
   void call_find_HII_bubbles(int snapshot, int nout_gals, timer_info* timer);
   void call_ComputeTs(int snapshot, int nout_gals, timer_info* timer);
+  double integrate_tau_e_postEoR(double zmax);
   void init_reion_grids(void);
   void malloc_reionization_grids(void);
   void free_reionization_grids(void);
@@ -67,11 +74,18 @@ extern "C"
   void gen_grids_fname(const int snapshot, char* name, const bool relative);
   void save_reion_input_grids(int snapshot);
   void load_reion_sfr_grids(int snapshot_counter_backwards, float weight, const int new_load);
+  void load_reion_bh_grids(int snapshot_counter_backwards, float weight, const int new_load);
+  void save_reion_output_attributes(int snapshot);
   void save_reion_output_grids(int snapshot);
   bool check_if_reionization_ongoing(int snapshot);
+  void write_grid_float(const char* name,
+                        float* data,
+                        hid_t file_id,
+                        hid_t fspace_id,
+                        hid_t memspace_id,
+                        hid_t dcpl_id);
   void filter(fftwf_complex* box, int local_ix_start, int slab_nx, int grid_dim, float R, int filter_type);
   void velocity_gradient(fftwf_complex* box, int slab_nx, int grid_dim);
-
 #ifdef __cplusplus
 }
 #endif

@@ -7,7 +7,7 @@
 #--------------------------------
 
 NSteps                 : 1  # Current version of code requires NSteps=1 
-FlagInteractive        : 0
+FlagInteractive        : 0  # 0: standard run, 1: interactive/cached, 2: dist. functions only (skip galaxy writes)
 FlagSubhaloVirialProps : 0  # 0 -> approximate subhalo virial props using particle number; 1 -> use catalogue values
 FlagMCMC               : 0  # Don't do any writing and activate MCMC related routines
 FlagIgnoreProgIndex    : 0
@@ -15,14 +15,18 @@ RandomSeed             : 1809  # seed for random number generator
 VolumeFactor           : 1.0  # Set to 1.0 unless the trees are subsampled
 
 Flag_IncludeRecombinations : 0   # if 1 reionization accounts for H-recombination
+Flag_EvolvingReionRBubbleMax : 1 # if 1, ReionRBubbleMaxRecomb follows Qin+25 and ReionRBubbleMax/ReionRBubbleMaxRecomb are ignored
+Flag_TemperatureDependentRec : 1 # if 1, Recombination depends on gas temperature as well
 Flag_Compute21cmBrightTemp : 0   # if 1 Meraxes computes the 21cm Brightness Temperature 
 Flag_ComputePS             : 0   # if 1 Meraxes computes the 21cm Power Spectrum
 Flag_IncludeSpinTemp       : 0   # if 0 Ts>>Tg
+Flag_InstantaneousSFR      : 1   # if 1, Stopping using (as have been) smoothed SFR for X-ray calculations (20/03/2026)
 Flag_IncludePecVelsFor21cm : 0   # if 1 the computation of 21cm Tb accounts for peculiar velocities
 Flag_ConstructLightcone    : 0   # Construct reionization light cones
 Flag_IncludeLymanWerner    : 0   # if 1 Meraxes computes Lyman-Werner background (crucial for Minihalos)
 Flag_IncludeMetalEvo       : 0   # if 1 Meraxes computes the metal enrichment of the IGM.
 Flag_IncludeStreamVel      : 0   # if 1 Meraxes computes Streaming Velocities (relevant only for Minihalos)
+Flag_RemoveSFRScatter     : 0
 
 
 #--------------------------------------------------------
@@ -44,16 +48,27 @@ ZCrit                      : 0.0001 # Critical metallicity. If Z >= Zcrit -> Pop
 #------------------------- X-Ray stuff -----------------------------
 #----- including PopIII which is required when using Minihalos -----
 #-------------------------------------------------------------------
-
-LXrayGal                   : 3.16e40         # Soft-band (< NuXraySoftCut keV) X-ray luminosity for galaxy based sources (HMXB)
-LXrayGalIII                : 3.16e40         # Same as above for PopIII
-
-NuXrayGalThreshold         : 500.            # Energy threshold for HMXB X-rays escaping host galaxy (eV)
+LXrayGal                   : 3.16e40         # Soft-band (< NuXraySoftCut keV) X-ray luminosity per SFR for galaxy based sources (erg/s)/(Msun/yr)
+XrayScatterDex             : 0.0             # Galaxy-to-galaxy 1-sigma scatter in log10 X-ray luminosity at fixed SFR (dex)
+LXrayGalIII                : 3.16e40         # Same as above for PopIII 
 SpecIndexXrayGal           : 1.              # Spectral index of galaxy X-ray sources  (nu^-alpha)
 SpecIndexXrayIII           : 1.              # Same as above for Pop III
+NuXrayThreshold            : 500.            # Energy threshold for HMXB X-rays escaping host galaxy (eV), this threshold used for Gal, popIII, and AGN
 NuXraySoftCut              : 2000.           # X-ray soft-band cut off in (eV)
-NuXrayMax                  : 10000.          # Maximum energy for X-ray band integration
+NuXrayMax                  : 10000.          # Maximum energy for X-ray band integration. 
 
+# Adding AGN broken-power Spectral index
+Flag_IncludeAGNXray        : 0               # 0=no AGN, 1=soft+hard, 2=hard only, 3=soft only
+SpecIndexXrayAGNSoft       : 2.2             # Soft-band spectral index (nu^{-alpha}, E < E_break)
+SpecIndexXrayAGNHard       : 1.7             # Hard-band spectral index (nu^{-alpha}, E >= E_break)
+SpecIndexUVAGNSoft         : 0.61            # AGN NUV/FUV continuum slope (nu^{-alpha}, lambda > 912A) — Lusso et al. 2015 (MNRAS 449, 4204; arXiv:1503.02075). 
+SpecIndexUVAGNHard         : 1.70            # AGN EUV continuum slope (nu^{-alpha}, lambda <= 912A)
+AGNLWEfficiency            : 1.0             # Tunable scale factor on the AGN LW amplitude only, should be 1 for physical models
+Flag_BHARExponentialCut    : 0               # 0=duty-cycle weighted emissivity, 1=exponential cut with random on-time
+Flag_OutputXrayLF          : 0               # 0=off, 1=output X-ray luminosity function histograms
+XrayLF_MinLogL             : 38.0            # minimum log10(LX/erg/s) for X-ray LF histogram
+XrayLF_MaxLogL             : 46.0            # maximum log10(LX/erg/s) for X-ray LF histogram
+XrayLF_BinsPerDex          : 5               # number of LF histogram bins per dex
 
 #---------------------------------------------
 #----- star formation (including PopIII) -----
@@ -136,6 +151,7 @@ SnReheatScaling2          : 0.0     # mass loading factor for SN feedback scalin
 SnReheatScaling2_III      : 0.0
 SnReheatNorm              : 70.0    # mass loading factor for SN feedback scaling (with Vmax [internal units])
 SnReheatNorm_III          : 70.0
+SnMetalRetentionFraction  : 0.0     # fraction of reheated cold-gas metals retained in cold gas (0: legacy behaviour)
 
 
 #-------------------
@@ -212,8 +228,9 @@ ReionGnedin_zr         : 7
 Flag_PatchyReion       : 1  # Use 21cmFAST (ensure Flag_ReionizationModifier=1 if wish to couple to galaxy formation).
 Flag_OutputGrids       : 1
 Flag_OutputGridsPostReion  : 1
+Flag_FescCGMSuppression : 0 # if >0, CGM further suppresses fesc; modulation uses (1) instantaneous Gamma12, (2) cumulative Gamma12, or (3) clumping factor
 
-ReionUVBFlag           : 1  # Use 21cmFAST (ensure Flag_ReionizationModifier=1 if wish to couple to galaxy formation).
+ReionUVBFlag           : 1  # 0: do not use 21cmFAST; 1: const J_21 at ionization, 2: update J_21 after ionization
 ReionGridDim           : 128 
 ReionDeltaRFactor      : 1.1
 ReionFilterType        : 0
@@ -224,8 +241,8 @@ Y_He                   : 0.24
 ReionRBubbleMin        : 0.4068
 ReionRBubbleMax        : 20.34
 ReionGammaHaloBias     : 2.0
-ReionAlphaUV           : 5.0
-ReionAlphaUVBH         : 1.57
+ReionAlphaUV           : 2.0
+ReionAlphaUVBH         : 2.0
 
 EscapeFracDependency       : 1  # 0->none, 1->redshift, 2->stellar mass, 3->sfr, 4->cold gas surface density, 5->mvir, 6->ssfr
 EscapeFracNorm             : 0.06
@@ -235,6 +252,12 @@ EscapeFracRedshiftScaling  : 0.5  # N.B. use EscapeFracDependency>1 and this = 0
 EscapeFracPropScaling      : 0.5
 EscapeFracBHNorm           : 1
 EscapeFracBHScaling        : 0
+EscapeFracScatterDex       : 0.0
+Flag_SourceRecalibration   : 0
+
+FescCGMSuppressionNorm     : 0.00008 # CGM suppression normalization
+FescCGMSuppressionScaling  : 0.2 # scaling index with column density
+FescCGMGamma12Scaling      : 6.0 # scaling index with Gamma12 or clumping
 
 ReionSMParam_m0        : 0.18984  # internal units
 ReionSMParam_a         : 0.17
@@ -249,18 +272,57 @@ ReionSfrTimescale          : 0.5
 TsHeatingFilterType        : 1 
 TsNumFilterSteps           : 40
 TsVelocityComponent        : 3 # 1->X, 2->Y, 3->Z
-EndRedshiftLightcone       : 6.0
+EndRedshiftLightcone       : 5.0
 ReionRBubbleMaxRecomb      : 33.9
 ReionMaxHeatingRedshift    : 30.
-
 
 #----------------------------------
 #----- Luminosity calculation -----
 #----------------------------------
 
 BirthCloudLifetime         : 10e6  # yr
+DustMetallicityScale       : 1.2   # exponent for metallicity scaling in dust attenuation model
+DustTauUVISM               : 13.5  # ISM UV optical-depth normalization
+DustNISM                   : -1.6  # ISM attenuation slope
+DustTauUVBC                : 381.3 # birth-cloud UV optical-depth normalization
+DustNBC                    : -1.6  # birth-cloud attenuation slope
+DustAZ                     : -0.35 # redshift scaling coefficient in dust attenuation factor
 TargetSnaps                : -1  # Note that simple Python style slicing and indexing works here, so `-1` is the last snapshot `100:110,-5:` is snapshots 100-109 and the last 5 snapshots
 RestBands                  : 1550,1650
 BetaBands                  : 
 InstantSfIII               : 0   # 0 -> Continuous Pop.III SF, 1 -> Instantaneous Pop.III SF (crucial when computing the luminosity of PopIII galaxies)
 DeltaT                     : 1.0 # Time at which the burst of PopIII SF happens since in the beginning of the snapshot (in Myr). Required only if InstantSfIII = 1
+
+#----------------------------------------------
+#----- Distribution Function Parameters -----
+#----------------------------------------------
+
+# Halo Mass Function (HMF)
+Flag_OutputHMF             : 1      # Enable HMF calculation and output (0=disabled, 1=enabled)
+HMF_MinMass                : 8.0    # Minimum log10(M_vir) in solar masses/h for HMF bins
+HMF_MaxMass                : 15.0   # Maximum log10(M_vir) in solar masses/h for HMF bins
+HMF_BinsPerDex             : 2     # Number of bins per decade in log10(M_vir)
+
+# Stellar Mass Function (SMF)
+Flag_OutputSMF             : 1      # Enable SMF calculation and output (0=disabled, 1=enabled)
+SMF_MinMass                : 6.0    # Minimum log10(M_*) in solar masses for SMF bins
+SMF_MaxMass                : 13.0   # Maximum log10(M_*) in solar masses for SMF bins
+SMF_BinsPerDex             : 2     # Number of bins per decade in log10(M_*)
+
+# UV Luminosity Function (UVLF) - requires CALC_MAGS compilation flag
+Flag_OutputUVLF            : 1      # Enable UVLF calculation and output (0=disabled, 1=enabled)
+UVLF_MinMag                : -28.0   # Minimum magnitude for UVLF bins (most faint, positive numbers)
+UVLF_MaxMag                : -8.0  # Maximum magnitude for UVLF bins (most luminous, negative numbers)
+UVLF_BinsPerMag            : 2      # Number of bins per magnitude (linear binning)
+
+# Dusty UV Luminosity Function (DustyLF) - requires CALC_MAGS compilation flag
+Flag_OutputDustyLF         : 1      # Enable DustyLF calculation and output (0=disabled, 1=enabled)
+
+# Quasar UV Luminosity Function (QuasarLF) - uses QuasarMag weighted by DutyCycleAGN
+Flag_OutputQuasarLF        : 1      # Enable QuasarLF calculation and output (0=disabled, 1=enabled)
+
+# OIII Luminosity Function (OIIILF) - uses log10(LOIII [erg/s])
+Flag_OutputOIIILF          : 1      # Enable OIIILF calculation and output (0=disabled, 1=enabled)
+OIIILF_MinLogL             : 38.0   # Minimum log10(LOIII [erg/s]) for OIIILF bins
+OIIILF_MaxLogL             : 45.0   # Maximum log10(LOIII [erg/s]) for OIIILF bins
+OIIILF_BinsPerDex          : 2      # Number of OIIILF bins per dex

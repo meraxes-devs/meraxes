@@ -1,7 +1,12 @@
 #include <assert.h>
 #include <math.h>
+#include <string.h>
 
-#include "cn_exceptions.h"
+#if USE_STOCHASTICITY
+#include <gsl/gsl_cdf.h>
+#include <gsl/gsl_rng.h>
+#endif
+
 #include "debug.h"
 #include "meraxes.h"
 #include "misc_tools.h"
@@ -9,8 +14,25 @@
 
 void myexit(int signum)
 {
-  fprintf(stderr, "Task: %d\tis exiting.\n\n\n", run_globals.mpi_rank);
-  cn_quote();
+  fprintf(stderr, "\n");
+  fprintf(stderr, "================================================================================\n");
+  fprintf(stderr, "PROGRAM TERMINATION REPORT\n");
+  fprintf(stderr, "================================================================================\n");
+  fprintf(stderr, "MPI Task:           %d / %d\n", run_globals.mpi_rank, run_globals.mpi_size);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "For debugging information, check:\n");
+  fprintf(stderr, "  - Compilation flags: Run 'cmake --version' and check CMakeCache.txt\n");
+  fprintf(stderr, "  - Runtime parameters: Check input/params/*.par\n");
+  fprintf(stderr, "  - Output logs: Check output/ directory\n");
+  fprintf(stderr, "  - Detailed error: Enable DEBUG flag in CMakeLists.txt\n");
+  fprintf(stderr, "\n");
+  fprintf(stderr, "For support, provide:\n");
+  fprintf(stderr, "  - Full error message and backtrace\n");
+  fprintf(stderr, "  - Your parameter file (input/params/*.par)\n");
+  fprintf(stderr, "  - System configuration (OS, compiler version)\n");
+  fprintf(stderr, "  - Complete stdout/stderr logs\n");
+  fprintf(stderr, "================================================================================\n");
+  fprintf(stderr, "\n");
   mpi_debug_here();
   cleanup();
   MPI_Finalize();
@@ -26,13 +48,32 @@ double calc_metallicity(double total_gas, double metals)
   else
     Z = 0.0;
 
-  if (Z < 0)
-    Z = 0.0;
-  if (Z > 1)
-    Z = 1.0;
+  CLAMP_0_1(Z);
 
   return Z;
 }
+
+#if USE_STOCHASTICITY
+double apply_lognormal_scatter(double mean_esc, double scatter_dex)
+{
+  double sigma_ln;
+  double zeta;
+  double u;
+  double g;
+  double scattered_fesc;
+
+  if (scatter_dex <= 0.0 || mean_esc <= 0.0)
+    return mean_esc;
+
+  sigma_ln = log(10.0) * scatter_dex;
+  zeta = log(mean_esc);
+  u = gsl_rng_uniform(run_globals.random_generator);
+  g = gsl_cdf_ugaussian_Pinv(u);
+
+  scattered_fesc = exp(zeta + sigma_ln * g);
+  return scattered_fesc;
+}
+#endif
 
 int compare_ints(const void* a, const void* b)
 {
@@ -327,4 +368,87 @@ bool check_for_flag(int flag, int tree_flags)
     return true;
   else
     return false;
+}
+
+// Reads this rank's current resident set size from /proc/self/status (Linux-only)
+// and MPI_Reduces it to rank 0, so a single per-checkpoint log line reports both
+// the worst-offending rank and the total RAM footprint across the whole job.
+// `ngal` is this rank's current live galaxy_t count (pass 0 if not tracked at the
+// call site); it is summed across ranks and multiplied by sizeof(galaxy_t) to give
+// an independent estimate of how much of the reported RSS is the galaxy array
+// itself, versus halo storage / everything else.
+void log_memory_usage(const char* label, int snapshot, int ngal)
+{
+  static bool printed_struct_sizes = false;
+  if (!printed_struct_sizes) {
+    mlog("MEMORY :: sizeof(halo_t) = %zu bytes, sizeof(fof_group_t) = %zu bytes, sizeof(galaxy_t) = %zu bytes",
+         MLOG_MESG,
+         sizeof(halo_t),
+         sizeof(fof_group_t),
+         sizeof(galaxy_t));
+    printed_struct_sizes = true;
+  }
+
+  double vmrss_kb = 0.0;
+  FILE* status_file = fopen("/proc/self/status", "r");
+  if (status_file != NULL) {
+    char line[256];
+    while (fgets(line, sizeof(line), status_file) != NULL) {
+      if (strncmp(line, "VmRSS:", 6) == 0) {
+        sscanf(line + 6, "%lf", &vmrss_kb);
+        break;
+      }
+    }
+    fclose(status_file);
+  }
+
+  double vmrss_gb = vmrss_kb / (1024.0 * 1024.0);
+  double max_rss_gb = 0.0;
+  double sum_rss_gb = 0.0;
+  MPI_Reduce(&vmrss_gb, &max_rss_gb, 1, MPI_DOUBLE, MPI_MAX, 0, run_globals.mpi_comm);
+  MPI_Reduce(&vmrss_gb, &sum_rss_gb, 1, MPI_DOUBLE, MPI_SUM, 0, run_globals.mpi_comm);
+
+  long ngal_local = (long)ngal;
+  long ngal_total = 0;
+  MPI_Reduce(&ngal_local, &ngal_total, 1, MPI_LONG, MPI_SUM, 0, run_globals.mpi_comm);
+  double galaxy_gb = ((double)ngal_total * (double)sizeof(galaxy_t)) / (1024.0 * 1024.0 * 1024.0);
+
+  // Sum this rank's halo/FOF-group counts over every snapshot slot loaded so
+  // far (SnapshotTreesInfo[0..snapshot], clamped to what's actually been
+  // allocated). Under FlagInteractive/FlagMCMC every snapshot's halos stay
+  // resident for the whole run (needed for descendant lookups), so this is
+  // the running total that actually drives RSS -- not just this snapshot's.
+  long nhalo_local = 0;
+  long nfof_local = 0;
+  if (run_globals.SnapshotTreesInfo != NULL) {
+    int max_ii = snapshot;
+    if (max_ii > run_globals.NStoreSnapshots - 1)
+      max_ii = run_globals.NStoreSnapshots - 1;
+    for (int ii = 0; ii <= max_ii; ii++) {
+      nhalo_local += run_globals.SnapshotTreesInfo[ii].n_halos;
+      nfof_local += run_globals.SnapshotTreesInfo[ii].n_fof_groups;
+    }
+  }
+  long nhalo_total = 0;
+  long nfof_total = 0;
+  MPI_Reduce(&nhalo_local, &nhalo_total, 1, MPI_LONG, MPI_SUM, 0, run_globals.mpi_comm);
+  MPI_Reduce(&nfof_local, &nfof_total, 1, MPI_LONG, MPI_SUM, 0, run_globals.mpi_comm);
+  double halo_gb = ((double)nhalo_total * (double)sizeof(halo_t)) / (1024.0 * 1024.0 * 1024.0);
+  double fof_gb = ((double)nfof_total * (double)sizeof(fof_group_t)) / (1024.0 * 1024.0 * 1024.0);
+
+  mlog("MEMORY [%s] snapshot %d :: max rank RSS = %.2f GB, total RSS (sum over ranks) = %.2f GB, "
+       "live galaxies = %ld (est. galaxy_t footprint = %.2f GB), "
+       "halos loaded so far = %ld (est. halo_t footprint = %.2f GB), "
+       "FOF groups loaded so far = %ld (est. fof_group_t footprint = %.2f GB)",
+       MLOG_MESG,
+       label,
+       snapshot,
+       max_rss_gb,
+       sum_rss_gb,
+       ngal_total,
+       galaxy_gb,
+       nhalo_total,
+       halo_gb,
+       nfof_total,
+       fof_gb);
 }

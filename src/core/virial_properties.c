@@ -76,15 +76,18 @@ double calculate_Mvir(double Mvir, int len)
     return (double)len * run_globals.params.PartMass;
 }
 
-double hubble_at_snapshot(int snapshot)
+double hubble_at_z(double z)
 {
-  double Hubble = run_globals.Hubble;
   double OmegaM = run_globals.params.OmegaM;
   double OmegaK = run_globals.params.OmegaK;
   double OmegaLambda = run_globals.params.OmegaLambda;
-  double zplus1 = run_globals.ZZ[snapshot] + 1;
 
-  return Hubble * sqrt(OmegaM * zplus1 * zplus1 * zplus1 + OmegaK * zplus1 * zplus1 + OmegaLambda);
+  return run_globals.Hubble * E_z(z, OmegaM, OmegaK, OmegaLambda);
+}
+
+double hubble_at_snapshot(int snapshot)
+{
+  return hubble_at_z(run_globals.ZZ[snapshot]);
 }
 
 double hubble_time(int snapshot)

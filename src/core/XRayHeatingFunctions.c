@@ -50,10 +50,6 @@ int init_heat()
   sum_lyn = calloc(TsNumFilterSteps, sizeof(double));
 #if USE_MINI_HALOS
   sum_lyn_III = calloc(TsNumFilterSteps, sizeof(double));
-  if (run_globals.params.Flag_IncludeLymanWerner) {
-    sum_lyn_LW = calloc(TsNumFilterSteps, sizeof(double));
-    sum_lyn_LW_III = calloc(TsNumFilterSteps, sizeof(double));
-  }
 #endif
 
   kappa_10(1.0, 1); // 1 is the flag, allocates memory.
@@ -90,16 +86,49 @@ void destruct_heat()
 
 #if USE_MINI_HALOS
   free(sum_lyn_III);
-  if (run_globals.params.Flag_IncludeLymanWerner) {
-    free(sum_lyn_LW);
-    free(sum_lyn_LW_III);
-  }
 #endif
 }
 
-// ******************************************************************** //
-//  ************************ RECFAST quantities ************************ //
-//  ******************************************************************** //
+#if USE_MINI_HALOS
+// init_heat()/destruct_heat() run once per snapshot inside _ComputeTs(), but these arrays are
+// written later by save_reion_output_grids(), so they need run lifetime: allocated once from
+// init.c and released once from cleanup.c.
+void init_LW_diagnostics()
+{
+  if (!run_globals.params.Flag_IncludeLymanWerner)
+    return;
+
+  size_t n_filt = (size_t)run_globals.params.TsNumFilterSteps;
+
+  sum_lyn_LW = calloc(n_filt, sizeof(double));
+  sum_lyn_LW_III = calloc(n_filt, sizeof(double));
+  sum_lyn_LW_AGN = calloc(n_filt, sizeof(double));
+  LW_spectral_stellar = calloc(n_filt * (size_t)LW_NLEV, sizeof(double));
+  LW_spectral_III = calloc(n_filt * (size_t)LW_NLEV, sizeof(double));
+  LW_spectral_AGN = calloc(n_filt * (size_t)LW_NLEV, sizeof(double));
+  LW_zpp = calloc(n_filt, sizeof(double));
+  LW_emissivity_stellar = calloc(n_filt, sizeof(double));
+  LW_emissivity_III = calloc(n_filt, sizeof(double));
+  LW_emissivity_AGN = calloc(n_filt, sizeof(double));
+}
+
+void free_LW_diagnostics()
+{
+  if (!run_globals.params.Flag_IncludeLymanWerner)
+    return;
+
+  free(sum_lyn_LW);
+  free(sum_lyn_LW_III);
+  free(sum_lyn_LW_AGN);
+  free(LW_spectral_stellar);
+  free(LW_spectral_III);
+  free(LW_spectral_AGN);
+  free(LW_zpp);
+  free(LW_emissivity_stellar);
+  free(LW_emissivity_III);
+  free(LW_emissivity_AGN);
+}
+#endif
 
 // * IGM temperature from RECFAST; includes Compton heating and adiabatic expansion only. * //
 double T_RECFAST(float z, int flag)
@@ -368,8 +397,28 @@ double tauX(double nu, double x_e, double zp, double zpp, double HI_filling_fact
   p.snap_i = snap_i;
 
   F.params = &p;
-  gsl_integration_qag(&F, zpp, zp, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+  int status = gsl_integration_qag(&F, zpp, zp, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
   gsl_integration_workspace_free(w);
+
+  /* At extreme redshift/ionisation states (e.g. deeply neutral IGM near
+   * cosmic dawn) this integral can be too stiff/large for QAG to reach
+   * rel_tol within 1000 subdivisions. That failure means "optical depth
+   * here is very high," not "result is garbage" — nu_tau_one_helper()
+   * only needs to know this frequency is still deep in tau >> 1 territory
+   * to keep its root search moving in the right direction, so returning a
+   * large finite value on failure is safe; trusting an unconverged result
+   * (or letting GSL's default handler abort the whole run) is not. */
+  if (status != GSL_SUCCESS) {
+    mlog("WARNING: tauX integral failed to converge (snap %d, zp=%.3f, zpp=%.3f, nu=%.3e): %s — "
+         "falling back to tau=1e10\n",
+         MLOG_MESG,
+         snap_i,
+         zp,
+         zpp,
+         nu,
+         gsl_strerror(status));
+    return 1e10;
+  }
 
   return result;
 }
@@ -511,6 +560,14 @@ double nu_n(int n)
   return ans;
 }
 
+// approximation for the adiabatic index at z=6-50 from 2302.08506 (also 1506.04152). Linear only, used to initialize
+// the Tk box at high z so it's not homogeneous. Otherwise half of the adiabatic fluctuations are missing. Definition is
+// \delta Tk = Tk * cT * \delta (at each z).
+float cT_approx(float z)
+{
+  return 0.58 - 0.006 * (z - 10.0);
+}
+
 // Returns recycling fraction (=fraction of photons converted into Lyalpha for Ly-n resonance
 double frecycle(int n)
 {
@@ -600,9 +657,9 @@ double spectral_emissivity(double nu_norm, int flag, int flag_Pop)
       for (i = 1; i < (NSPEC_MAX - 1); i++) {
         if ((nu_norm >= nu_n[i]) && (nu_norm < nu_n[i + 1])) {
           if (flag_Pop == 2) {
-            ans = N0_2[i] / (alpha_S_2[i] + 1) * (pow(nu_n[i + 1], alpha_S_2[i] + 1) - pow(nu_norm, alpha_S_2[i] + 1));
+            ans = N0_2[i] / (alpha_S_2[i] + 2) * (pow(nu_n[i + 1], alpha_S_2[i] + 2) - pow(nu_norm, alpha_S_2[i] + 2));
           } else if (flag_Pop == 3) {
-            ans = N0_3[i] / (alpha_S_3[i] + 1) * (pow(nu_n[i + 1], alpha_S_3[i] + 1) - pow(nu_norm, alpha_S_3[i] + 1));
+            ans = N0_3[i] / (alpha_S_3[i] + 2) * (pow(nu_n[i + 1], alpha_S_3[i] + 2) - pow(nu_norm, alpha_S_3[i] + 2));
           } else {
             mlog("Invalid value for Stellar Population", MLOG_MESG);
           }
@@ -658,15 +715,15 @@ double spectral_emissivity(double nu_norm, int flag, int flag_Pop)
           else
             ans = N0_3[i] * pow(nu_norm, alpha_S_3[i]);
 
-          return ans / Ly_alpha_HZ;
+          return ans / NU_LA;
         }
       }
 
       i = NSPEC_MAX - 1;
       if (flag_Pop == 2)
-        return N0_2[i] * pow(nu_norm, alpha_S_2[i]) / Ly_alpha_HZ;
+        return N0_2[i] * pow(nu_norm, alpha_S_2[i]) / NU_LA;
       else
-        return N0_3[i] * pow(nu_norm, alpha_S_3[i]) / Ly_alpha_HZ;
+        return N0_3[i] * pow(nu_norm, alpha_S_3[i]) / NU_LA;
   }
 }
 
@@ -755,6 +812,7 @@ double integrand_in_nu_lya_integral(double nu, void* params)
 double integrate_over_nu(double zp,
                          double local_x_e,
                          double lower_int_limit,
+                         double upper_int_limit,
                          double thresh_energy,
                          double spec_index,
                          int FLAG)
@@ -762,6 +820,10 @@ double integrate_over_nu(double zp,
   double result, error;
   double rel_tol = 0.01; //<- relative tolerance
   gsl_function F;
+
+  if (lower_int_limit >= upper_int_limit)
+    return 0.0;
+
   gsl_integration_workspace* w = gsl_integration_workspace_alloc(1000);
 
   int_over_nu_params p;
@@ -780,21 +842,15 @@ double integrate_over_nu(double zp,
     F.function = &integrand_in_nu_lya_integral;
   }
 
-  gsl_integration_qag(&F,
-                      lower_int_limit,
-                      run_globals.params.physics.NuXrayMax * NU_over_EV,
-                      0,
-                      rel_tol,
-                      1000,
-                      GSL_INTEG_GAUSS61,
-                      w,
-                      &result,
-                      &error);
+  int status =
+    gsl_integration_qag(&F, lower_int_limit, upper_int_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
   gsl_integration_workspace_free(w);
+  if (status != GSL_SUCCESS)
+    return 0.0;
 
   // if it is the Lya integral, add prefactor
   if (FLAG == 2)
-    return result * SPEED_OF_LIGHT / (4 * M_PI) / Ly_alpha_HZ / hubble((float)zp);
+    return result * SPEED_OF_LIGHT / (4 * M_PI) / NU_LA / hubble((float)zp);
 
   return result;
 }
@@ -1227,23 +1283,47 @@ int locate_xHII_index(float xHII_call)
 void evolveInt(float zp,
                float curr_delNL0,
                const double SFR_GAL[],
+#if USE_STOCHASTICITY
+               const double XRAY_LUMINOSITY_GAL[],
+#endif
                const double SFR_III[],
+               const double XAGN_soft[],
+               const double XAGN_hard[],
+               const double AGN_LW[],
                const double freq_int_heat_GAL[],
                const double freq_int_ion_GAL[],
                const double freq_int_lya_GAL[],
                const double freq_int_heat_III[],
                const double freq_int_ion_III[],
                const double freq_int_lya_III[],
+               const double freq_int_heat_AGN_soft[],
+               const double freq_int_ion_AGN_soft[],
+               const double freq_int_lya_AGN_soft[],
+               const double freq_int_heat_AGN_hard[],
+               const double freq_int_ion_AGN_hard[],
+               const double freq_int_lya_AGN_hard[],
                int COMPUTE_Ts,
                const double y[],
                double deriv[])
 #else
+
 void evolveInt(float zp,
                float curr_delNL0,
                const double SFR_GAL[],
+#if USE_STOCHASTICITY
+               const double XRAY_LUMINOSITY_GAL[],
+#endif
+               const double XAGN_soft[],
+               const double XAGN_hard[],
                const double freq_int_heat_GAL[],
                const double freq_int_ion_GAL[],
                const double freq_int_lya_GAL[],
+               const double freq_int_heat_AGN_soft[],
+               const double freq_int_ion_AGN_soft[],
+               const double freq_int_lya_AGN_soft[],
+               const double freq_int_heat_AGN_hard[],
+               const double freq_int_ion_AGN_hard[],
+               const double freq_int_lya_AGN_hard[],
                int COMPUTE_Ts,
                const double y[],
                double deriv[])
@@ -1254,6 +1334,8 @@ void evolveInt(float zp,
   double zpp, dzpp;
   double Conversion_factor =
     (SPEED_OF_LIGHT / (4. * M_PI)) / (PROTONMASS / SOLAR_MASS); // I am using this many times so it's worth save this
+  double Conversion_factor_AGN_LW = SPEED_OF_LIGHT / (4.0 * M_PI);
+
   int zpp_ct;
   double T, TII, x_e, zpp_integrand_GAL;
   double dxe_dzp, n_b, dspec_dzp, dxheat_dzp, dxlya_dt_GAL, dstarlya_dt_GAL, dstarlyLW_dt_GAL;
@@ -1262,6 +1344,16 @@ void evolveInt(float zp,
   double dxlya_dt_III, dstarlya_dt_III, dstarlyLW_dt_III, dxheat_dt_III, dxion_source_dt_III, zpp_integrand_III;
   double dspec_dzp_II, dxheat_dzp_II;
 #endif
+
+  double dxheat_dt_AGN_soft = 0.0;
+  double dxion_source_dt_AGN_soft = 0.0;
+  double dxlya_dt_AGN_soft = 0.0;
+  double zpp_integrand_AGN_soft;
+  double dxheat_dt_AGN_hard = 0.0;
+  double dxion_source_dt_AGN_hard = 0.0;
+  double dxlya_dt_AGN_hard = 0.0;
+  double zpp_integrand_AGN_hard;
+  double dstarlyLW_dt_AGN = 0.0;
 
   x_e = y[0];
   T = y[1];
@@ -1284,6 +1376,8 @@ void evolveInt(float zp,
   dstarlya_dt_III = 0;
   dstarlyLW_dt_III = 0;
 #endif
+  deriv[5] = 0.0;
+  deriv[6] = 0.0;
 
   if (!COMPUTE_Ts) {
     for (zpp_ct = 0; zpp_ct < run_globals.params.TsNumFilterSteps; zpp_ct++) {
@@ -1296,11 +1390,15 @@ void evolveInt(float zp,
         zpp = (zpp_edge[zpp_ct] + zpp_edge[zpp_ct - 1]) * 0.5;
         dzpp = zpp_edge[zpp_ct - 1] - zpp_edge[zpp_ct];
       }
-	  dt_dzpp = dtdz(zpp);
+      dt_dzpp = dtdz(zpp);
 
+#if USE_STOCHASTICITY
+      zpp_integrand_GAL = XRAY_LUMINOSITY_GAL[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayGal);
+#else
       // Use this when using the SFR provided by Meraxes
       // Units should be M_solar/s. Factor of (dt_dzp * dzpp) converts from per s to per z'
       zpp_integrand_GAL = SFR_GAL[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayGal);
+#endif
 
 #if USE_MINI_HALOS
       zpp_integrand_III = SFR_III[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayIII);
@@ -1325,8 +1423,23 @@ void evolveInt(float zp,
       if (run_globals.params.Flag_IncludeLymanWerner) {
         dstarlyLW_dt_GAL += SFR_GAL[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW[zpp_ct] * dt_dzpp * dzpp;
         dstarlyLW_dt_III += SFR_III[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW_III[zpp_ct] * dt_dzpp * dzpp;
+        dstarlyLW_dt_AGN += AGN_LW[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW_AGN[zpp_ct] * dt_dzpp * dzpp;
       }
 #endif
+
+      /* dX_AGN_soft/dt += (dt/dz'')dz'' × XAGN_soft[zpp_ct] × (1+z'')^-alpha_soft × freq_int_X_AGN_soft[zpp_ct]
+       * dX_AGN_hard/dt += (dt/dz'')dz'' × XAGN_hard[zpp_ct] × (1+z'')^-alpha_hard × freq_int_X_AGN_hard[zpp_ct] */
+      zpp_integrand_AGN_soft = XAGN_soft[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayAGNSoft);
+
+      dxheat_dt_AGN_soft += dt_dzpp * dzpp * zpp_integrand_AGN_soft * freq_int_heat_AGN_soft[zpp_ct];
+      dxion_source_dt_AGN_soft += dt_dzpp * dzpp * zpp_integrand_AGN_soft * freq_int_ion_AGN_soft[zpp_ct];
+      dxlya_dt_AGN_soft += dt_dzpp * dzpp * zpp_integrand_AGN_soft * freq_int_lya_AGN_soft[zpp_ct];
+
+      zpp_integrand_AGN_hard = XAGN_hard[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayAGNHard);
+
+      dxheat_dt_AGN_hard += dt_dzpp * dzpp * zpp_integrand_AGN_hard * freq_int_heat_AGN_hard[zpp_ct];
+      dxion_source_dt_AGN_hard += dt_dzpp * dzpp * zpp_integrand_AGN_hard * freq_int_ion_AGN_hard[zpp_ct];
+      dxlya_dt_AGN_hard += dt_dzpp * dzpp * zpp_integrand_AGN_hard * freq_int_lya_AGN_hard[zpp_ct];
     }
 
     // After you finish the loop for each Radius, you add prefactors which are constants for the redshift (snapshot) and
@@ -1353,8 +1466,17 @@ void evolveInt(float zp,
     if (run_globals.params.Flag_IncludeLymanWerner) {
       dstarlyLW_dt_GAL *= Conversion_factor;
       dstarlyLW_dt_III *= Conversion_factor;
+      dstarlyLW_dt_AGN *= Conversion_factor_AGN_LW;
     }
 #endif
+
+    dxheat_dt_AGN_soft *= const_zp_prefactor_AGN_soft;
+    dxion_source_dt_AGN_soft *= const_zp_prefactor_AGN_soft;
+    dxlya_dt_AGN_soft *= const_zp_prefactor_AGN_soft * n_b;
+
+    dxheat_dt_AGN_hard *= const_zp_prefactor_AGN_hard;
+    dxion_source_dt_AGN_hard *= const_zp_prefactor_AGN_hard;
+    dxlya_dt_AGN_hard *= const_zp_prefactor_AGN_hard * n_b;
 
   } // end COMPUTE_Ts if statement YOU CAN SAVE SOME MORE OUTPUTS BUT FOR THE MOMENT THIS SHOULD BE FINE!
 
@@ -1362,10 +1484,13 @@ void evolveInt(float zp,
   // *** First let's do dxe_dzp *** //
 
   dxion_sink_dt = alpha_A(T) * CLUMPING_FACTOR * x_e * x_e * f_H * n_b;
+
+  /* dx_e/dz = dt/dz × [Γ_ion,GAL (+Γ_ion,III) + Γ_ion,AGN − α_A·C·x_e²·f_H·n_b] */
 #if USE_MINI_HALOS
-  dxe_dzp = dt_dzp * ((dxion_source_dt_GAL + dxion_source_dt_III) - dxion_sink_dt);
+  dxe_dzp = dt_dzp * (dxion_source_dt_GAL + dxion_source_dt_III + dxion_source_dt_AGN_soft + dxion_source_dt_AGN_hard -
+                      dxion_sink_dt);
 #else
-  dxe_dzp = dt_dzp * (dxion_source_dt_GAL - dxion_sink_dt);
+  dxe_dzp = dt_dzp * (dxion_source_dt_GAL + dxion_source_dt_AGN_soft + dxion_source_dt_AGN_hard - dxion_sink_dt);
 #endif
 
   deriv[0] = dxe_dzp;
@@ -1397,40 +1522,51 @@ void evolveInt(float zp,
   dspec_dzp_II = -dxe_dzp * TII / (1 + x_e);
 
   dcomp_dzp_II = dT_comp(zp, TII, x_e);
+#endif /* USE_MINI_HALOS — dadia_dzp_II / dcomp_dzp_II block */
 
+  /* dT_K/dz = dT_K/dz|_adiabatic + |_Compton + |_species + |_Xray,GAL + |_Xray,AGN, where
+   *   dT_K/dz|_Xray,AGN = dxheat_dt_AGN × (dt/dz) × (2/3)/k_B/(1+x_e) */
+  deriv[5] = dxheat_dt_AGN_soft * dt_dzp * 2.0 / 3.0 / BOLTZMANN / (1.0 + x_e);
+  deriv[6] = dxheat_dt_AGN_hard * dt_dzp * 2.0 / 3.0 / BOLTZMANN / (1.0 + x_e);
+#if USE_MINI_HALOS
   dxheat_dzp = (dxheat_dt_GAL + dxheat_dt_III) * dt_dzp * 2.0 / 3.0 / BOLTZMANN / (1.0 + x_e);
-  dxheat_dzp_II = dxheat_dt_GAL * dt_dzp * 2.0 / 3.0 / BOLTZMANN / (1.0 + x_e);
+  dxheat_dzp_II = (dxheat_dt_GAL)*dt_dzp * 2.0 / 3.0 / BOLTZMANN / (1.0 + x_e);
+  dxheat_dzp_II += deriv[5] + deriv[6];
 #else
-  dxheat_dzp = dxheat_dt_GAL * dt_dzp * 2.0 / 3.0 / BOLTZMANN / (1.0 + x_e);
+  dxheat_dzp = (dxheat_dt_GAL)*dt_dzp * 2.0 / 3.0 / BOLTZMANN / (1.0 + x_e);
 #endif
+  dxheat_dzp += deriv[5] + deriv[6];
 
   // summing them up...
   deriv[1] = dxheat_dzp + dcomp_dzp + dspec_dzp + dadia_dzp;
 
   // *** Finally, if we are at the last redshift step, Lya *** //
 #if USE_MINI_HALOS
-  deriv[6] = dxheat_dzp_II + dcomp_dzp_II + dspec_dzp_II + dadia_dzp_II;
+  deriv[9] = dxheat_dzp_II + dcomp_dzp_II + dspec_dzp_II + dadia_dzp_II;
 
-  deriv[2] = (dxlya_dt_GAL + dxlya_dt_III) + (dstarlya_dt_GAL + dstarlya_dt_III);
-  deriv[7] = dxlya_dt_GAL + dstarlya_dt_GAL;
+  deriv[2] =
+    (dxlya_dt_GAL + dxlya_dt_III + dxlya_dt_AGN_soft + dxlya_dt_AGN_hard) + (dstarlya_dt_GAL + dstarlya_dt_III);
+  deriv[10] = dxlya_dt_GAL + dxlya_dt_AGN_soft + dxlya_dt_AGN_hard + dstarlya_dt_GAL;
 #else
-  deriv[2] = dxlya_dt_GAL + dstarlya_dt_GAL;
+  deriv[2] = dxlya_dt_GAL + dxlya_dt_AGN_soft + dxlya_dt_AGN_hard + dstarlya_dt_GAL;
 #endif
 
   // stuff for marcos
   deriv[3] = dxheat_dzp;
 #if USE_MINI_HALOS
-  deriv[8] = dxheat_dzp_II;
+  deriv[11] = dxheat_dzp_II;
 
   if (run_globals.params.Flag_IncludeLymanWerner) {
-    deriv[5] = (dstarlyLW_dt_GAL + dstarlyLW_dt_III) * (PLANCK * 1e21);
-    deriv[10] = dstarlyLW_dt_GAL * (PLANCK * 1e21);
+    deriv[8] =
+      (dstarlyLW_dt_GAL + dstarlyLW_dt_III) * NU_LA / (NUIONIZATION - NU_LW) * PLANCK * 1e21 + dstarlyLW_dt_AGN;
+    deriv[13] = dstarlyLW_dt_GAL * NU_LA / (NUIONIZATION - NU_LW) * PLANCK * 1e21 + dstarlyLW_dt_AGN;
+    deriv[7] = dstarlyLW_dt_AGN;
   }
 
-  deriv[4] = dt_dzp * (dxion_source_dt_GAL + dxion_source_dt_III);
-  deriv[9] = dt_dzp * dxion_source_dt_GAL;
+  deriv[4] = dt_dzp * (dxion_source_dt_GAL + dxion_source_dt_III + dxion_source_dt_AGN_soft + dxion_source_dt_AGN_hard);
+  deriv[12] = dt_dzp * (dxion_source_dt_GAL + dxion_source_dt_AGN_soft + dxion_source_dt_AGN_hard);
 #else
-  deriv[4] = dt_dzp * dxion_source_dt_GAL;
+  deriv[4] = dt_dzp * (dxion_source_dt_GAL + dxion_source_dt_AGN_soft + dxion_source_dt_AGN_hard);
 #endif
 }
 

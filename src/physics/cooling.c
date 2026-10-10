@@ -106,8 +106,7 @@ double gas_cooling(galaxy_t* gal)
       if (run_globals.params.physics.Flag_BHFeedback)
         cooling_mass -= radio_mode_BH_heating(gal, cooling_mass, x);
 
-      if (cooling_mass < 0)
-        cooling_mass = 0.0;
+      CLAMP_NEGATIVE(cooling_mass);
     }
   }
   return cooling_mass;
