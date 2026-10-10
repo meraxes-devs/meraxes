@@ -1053,7 +1053,11 @@ void create_master_file()
     hsize_t nhfrac_dims[2] = { (hsize_t)n_lx_bins_nhfrac, 5 };
     H5LTmake_dataset_double(file_id, "NHfrac", 2, nhfrac_dims, nhfrac_table);
     free(nhfrac_table);
+  }
 
+  // Box-averaged X-ray emissivity histories of the spin-temperature heating
+  // sources; the arrays only exist (and are filled by ComputeTs) when it runs.
+  if (run_globals.params.Flag_IncludeSpinTemp) {
     hsize_t n_xray_snaps = (hsize_t)run_globals.params.SnaplistLength;
     H5LTmake_dataset_double(file_id, "XrayEmissivity_hard", 1, &n_xray_snaps, stored_XrayEmissivity_hard);
     H5LTmake_dataset_double(file_id, "XrayEmissivity_soft", 1, &n_xray_snaps, stored_XrayEmissivity_soft);
