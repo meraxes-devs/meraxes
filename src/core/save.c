@@ -1655,8 +1655,8 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
       if (run_globals.params.Flag_OutputHMF && !output_buffer[buffer_count].GhostFlag) {
         // Extract HMF value (log10 halo mass in solar masses/h)
         val = log10(output_buffer[buffer_count].Mvir * 1e10 / run_globals.params.Hubble_h);
-        if (val >= hmf.x_min && val <= hmf.x_max) {
-          bin_idx = (int)((val - hmf.x_min) / hmf.bin_width);
+        bin_idx = df_bin_index(&hmf, val);
+        if (bin_idx >= 0) {
           hmf.bin_counts[bin_idx] += 1.0;
         }
       }
@@ -1666,8 +1666,8 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
         val = output_buffer[buffer_count].StellarMass * 1e10 / run_globals.params.Hubble_h;
         if (val > 0.0) {
           val = log10(val);
-          if (val >= smf.x_min && val <= smf.x_max) {
-            bin_idx = (int)((val - smf.x_min) / smf.bin_width);
+          bin_idx = df_bin_index(&smf, val);
+          if (bin_idx >= 0) {
             smf.bin_counts[bin_idx] += 1.0;
           }
         }
@@ -1678,8 +1678,8 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
         // Extract UVLF value (UV magnitude)
         if (isfinite(output_buffer[buffer_count].Mags[0])) {
           val = output_buffer[buffer_count].Mags[0];
-          if (val >= uvlf.x_min && val <= uvlf.x_max) {
-            bin_idx = (int)((val - uvlf.x_min) / uvlf.bin_width);
+          bin_idx = df_bin_index(&uvlf, val);
+          if (bin_idx >= 0) {
             uvlf.bin_counts[bin_idx] += 1.0;
           }
         }
@@ -1689,8 +1689,8 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
         // Extract DustyLF value (dusty UV magnitude)
         if (isfinite(output_buffer[buffer_count].DustyMags[0])) {
           val = output_buffer[buffer_count].DustyMags[0];
-          if (val >= dustylf.x_min && val <= dustylf.x_max) {
-            bin_idx = (int)((val - dustylf.x_min) / dustylf.bin_width);
+          bin_idx = df_bin_index(&dustylf, val);
+          if (bin_idx >= 0) {
             dustylf.bin_counts[bin_idx] += 1.0;
           }
         }
@@ -1703,8 +1703,8 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
         weight = output_buffer[buffer_count].DutyCycleAGN * run_globals.params.physics.quasar_fobs;
         // Only include quasars that are "on" (QuasarMag < 999) and have positive duty cycle
         if (val < 900.0 && weight > 0.0 && isfinite(val)) {
-          if (val >= quasarlf.x_min && val <= quasarlf.x_max) {
-            bin_idx = (int)((val - quasarlf.x_min) / quasarlf.bin_width);
+          bin_idx = df_bin_index(&quasarlf, val);
+          if (bin_idx >= 0) {
             quasarlf.bin_counts[bin_idx] += weight;  // Weight by duty cycle
             quasarlf.bin_variance[bin_idx] += weight * (1.0 - weight);  // Bernoulli variance
           }
@@ -1715,8 +1715,8 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
         val = output_buffer[buffer_count].LOIII;
         if (val > 0.0 && isfinite(val)) {
           val = log10(val) + 40;
-          if (val >= oiiilf.x_min && val <= oiiilf.x_max) {
-            bin_idx = (int)((val - oiiilf.x_min) / oiiilf.bin_width);
+          bin_idx = df_bin_index(&oiiilf, val);
+          if (bin_idx >= 0) {
             oiiilf.bin_counts[bin_idx] += 1.0;
           }
         }
@@ -1727,8 +1727,8 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
         val = output_buffer[buffer_count].LOIII_dusty;
         if (val > 0.0 && isfinite(val)) {
           val = log10(val) + 40;
-          if (val >= oiiidustylf.x_min && val <= oiiidustylf.x_max) {
-            bin_idx = (int)((val - oiiidustylf.x_min) / oiiidustylf.bin_width);
+          bin_idx = df_bin_index(&oiiidustylf, val);
+          if (bin_idx >= 0) {
             oiiidustylf.bin_counts[bin_idx] += 1.0;
           }
         }
@@ -1742,8 +1742,8 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
         if (weight > 0.0) {
           if (lx_int_lin > 0.0) {
             val = log10(lx_int_lin) + LOG_10_SOLAR_LUM + 10;
-            if (val >= xraylf.x_min && val <= xraylf.x_max) {
-              bin_idx = (int)((val - xraylf.x_min) / xraylf.bin_width);
+            bin_idx = df_bin_index(&xraylf, val);
+            if (bin_idx >= 0) {
               xraylf.bin_counts[bin_idx]   += weight;
               xraylf.bin_variance[bin_idx] += weight * (1.0 - weight); /* Bernoulli */
             }
@@ -1751,8 +1751,8 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
 
           if (lx_obs_lin > 0.0) {
             val = log10(lx_obs_lin) + LOG_10_SOLAR_LUM + 10;
-            if (val >= xraylf_obs.x_min && val <= xraylf_obs.x_max) {
-              bin_idx = (int)((val - xraylf_obs.x_min) / xraylf_obs.bin_width);
+            bin_idx = df_bin_index(&xraylf_obs, val);
+            if (bin_idx >= 0) {
               xraylf_obs.bin_counts[bin_idx]   += weight;
               xraylf_obs.bin_variance[bin_idx] += weight * (1.0 - weight);
             }

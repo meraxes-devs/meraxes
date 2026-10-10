@@ -49,6 +49,17 @@ void df_init(distribution_function_t* df, double x_min, double x_max, int bins_p
   }
 }
 
+int df_bin_index(const distribution_function_t* df, double val)
+{
+  if (!(val >= df->x_min && val <= df->x_max))
+    return -1;
+
+  // (val - x_min) / bin_width reaches n_bins at val == x_max, and can round
+  // up to it just below; both belong in the last bin.
+  int idx = (int)((val - df->x_min) / df->bin_width);
+  return (idx < df->n_bins) ? idx : df->n_bins - 1;
+}
+
 void df_free(distribution_function_t* df)
 {
   assert(df != NULL);
