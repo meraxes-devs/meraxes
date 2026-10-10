@@ -20,6 +20,7 @@ RecombinationDir     : @INPUT_FILE_DIR@/
 # Physics for this setup
 Flag_IncludeSpinTemp       : 1
 Flag_Compute21cmBrightTemp : 1
+Flag_ComputePS             : 1
 EscapeFracScatterDex       : 0.3
 XrayScatterDex             : 0.3
 Flag_SourceRecalibration   : 1

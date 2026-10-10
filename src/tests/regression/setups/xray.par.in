@@ -1,5 +1,6 @@
 # Regression-test setup "xray" (build: default).
-# Spin temperature with HMXB and AGN X-ray heating, the obscuration model and the X-ray LF.
+# Spin temperature, 21-cm brightness temperature and power spectrum, with HMXB
+# and AGN X-ray heating, the obscuration model and the X-ray LF.
 # CMake fills in @INPUT_FILE_DIR@ and @MERAXES_TESTDATA_DIR@ (see ../CMakeLists.txt).
 # Results must stay comparable with reference/xray.h5: don't change anything
 # here without regenerating that reference.
@@ -20,6 +21,7 @@ RecombinationDir     : @INPUT_FILE_DIR@/
 # Physics for this setup
 Flag_IncludeSpinTemp       : 1
 Flag_Compute21cmBrightTemp : 1
+Flag_ComputePS             : 1
 Flag_IncludeAGNXray        : 1
 Flag_OutputXrayLF          : 1
 Flag_BHARExponentialCut    : 1
