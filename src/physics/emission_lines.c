@@ -82,8 +82,7 @@ void compute_LOIII(galaxy_t* gal, int snapshot)
   // density is a mass density (g/cm^3); the Stromgren radius and the
   // ionization parameter (cm/s) need the hydrogen number density (cm^-3).
   const double n_H = (1.0 - run_globals.params.physics.Y_He) * density / PROTONMASS;
-  const double stromgren_radius_sq =
-    pow(3.0 * ionizing_photon_rate / (4.0 * M_PI * ALPHA_HII * n_H * n_H), 2.0 / 3.0);
+  const double stromgren_radius_sq = pow(3.0 * ionizing_photon_rate / (4.0 * M_PI * ALPHA_HII * n_H * n_H), 2.0 / 3.0);
   ionization_param = 1.5874 * ionizing_photon_rate / (4.0 * M_PI * stromgren_radius_sq * n_H);
 
   gal->ionization_param = clamp_non_finite(ionization_param);
