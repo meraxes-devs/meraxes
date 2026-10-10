@@ -71,7 +71,6 @@ Flag_EvolvingReionRBubbleMax : 1
 Flag_TemperatureDependentRec : 1
 Flag_InstantaneousSFR : 1
 
-Flag_BHObscuedIonization : 1
 Flag_BHARExponentialCut : 0
 EscapeFracBHNorm : 0.0
 BlackHoleGrowthRate : 1.0

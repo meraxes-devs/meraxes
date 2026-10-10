@@ -532,11 +532,6 @@ void read_parameter_file(char* fname, int mode)
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_INT;
 
-      strncpy(params_tag[n_param], "Flag_BHObscuedIonization", tag_length);
-      params_addr[n_param] = &(run_params->physics).Flag_BHObscuedIonization;
-      required_tag[n_param] = 0;
-      params_type[n_param++] = PARAM_TYPE_INT;
-
       strncpy(params_tag[n_param], "Flag_BHARExponentialCut", tag_length);
       params_addr[n_param] = &(run_params->physics).Flag_BHARExponentialCut;
       required_tag[n_param] = 1;
