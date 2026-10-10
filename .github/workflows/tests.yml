@@ -61,7 +61,7 @@ jobs:
 
           m='{"name":"default","cmake_args":""}'
           if [ "$mini" = true ]; then m+=',{"name":"mini-halos","cmake_args":"-DUSE_MINI_HALOS=ON"}'; fi
-          if [ "$mags" = true ]; then m+=',{"name":"calc-mags","cmake_args":"-DCALC_MAGS=ON","needs_sector":true}'; fi
+          if [ "$mags" = true ]; then m+=',{"name":"calc-mags","cmake_args":"-DCALC_MAGS=ON -DMAGS_N_SNAPS=3 -DMAGS_N_BANDS=2","needs_sector":true}'; fi
           # Stochasticity has separate branches with and without mini-halos.
           if [ "$stoch" = true ]; then
             m+=',{"name":"stochasticity","cmake_args":"-DUSE_STOCHASTICITY=ON"}'
