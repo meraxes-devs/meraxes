@@ -566,7 +566,7 @@ void build_no_sfr_tables(int population)
 #if USE_MINI_HALOS
                             population == 3 ? run_globals.SFRsIII : run_globals.SFRs,
 #else
-                             run_globals.SFRs,
+                            run_globals.SFRs,
 #endif
                             NO_SHMR_LOG10_SFR_FLOOR,
                             NO_SFR_SFR_MIN_COUNT);
