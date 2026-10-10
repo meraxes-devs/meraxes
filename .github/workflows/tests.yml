@@ -1,0 +1,85 @@
+name: Build and test
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: default
+            cmake_args: ""
+          - name: mini-halos
+            cmake_args: "-DUSE_MINI_HALOS=ON"
+          - name: calc-mags
+            cmake_args: "-DCALC_MAGS=ON"
+            needs_sector: true
+
+    env:
+      # MPI and HDF5 keep allocations alive until exit; only report real memory errors.
+      ASAN_OPTIONS: detect_leaks=0
+      UBSAN_OPTIONS: print_stacktrace=1
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # The magnitude code needs the sector library. This is the EMventura fork,
+      # which has init_filters; smutch/sector master does not.
+      - name: Check out sector
+        if: matrix.needs_sector
+        uses: actions/checkout@v4
+        with:
+          repository: EMventura/sector
+          ref: 2ed86faf9069300b96486037a31035a7fa6a85d3
+          path: sector
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake build-essential pkg-config \
+            libopenmpi-dev openmpi-bin \
+            libgsl-dev libhdf5-openmpi-dev \
+            libfftw3-dev libfftw3-mpi-dev \
+            libcriterion-dev
+
+      # GCC 13's AddressSanitizer crashes at startup with the runner kernel's
+      # default 32-bit mmap randomisation.
+      - name: Reduce ASLR entropy for AddressSanitizer
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      # Debug enables -Werror=implicit plus AddressSanitizer and UBSan.
+      - name: Configure
+        run: |
+          extra=""
+          if [ "${{ matrix.needs_sector }}" = "true" ]; then
+            extra="-DSECTOR_ROOT=${GITHUB_WORKSPACE}/sector/sector/clib"
+          fi
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_TESTS=ON \
+            -DHDF5_PREFER_PARALLEL=ON \
+            ${{ matrix.cmake_args }} $extra
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run standalone drivers
+        run: |
+          ./build/src/tests/main_cooling
+          ./build/src/tests/main_blackhole_feedback
