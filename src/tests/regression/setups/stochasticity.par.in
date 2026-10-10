@@ -1,0 +1,25 @@
+# Regression-test setup "stochasticity" (build: USE_STOCHASTICITY).
+# Stochastic sources: escape-fraction and X-ray luminosity scatter with source recalibration, with spin temperature on.
+# CMake fills in @INPUT_FILE_DIR@ and @MERAXES_TESTDATA_DIR@ (see ../CMakeLists.txt).
+# Results must stay comparable with reference/stochasticity.h5: don't change anything
+# here without regenerating that reference.
+
+FileNameGalaxies     : meraxes
+DefaultsFile         : @INPUT_FILE_DIR@/params/defaults.par
+SimParamsFile        : @INPUT_FILE_DIR@/params/simulations/Genesis_L10_N512.par
+SimulationDir        : @MERAXES_TESTDATA_DIR@/L10_N512
+OutputDir            : output
+OutputSnapshots      : 48, 63, 75  # z = 15, 12, 10
+RandomSeed           : 1809
+PhotometricTablesDir : @INPUT_FILE_DIR@/photometric_tables
+CoolingFuncsDir      : @INPUT_FILE_DIR@/cooling_functions
+StellarFeedbackDir   : @INPUT_FILE_DIR@/stellar_feedback_tables/Kroupa
+TablesForXHeatingDir : @INPUT_FILE_DIR@/21cmFAST-tables
+RecombinationDir     : @INPUT_FILE_DIR@/
+
+# Physics for this setup
+Flag_IncludeSpinTemp       : 1
+Flag_Compute21cmBrightTemp : 1
+EscapeFracScatterDex       : 0.3
+XrayScatterDex             : 0.3
+Flag_SourceRecalibration   : 1

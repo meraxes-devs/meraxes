@@ -1,0 +1,27 @@
+# Regression-test setup "calc_mags" (build: CALC_MAGS).
+# Magnitudes and the UVLF, DustyLF and OIIIDustyLF outputs (all on by default).
+# Configure with -DCALC_MAGS=ON -DMAGS_N_SNAPS=3 -DMAGS_N_BANDS=2.
+# CMake fills in @INPUT_FILE_DIR@ and @MERAXES_TESTDATA_DIR@ (see ../CMakeLists.txt).
+# Results must stay comparable with reference/calc_mags.h5: don't change anything
+# here without regenerating that reference.
+
+FileNameGalaxies     : meraxes
+DefaultsFile         : @INPUT_FILE_DIR@/params/defaults.par
+SimParamsFile        : @INPUT_FILE_DIR@/params/simulations/Genesis_L10_N512.par
+SimulationDir        : @MERAXES_TESTDATA_DIR@/L10_N512
+OutputDir            : output
+OutputSnapshots      : 48, 63, 75  # z = 15, 12, 10
+RandomSeed           : 1809
+PhotometricTablesDir : @INPUT_FILE_DIR@/photometric_tables
+CoolingFuncsDir      : @INPUT_FILE_DIR@/cooling_functions
+StellarFeedbackDir   : @INPUT_FILE_DIR@/stellar_feedback_tables/Kroupa
+TablesForXHeatingDir : @INPUT_FILE_DIR@/21cmFAST-tables
+RecombinationDir     : @INPUT_FILE_DIR@/
+
+# Physics for this setup
+# As in the production inference runs: magnitudes at the output snapshots, and
+# a UV band plus one around [O III] 5008A (so LOIII_dusty gets attenuated).
+# The build must match: MAGS_N_SNAPS = 3 target snapshots and MAGS_N_BANDS = 2
+# rest-frame bands (each RestBands pair is one band).
+TargetSnaps                : 48, 63, 75
+RestBands                  : 1550, 1650, 4958, 5058
