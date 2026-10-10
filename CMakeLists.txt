@@ -77,8 +77,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
     "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
-if(CMAKE_BUILD_TYPE EQUAL "Debug" AND NOT BUILD_SHARED_LIBS)
-    set(SANITIZE_FLAGS "-fsanitize=address,leak,undefined -fno-common -fno-omit-frame-pointer")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT BUILD_SHARED_LIBS)
+    set(SANITIZE_FLAGS -fsanitize=address,leak,undefined -fno-common -fno-omit-frame-pointer)
 else()
     set(SANITIZE_FLAGS "")
 endif()
@@ -117,9 +117,14 @@ target_compile_definitions(meraxes_lib PUBLIC
 )
 
 target_compile_options(meraxes_lib PRIVATE
-    $<$<CONFIG:Debug>:-Wall -Wextra -Werror=implicit ${SANITIZE_FLAGS}>
+    $<$<CONFIG:Debug>:-Wall -Wextra -Werror=implicit>
     $<$<CONFIG:Release>:-march=native -ffast-math>
     )
+
+# Anything linking an instrumented meraxes_lib also needs the sanitizer
+# runtimes at link time, so these propagate to consumers.
+target_compile_options(meraxes_lib PUBLIC ${SANITIZE_FLAGS})
+target_link_options(meraxes_lib PUBLIC ${SANITIZE_FLAGS})
 
 # Profiling
 if(ENABLE_PROFILING)
