@@ -9,7 +9,7 @@ if(CRITERION_FOUND)
 
     add_executable(test_parse_snaplist test_parse_snaplist.c)
     set_property(TARGET test_parse_snaplist PROPERTY C_STANDARD 99)
-    target_include_directories(test_parse_snaplist PRIVATE ${CRITERION_INCLUDE_DIR} ${CMAKE_SOURCE_DIR})
+    target_include_directories(test_parse_snaplist PRIVATE ${CRITERION_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR})
     target_link_libraries(test_parse_snaplist PRIVATE ${CRITERION_LIBRARY} meraxes_lib)
     add_test(NAME test_parse_snaplist COMMAND test_parse_snaplist)
 
