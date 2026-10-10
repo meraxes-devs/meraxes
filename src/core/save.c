@@ -1034,10 +1034,9 @@ void create_master_file()
     hsize_t nhtrans_dim = 5;
     H5LTmake_dataset_double(file_id, "NHTrans", 1, &nhtrans_dim, s_T_vals);
 
-    int n_lx_bins_nhfrac = (int)((run_globals.params.XrayLF_MaxLogL - run_globals.params.XrayLF_MinLogL) *
-                                 run_globals.params.XrayLF_BinsPerDex);
-    if (n_lx_bins_nhfrac < 1)
-      n_lx_bins_nhfrac = 1;
+    // Same bins as the XrayLF distribution functions
+    int n_lx_bins_nhfrac = df_n_bins(
+      run_globals.params.XrayLF_MinLogL, run_globals.params.XrayLF_MaxLogL, run_globals.params.XrayLF_BinsPerDex);
     double lx_bin_width_nhfrac =
       (run_globals.params.XrayLF_MaxLogL - run_globals.params.XrayLF_MinLogL) / n_lx_bins_nhfrac;
 

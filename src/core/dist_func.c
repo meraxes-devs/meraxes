@@ -22,7 +22,7 @@ void df_init(distribution_function_t* df, double x_min, double x_max, int bins_p
   df->x_max = x_max;
 
   // Logarithmic binning: bins per dex (or per magnitude for UVLF/DustyLF)
-  df->n_bins = (int)((x_max - x_min) * bins_per_dex);
+  df->n_bins = df_n_bins(x_min, x_max, bins_per_dex);
   df->bin_width = (x_max - x_min) / df->n_bins;
 
   // Allocate memory for bins and counts
@@ -47,6 +47,15 @@ void df_init(distribution_function_t* df, double x_min, double x_max, int bins_p
     df->bins[i].number_density = 0.0;
     df->bins[i].uncertainty = 0.0;
   }
+}
+
+int df_n_bins(double x_min, double x_max, int bins_per_dex)
+{
+  // Round rather than truncate: a range times bins_per_dex that should be an
+  // integer can evaluate to just below it in floating point. A range narrower
+  // than one bin still gets one, so bin_width stays finite.
+  int n_bins = (int)lround((x_max - x_min) * bins_per_dex);
+  return (n_bins > 0) ? n_bins : 1;
 }
 
 int df_bin_index(const distribution_function_t* df, double val)

@@ -41,6 +41,10 @@ extern "C"
   //! \param[in] description Human-readable description of function (e.g., "Halo Mass Function")
   void df_init(distribution_function_t* df, double x_min, double x_max, int bins_per_dex, const char* description);
 
+  //! Number of bins df_init uses for [x_min, x_max] at bins_per_dex (at least 1).
+  //! Use it for any table that must line up with a distribution function's bins.
+  int df_n_bins(double x_min, double x_max, int bins_per_dex);
+
   //! Index of the bin containing val, or -1 if val is outside [x_min, x_max] (or NaN).
   //! The last bin is closed, so val == x_max falls in bin n_bins - 1.
   int df_bin_index(const distribution_function_t* df, double val);
