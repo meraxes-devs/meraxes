@@ -1,0 +1,23 @@
+# Regression-test setup "igm" (build: default).
+# IGM physics: temperature-dependent recombinations, residual neutral fraction, clumping and CGM suppression of the escape fraction.
+# CMake fills in @INPUT_FILE_DIR@ and @MERAXES_TESTDATA_DIR@ (see ../CMakeLists.txt).
+# Results must stay comparable with reference/igm.h5: don't change anything
+# here without regenerating that reference.
+
+FileNameGalaxies     : meraxes
+DefaultsFile         : @INPUT_FILE_DIR@/params/defaults.par
+SimParamsFile        : @INPUT_FILE_DIR@/params/simulations/Genesis_L10_N512.par
+SimulationDir        : @MERAXES_TESTDATA_DIR@/L10_N512
+OutputDir            : output
+OutputSnapshots      : 48, 63, 75  # z = 15, 12, 10
+RandomSeed           : 1809
+PhotometricTablesDir : @INPUT_FILE_DIR@/photometric_tables
+CoolingFuncsDir      : @INPUT_FILE_DIR@/cooling_functions
+StellarFeedbackDir   : @INPUT_FILE_DIR@/stellar_feedback_tables/Kroupa
+TablesForXHeatingDir : @INPUT_FILE_DIR@/21cmFAST-tables
+RecombinationDir     : @INPUT_FILE_DIR@/
+
+# Physics for this setup
+Flag_IncludeRecombinations : 1
+ReionUVBFlag               : 2
+Flag_FescCGMSuppression    : 2

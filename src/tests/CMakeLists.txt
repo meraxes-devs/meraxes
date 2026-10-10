@@ -47,3 +47,6 @@ add_executable(main_blackhole_feedback main_blackhole_feedback.c)
 set_property(TARGET main_blackhole_feedback PROPERTY C_STANDARD 99)
 target_include_directories(main_blackhole_feedback PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR})
 target_link_libraries(main_blackhole_feedback PRIVATE meraxes_lib)
+
+# Regression tests on the L10_N512 test set (no Criterion needed)
+add_subdirectory(regression)
