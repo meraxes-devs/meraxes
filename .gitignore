@@ -51,8 +51,6 @@ build
 /.direnv/
 /.dmypy.json
 /.clangd
-task_plan.md
-findings.md
-progress.md
+
 /docs/_build/
 .venv/
