@@ -64,6 +64,17 @@ endif()
 if(NOT can_compare)
     message(STATUS "Regression runs enabled, but comparisons disabled: need Python 3 with h5py and numpy")
 endif()
+# With matplotlib, each comparison also plots the run over its reference (plots/ in the run directory)
+set(plot_args "")
+if(can_compare)
+    execute_process(COMMAND ${Python3_EXECUTABLE} -c "import matplotlib"
+                    RESULT_VARIABLE matplotlib_missing OUTPUT_QUIET ERROR_QUIET)
+    if(NOT matplotlib_missing)
+        set(plot_args --plot plots)
+    else()
+        message(STATUS "Regression comparisons won't make plots: no matplotlib")
+    endif()
+endif()
 
 foreach(setup IN LISTS setups)
     set(run_dir "${CMAKE_CURRENT_BINARY_DIR}/${setup}")
@@ -84,18 +95,19 @@ foreach(setup IN LISTS setups)
         FIXTURES_SETUP regression_${setup}_run TIMEOUT 1800)
 
     if(can_compare)
-        # summary.h5 in the run directory is this run's summary: CI uploads it,
-        # and it becomes the new reference when results change on purpose.
+        # summary.h5 in the run directory is this run's summary and plots/ its
+        # figures: CI uploads both, and summary.h5 becomes the new reference when
+        # results change on purpose.
         set(reference "${CMAKE_CURRENT_SOURCE_DIR}/reference/${setup}.h5")
         if(EXISTS "${reference}")
             add_test(NAME regression_${setup}_compare
                      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py check output "${reference}"
-                             --mode ${REGRESSION_COMPARE} --save summary.h5
+                             --mode ${REGRESSION_COMPARE} --save summary.h5 ${plot_args}
                      WORKING_DIRECTORY "${run_dir}")
         else()
             message(STATUS "No reference for regression setup ${setup}: its test only writes ${run_dir}/summary.h5")
             add_test(NAME regression_${setup}_compare
-                     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py write output summary.h5
+                     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/compare.py write output summary.h5 ${plot_args}
                      WORKING_DIRECTORY "${run_dir}")
         endif()
         set_tests_properties(regression_${setup}_compare PROPERTIES

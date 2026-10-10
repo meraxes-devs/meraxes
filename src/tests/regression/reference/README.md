@@ -9,4 +9,10 @@ PR, and include the output of
 
     python3 compare.py diff reference/<setup>.h5 <new summary.h5>
 
-in the PR description so reviewers can see what moved.
+in the PR description so reviewers can see what moved. The CI artifact also has
+each run's plots over its reference (made by `compare.py check --plot`).
+
+`plots/` holds figures of each reference on its own, for browsing on GitHub.
+Regenerate them whenever a reference changes:
+
+    python3 compare.py plot reference/<setup>.h5 reference/plots

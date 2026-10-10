@@ -9,13 +9,20 @@ emissivity histories. The same summarize() builds both the reference and the
 summary of the run being tested, so the two are always comparable.
 
 Usage:
-  compare.py write <output_dir> <summary.h5>
+  compare.py write <output_dir> <summary.h5> [--plot DIR]
       Summarise a run (e.g. to create or update a reference).
-  compare.py check <output_dir> <reference.h5> [--mode strict|loose] [--save FILE]
+  compare.py check <output_dir> <reference.h5> [--mode strict|loose] [--save FILE] [--plot DIR]
       Summarise a run and compare it with the reference; exit 1 on any
       difference beyond tolerance. --save also writes the run's summary.
-  compare.py diff <old.h5> <new.h5> [--mode strict|loose]
+  compare.py diff <old.h5> <new.h5> [--mode strict|loose] [--plot DIR]
       Compare two summary files (e.g. to review a reference update).
+  compare.py plot <reference.h5> <outdir> [--new RUN] [--mode strict|loose]
+      Plot a reference, optionally overlaid with RUN (an output directory or a
+      summary file); quantities that differ beyond tolerance are flagged.
+
+--plot DIR writes the same figures (see plots.py) for that command: the run
+over its reference for check/diff, the run alone for write. Plotting needs
+matplotlib; without it the plots are skipped with a note.
 
 Modes:
   strict  counts exact; everything else to 1e-6 relative. For CI, whose
@@ -26,6 +33,7 @@ Modes:
           differences shift results.
 """
 import argparse
+import os
 import sys
 
 import h5py
@@ -45,6 +53,17 @@ QUANTILE_FIELDS = [
     "Mvir", "StellarMass", "ColdGas", "Sfr", "BlackHoleMass", "LOIII", "ionization_param", "Fesc", "tau_cgm",
 ]
 QUANTILES = [5, 16, 50, 84, 95]
+# Grids whose box averages are summarised (each only if the run writes it)
+GRID_FIELDS = [
+    "xH", "x_e_box", "Tk_box", "TS_box", "delta_T", "J_21_at_ionization", "r_bubble", "z_at_ionization",
+    "Gamma12", "residual_xH", "clumping_factor", "N_rec", "t_resp", "temp_kinetic_all_gas", "Mvir_crit",
+    "weighted_sfr", "effective_bhar",
+]
+# ... of which these also get a mass-weighted mean
+MASS_WEIGHTED_GRID_FIELDS = ["xH", "x_e_box", "Tk_box", "residual_xH", "temp_kinetic_all_gas"]
+# Placeholder values meaning "not set" (t_resp is 1e30 where nothing ionizes the
+# cell): excluded from the averages, and the fraction of such cells recorded
+GRID_UNSET_THRESHOLD = {"t_resp": 1e29}
 
 
 def _snapshot_groups(f):
@@ -97,15 +116,23 @@ def summarize(output_dir):
             if "Grids" in snap:
                 grids = snap["Grids"]
                 density = 1.0 + grids["deltax"][()].astype(np.float64) if "deltax" in grids else None
-                for name in ("xH", "x_e_box", "Tk_box", "TS_box", "delta_T", "J_21_at_ionization", "r_bubble"):
+                for name in GRID_FIELDS:
                     if name in grids:
+                        # Averages over finite cells, in case a grid marks cells with inf/NaN
                         g = grids[name][()].astype(np.float64)
-                        s[f"{base}/grids/volume_mean/{name}"] = np.array([np.mean(g)])
-                        s[f"{base}/grids/std/{name}"] = np.array([np.std(g)])
-                        if density is not None and name in ("xH", "x_e_box", "Tk_box"):
-                            s[f"{base}/grids/mass_mean/{name}"] = np.array([np.sum(g * density) / np.sum(density)])
+                        ok = np.isfinite(g)
+                        if name in GRID_UNSET_THRESHOLD:
+                            unset = g >= GRID_UNSET_THRESHOLD[name]
+                            s[f"{base}/grids/fraction_unset/{name}"] = np.array([np.mean(unset)])
+                            ok &= ~unset
+                        s[f"{base}/grids/volume_mean/{name}"] = np.array([np.mean(g[ok]) if ok.any() else np.nan])
+                        s[f"{base}/grids/std/{name}"] = np.array([np.std(g[ok]) if ok.any() else np.nan])
+                        if density is not None and name in MASS_WEIGHTED_GRID_FIELDS and ok.any():
+                            w = density[ok]
+                            s[f"{base}/grids/mass_mean/{name}"] = np.array([np.sum(g[ok] * w) / np.sum(w)])
+                # 21-cm power spectrum and its k bins
                 for name, obj in grids.items():
-                    if name.startswith("PS") and isinstance(obj, h5py.Dataset):
+                    if (name.startswith("PS") or name == "k_bins") and isinstance(obj, h5py.Dataset):
                         s[f"{base}/grids/{name}"] = obj[()].astype(np.float64)
     return s
 
@@ -194,6 +221,34 @@ def compare(ref, new, mode):
     return problems
 
 
+def _load(path):
+    """A summary dict and metadata from a run's output directory or a summary file."""
+    if os.path.isdir(path):
+        return summarize(path), run_metadata(path)
+    return read_summary(path)
+
+
+def _setup_name(path):
+    """Name for the figures: a summary file's stem, or the run directory's name."""
+    path = os.path.abspath(path)
+    if os.path.isdir(path):
+        path = os.path.dirname(path) if os.path.basename(path) == "output" else path
+        return os.path.basename(path)
+    return os.path.splitext(os.path.basename(path))[0]
+
+
+def _plot(ref, new, outdir, name, problems=(), ref_meta=None, new_meta=None):
+    try:
+        from plots import make_plots
+    except ImportError as err:
+        print(f"Skipping plots ({err})")
+        return
+    ref_label = f"reference {str((ref_meta or {}).get('gitref', ''))[:8]}".strip()
+    new_label = f"this run {str((new_meta or {}).get('gitref', ''))[:8]}".strip()
+    for path in make_plots(ref, new, outdir, name, {p[0] for p in problems}, ref_label, new_label):
+        print(f"Wrote {path}")
+
+
 def report(problems, mode, label):
     if not problems:
         print(f"{label}: all quantities agree ({mode} mode)")
@@ -211,30 +266,54 @@ def main():
     w = sub.add_parser("write")
     w.add_argument("output_dir")
     w.add_argument("summary")
+    w.add_argument("--plot", metavar="DIR", help="also plot the run")
     c = sub.add_parser("check")
     c.add_argument("output_dir")
     c.add_argument("reference")
     c.add_argument("--mode", choices=["strict", "loose"], default="strict")
     c.add_argument("--save", help="also write this run's summary here")
+    c.add_argument("--plot", metavar="DIR", help="also plot the run over the reference")
     d = sub.add_parser("diff")
     d.add_argument("old")
     d.add_argument("new")
     d.add_argument("--mode", choices=["strict", "loose"], default="strict")
+    d.add_argument("--plot", metavar="DIR", help="also plot new over old")
+    p = sub.add_parser("plot")
+    p.add_argument("reference")
+    p.add_argument("outdir")
+    p.add_argument("--new", help="run output directory or summary file to overlay")
+    p.add_argument("--mode", choices=["strict", "loose"], default="strict")
+    p.add_argument("--name", help="figure name prefix (default: the reference's file name)")
     args = parser.parse_args()
 
     if args.command == "write":
-        write_summary(summarize(args.output_dir), run_metadata(args.output_dir), args.summary)
+        summary, meta = summarize(args.output_dir), run_metadata(args.output_dir)
+        write_summary(summary, meta, args.summary)
+        if args.plot:
+            _plot(summary, None, args.plot, _setup_name(args.output_dir), ref_meta=meta)
         return 0
     if args.command == "check":
-        new = summarize(args.output_dir)
+        new, new_meta = summarize(args.output_dir), run_metadata(args.output_dir)
         if args.save:
-            write_summary(new, run_metadata(args.output_dir), args.save)
+            write_summary(new, new_meta, args.save)
         ref, ref_meta = read_summary(args.reference)
-        label = f"vs reference from {ref_meta.get('gitref', '?')[:8]}"
-        return report(compare(ref, new, args.mode), args.mode, label)
-    ref, _ = read_summary(args.old)
-    new, _ = read_summary(args.new)
-    return report(compare(ref, new, args.mode), args.mode, f"{args.old} -> {args.new}")
+        problems = compare(ref, new, args.mode)
+        if args.plot:
+            _plot(ref, new, args.plot, _setup_name(args.reference), problems, ref_meta, new_meta)
+        label = f"vs reference from {str(ref_meta.get('gitref', '?'))[:8]}"
+        return report(problems, args.mode, label)
+    if args.command == "diff":
+        ref, ref_meta = read_summary(args.old)
+        new, new_meta = read_summary(args.new)
+        problems = compare(ref, new, args.mode)
+        if args.plot:
+            _plot(ref, new, args.plot, _setup_name(args.old), problems, ref_meta, new_meta)
+        return report(problems, args.mode, f"{args.old} -> {args.new}")
+    ref, ref_meta = read_summary(args.reference)
+    new, new_meta = _load(args.new) if args.new else (None, None)
+    problems = compare(ref, new, args.mode) if new is not None else []
+    _plot(ref, new, args.outdir, args.name or _setup_name(args.reference), problems, ref_meta, new_meta)
+    return 0
 
 
 if __name__ == "__main__":
