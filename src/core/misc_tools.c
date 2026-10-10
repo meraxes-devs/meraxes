@@ -34,9 +34,12 @@ void myexit(int signum)
   fprintf(stderr, "================================================================================\n");
   fprintf(stderr, "\n");
   mpi_debug_here();
-  cleanup();
-  MPI_Finalize();
-  exit(signum);
+  // ABORT is often reached on one rank only (e.g. checks done on the master),
+  // so MPI_Finalize here would wait forever for ranks blocked in collectives.
+  // MPI_Abort terminates them all; skip cleanup(), which may touch state that
+  // was never initialised when the error came early.
+  MPI_Abort(MPI_COMM_WORLD, signum);
+  exit(signum); // not reached
 }
 
 double calc_metallicity(double total_gas, double metals)
