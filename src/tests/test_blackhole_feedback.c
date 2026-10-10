@@ -69,6 +69,15 @@ Test(blackhole_feedback, calculate_BHemissivity_basic)
   cr_expect_gt(accretion_time, 0.0, "Accretion time should be positive");
   cr_expect(isfinite(emissivity), "Emissivity should be finite");
   cr_expect(isfinite(accretion_time), "Accretion time should be finite");
+
+  cr_expect_gt(quasar_luv, 0.0, "UV luminosity should be positive");
+  cr_expect_gt(quasar_lx, 0.0, "Hard X-ray luminosity should be positive");
+  cr_expect_gt(quasar_lx_soft, 0.0, "Soft X-ray luminosity should be positive");
+  cr_expect(isfinite(quasar_luv), "UV luminosity should be finite");
+  cr_expect(isfinite(quasar_lx), "Hard X-ray luminosity should be finite");
+  cr_expect(isfinite(quasar_lx_soft), "Soft X-ray luminosity should be finite");
+  // The soft-band (0.5-2 keV) bolometric correction is ~1.4x the hard-band one.
+  cr_expect_lt(quasar_lx_soft, quasar_lx, "Soft X-ray luminosity should be below hard X-ray luminosity");
 }
 
 Test(blackhole_feedback, calculate_BHemissivity_zero_accretion)
