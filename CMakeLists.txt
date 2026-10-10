@@ -289,6 +289,10 @@ endif()
 target_include_directories(meraxes_lib PUBLIC ${HDF5_INCLUDE_DIRS})
 target_link_libraries(meraxes_lib PUBLIC ${HDF5_C_LIBRARIES} ${HDF5_C_HL_LIBRARIES})
 add_definitions(${HDF5_DEFINITIONS})
+if(CALC_MAGS)
+    # sector includes hdf5.h itself
+    target_include_directories(sector PRIVATE ${HDF5_INCLUDE_DIRS})
+endif()
 
 # FFTW
 find_package(FFTW REQUIRED)
