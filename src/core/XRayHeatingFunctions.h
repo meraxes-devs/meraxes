@@ -32,8 +32,8 @@
 #define CLUMPING_FACTOR                                                                                                \
   (double)(2) // sub grid scale.  note that if you want to run-down from a very high redshift (>50), you should set this
               // to one..
-#define T21 (double)(0.0628)                /* temperature corresponding to the 21cm photon */
-#define A10_HYPERFINE (double)(2.85e-15)    /* spontaneous emission coefficient in s^-1 */
+#define T21 (double)(0.0628)             /* temperature corresponding to the 21cm photon */
+#define A10_HYPERFINE (double)(2.85e-15) /* spontaneous emission coefficient in s^-1 */
 
 // Define some global variables; yeah i know it isn't "good practice" but doesn't matter
 // NB. Not written by smutch!!! ;)
@@ -237,26 +237,26 @@ extern "C"
                  const double y[],
                  double deriv[]);
 #else
-  void evolveInt(float zp,
-                 float curr_delNL0,
-                 const double SFR_GAL[],
+void evolveInt(float zp,
+               float curr_delNL0,
+               const double SFR_GAL[],
 #if USE_STOCHASTICITY
-                 const double XRAY_LUMINOSITY_GAL[],
+               const double XRAY_LUMINOSITY_GAL[],
 #endif
-                 const double XAGN_soft[],
-                 const double XAGN_hard[],
-                 const double freq_int_heat_GAL[],
-                 const double freq_int_ion_GAL[],
-                 const double freq_int_lya_GAL[],
-                 const double freq_int_heat_AGN_soft[],
-                 const double freq_int_ion_AGN_soft[],
-                 const double freq_int_lya_AGN_soft[],
-                 const double freq_int_heat_AGN_hard[],
-                 const double freq_int_ion_AGN_hard[],
-                 const double freq_int_lya_AGN_hard[],
-                 int COMPUTE_Ts,
-                 const double y[],
-                 double deriv[]);
+               const double XAGN_soft[],
+               const double XAGN_hard[],
+               const double freq_int_heat_GAL[],
+               const double freq_int_ion_GAL[],
+               const double freq_int_lya_GAL[],
+               const double freq_int_heat_AGN_soft[],
+               const double freq_int_ion_AGN_soft[],
+               const double freq_int_lya_AGN_soft[],
+               const double freq_int_heat_AGN_hard[],
+               const double freq_int_ion_AGN_hard[],
+               const double freq_int_lya_AGN_hard[],
+               int COMPUTE_Ts,
+               const double y[],
+               double deriv[]);
 #endif
 
 #ifdef __cplusplus

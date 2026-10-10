@@ -6,23 +6,23 @@
 //! Generic bin structure for distribution functions (HMF, SMF, LF, etc.)
 typedef struct distribution_bin_t
 {
-  double center;      //!< Bin center value (e.g., Log10(M) for HMF)
-  double number_density;  //!< Number density [h^3 Mpc^-3]
-  double uncertainty;     //!< Poisson uncertainty on number density
+  double center;         //!< Bin center value (e.g., Log10(M) for HMF)
+  double number_density; //!< Number density [h^3 Mpc^-3]
+  double uncertainty;    //!< Poisson uncertainty on number density
 } distribution_bin_t;
 
 //! Generic distribution function structure
 typedef struct distribution_function_t
 {
-  int n_bins;         //!< Number of bins
-  double x_min;       //!< Minimum value (e.g., Log10(M) minimum)
-  double x_max;       //!< Maximum value
-  double bin_width;   //!< Bin width in dex or linear units
-  distribution_bin_t* bins;    //!< Array of bin data
-  double volume;      //!< Comoving volume in (Mpc/h)^3
-  double* bin_counts;    //!< Count array for use in MPI reductions (supports weighted counts)
-  double* bin_variance;  //!< Variance accumulator for Bernoulli uncertainty: sum(p*(1-p))
-  char description[256];  //!< Description of what this function represents
+  int n_bins;               //!< Number of bins
+  double x_min;             //!< Minimum value (e.g., Log10(M) minimum)
+  double x_max;             //!< Maximum value
+  double bin_width;         //!< Bin width in dex or linear units
+  distribution_bin_t* bins; //!< Array of bin data
+  double volume;            //!< Comoving volume in (Mpc/h)^3
+  double* bin_counts;       //!< Count array for use in MPI reductions (supports weighted counts)
+  double* bin_variance;     //!< Variance accumulator for Bernoulli uncertainty: sum(p*(1-p))
+  char description[256];    //!< Description of what this function represents
 } distribution_function_t;
 
 // Backward compatibility typedef
@@ -62,14 +62,17 @@ extern "C"
   //! \param[in] df Pointer to distribution function structure
   //! \param[in] dataset_prefix Dataset name (e.g., "HMF")
   //! \param[in] units Unit string for the data (e.g., "per Mpc^3 per dex" for HMF/SMF)
-  //! 
+  //!
   //! Creates a 2D dataset with shape (n_bins, 3) where columns are:
   //!   [0] = bin centers, [1] = number density, [2] = Poisson uncertainty
-  void df_write_hdf5(hid_t file_id, const char* group_name, const distribution_function_t* df, 
-                     const char* dataset_prefix, const char* units);
+  void df_write_hdf5(hid_t file_id,
+                     const char* group_name,
+                     const distribution_function_t* df,
+                     const char* dataset_prefix,
+                     const char* units);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // DIST_FUNC_H
+#endif // DIST_FUNC_H

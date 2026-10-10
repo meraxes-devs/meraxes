@@ -4,8 +4,18 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#define CLAMP_NEGATIVE(x) do { if ((x) < 0) (x) = 0.0; } while(0)
-#define CLAMP_0_1(x) do { if ((x) < 0.0) (x) = 0.0; else if ((x) > 1.0) (x) = 1.0; } while(0)
+#define CLAMP_NEGATIVE(x)                                                                                              \
+  do {                                                                                                                 \
+    if ((x) < 0)                                                                                                       \
+      (x) = 0.0;                                                                                                       \
+  } while (0)
+#define CLAMP_0_1(x)                                                                                                   \
+  do {                                                                                                                 \
+    if ((x) < 0.0)                                                                                                     \
+      (x) = 0.0;                                                                                                       \
+    else if ((x) > 1.0)                                                                                                \
+      (x) = 1.0;                                                                                                       \
+  } while (0)
 
 typedef enum index_type
 {

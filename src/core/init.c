@@ -13,7 +13,10 @@
 #if USE_STOCHASTICITY
 #include "Stochasticity.h"
 #endif
+#include "XRayHeatingFunctions.h"
 #include "parse_paramfile.h"
+#include "physics/blackhole_feedback.h"
+#include "physics/emission_lines.h"
 #include "read_halos.h"
 #include "recombinations.h"
 #include "reionization.h"
@@ -21,9 +24,6 @@
 #include "save.h"
 #include "stellar_feedback.h"
 #include "virial_properties.h"
-#include "XRayHeatingFunctions.h"
-#include "physics/emission_lines.h"
-#include "physics/blackhole_feedback.h"
 #if USE_MINI_HALOS
 #include "PopIII.h"
 #include "metal_evo.h"
@@ -249,10 +249,8 @@ void init_meraxes()
   // stdout, even when mhysa redirects mlog's info stream to /dev/null
   // because it wasn't launched with --debug.
   if (run_globals.mpi_rank == 0) {
-    fprintf(stdout,
-            "Meraxes git commit: %s%s\n",
-            MERAXES_GITREF_STR,
-            (strlen(MERAXES_GITDIFF_STR) > 0) ? "-dirty" : "");
+    fprintf(
+      stdout, "Meraxes git commit: %s%s\n", MERAXES_GITREF_STR, (strlen(MERAXES_GITDIFF_STR) > 0) ? "-dirty" : "");
     fflush(stdout);
   }
 
@@ -290,7 +288,8 @@ void init_meraxes()
     run_globals.LTTime[i] = time_to_present(run_globals.ZZ[i]);
     run_globals.rhocrit[i] = 3 * pow(hubble_at_snapshot(i), 2) / (8 * M_PI * run_globals.G);
   }
-  run_globals.tau_e_postEoR = (run_globals.NOutputSnaps > 0) ? integrate_tau_e_postEoR(run_globals.ZZ[run_globals.LastOutputSnap]) : 0.0;
+  run_globals.tau_e_postEoR =
+    (run_globals.NOutputSnaps > 0) ? integrate_tau_e_postEoR(run_globals.ZZ[run_globals.LastOutputSnap]) : 0.0;
 
   // validation checks
   if (run_globals.params.Flag_IncludeSpinTemp) {
@@ -335,7 +334,7 @@ void init_meraxes()
 
   init_xray_obscuration_tables();
 
-  if (run_globals.params.Flag_IncludeSpinTemp){
+  if (run_globals.params.Flag_IncludeSpinTemp) {
     run_globals.NstoreSnapshots_Heating = set_sfr_history();
     mlog("Storing %d snapshots of SFR histories for Ts.", MLOG_MESG, run_globals.NstoreSnapshots_Heating);
   }

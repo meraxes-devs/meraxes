@@ -339,7 +339,7 @@ void delayed_supernova_feedback(galaxy_t* gal, int snapshot)
   else
     fof_Vvir = -1;
 
-  m_eject = calc_ejected_mass(&m_reheat, sn_energy, gal->Vvir, fof_Vvir); 
+  m_eject = calc_ejected_mass(&m_reheat, sn_energy, gal->Vvir, fof_Vvir);
 
   // Note that m_eject returned for ghosts by calc_ejected_mass() is
   // meaningless in the current physical prescriptions.  This fact is dealt

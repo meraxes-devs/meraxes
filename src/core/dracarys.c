@@ -320,7 +320,7 @@ void dracarys()
         if (run_globals.params.Flag_IncludeLymanWerner)
           assign_Mvir_crit_to_galaxies(ngals_in_slabs, 2);
 #endif
-        if (run_globals.params.Flag_IncludeRecombinations){
+        if (run_globals.params.Flag_IncludeRecombinations) {
           assign_Mvir_crit_to_galaxies(ngals_in_slabs, 3);
           // Compute tau_cgm for CGM suppression of fesc
           if (run_globals.params.physics.Flag_FescCGMSuppression)
@@ -448,15 +448,16 @@ void dracarys()
 
     flag_output = 0;
     // Write the results if this is a requested snapshot
-    if (!run_globals.params.FlagMCMC){
+    if (!run_globals.params.FlagMCMC) {
       for (int i_out = 0; i_out < NOutputSnaps; i_out++)
-        if (snapshot == run_globals.ListOutputSnaps[i_out]){
+        if (snapshot == run_globals.ListOutputSnaps[i_out]) {
           write_snapshot(nout_gals, i_out, &last_nout_gals);
           flag_output = 1;
         }
 
-      if ((!flag_output) && (run_globals.params.Flag_PatchyReion) && check_if_reionization_ongoing(snapshot) && (run_globals.mpi_rank == 0))
-       save_reion_output_attributes(snapshot);
+      if ((!flag_output) && (run_globals.params.Flag_PatchyReion) && check_if_reionization_ongoing(snapshot) &&
+          (run_globals.mpi_rank == 0))
+        save_reion_output_attributes(snapshot);
     }
 
     // Update the LastIdentSnap values for non-ghosts

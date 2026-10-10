@@ -420,7 +420,7 @@ __global__ void find_HII_bubbles_gpu_main_loop(const float redshift,
     {
       // If it is the first crossing of the ionisation barrier for this cell (largest R)
       // Store the ionisation background and the reionisation redshift for each cell
-      if ( (xH[i_real] > REL_TOL) && Flag_IncludeRecombinations )
+      if ((xH[i_real] > REL_TOL) && Flag_IncludeRecombinations)
         Gamma12[i_real] = (float)(Gamma_R_prefactor * weighted_sfr_density);
 
       // Mark as ionised

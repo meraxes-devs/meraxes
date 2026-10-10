@@ -222,8 +222,7 @@ void reset_galaxy_properties(galaxy_t* gal, int snapshot)
   // and is consumed by gas_infall() through reionization_modifier(). Keep
   // that value while patchy UVB feedback is active; otherwise clear it so a
   // stale value cannot leak into a later branch or diagnostic.
-  if (!(run_globals.params.ReionUVBFlag &&
-        run_globals.params.Flag_PatchyReion &&
+  if (!(run_globals.params.ReionUVBFlag && run_globals.params.Flag_PatchyReion &&
         run_globals.params.physics.Flag_ReionizationModifier != 0)) {
     gal->MvirCrit = 0.0;
 #if USE_MINI_HALOS

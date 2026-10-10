@@ -2,7 +2,7 @@
 #include "mlog.h"
 #include "parse_paramfile.h"
 #include <string.h>
-//test
+// test
 static void check_problem_params(run_params_t* run_params)
 {
   if (run_params->NSteps != 1) {
@@ -11,42 +11,29 @@ static void check_problem_params(run_params_t* run_params)
   }
 
 #if USE_STOCHASTICITY
-  if (run_params->physics.EscapeFracScatterDex > ABS_TOL &&
-      run_params->physics.Flag_RemoveSFRScatter != 0) {
-      mlog_error(
-            "Both EscapeFracScatterDex and Flag_RemoveSFRScatter are set. "
-            "Please choose one or the other."
-      );
-      ABORT(EXIT_FAILURE);      
+  if (run_params->physics.EscapeFracScatterDex > ABS_TOL && run_params->physics.Flag_RemoveSFRScatter != 0) {
+    mlog_error("Both EscapeFracScatterDex and Flag_RemoveSFRScatter are set. "
+               "Please choose one or the other.");
+    ABORT(EXIT_FAILURE);
   }
   if (run_params->physics.XrayScatterDex > 0.0 && run_params->physics.Flag_RemoveSFRScatter != 0) {
-      mlog(
-        "<WARNING> Both XrayScatterDex and Flag_RemoveSFRScatter are set. "
-        "This combination is allowed, but should only be used when a "
-        "no-SFR source model with X-ray luminosity scatter is intended.",
-        MLOG_MESG
-      );
+    mlog("<WARNING> Both XrayScatterDex and Flag_RemoveSFRScatter are set. "
+         "This combination is allowed, but should only be used when a "
+         "no-SFR source model with X-ray luminosity scatter is intended.",
+         MLOG_MESG);
   }
-  if (run_params->physics.EscapeFracScatterDex <= ABS_TOL &&
-      run_params->physics.XrayScatterDex <= 0.0 &&
-      run_params->physics.Flag_RemoveSFRScatter == 0 &&
-      run_params->physics.Flag_SourceRecalibration != 0) {
-      mlog_error(
-          "Flag_SourceRecalibration is set, but none of EscapeFracScatterDex, "
-          "XrayScatterDex or Flag_RemoveSFRScatter are set. "
-          "Please choose one of these options."
-      );
-      ABORT(EXIT_FAILURE);
+  if (run_params->physics.EscapeFracScatterDex <= ABS_TOL && run_params->physics.XrayScatterDex <= 0.0 &&
+      run_params->physics.Flag_RemoveSFRScatter == 0 && run_params->physics.Flag_SourceRecalibration != 0) {
+    mlog_error("Flag_SourceRecalibration is set, but none of EscapeFracScatterDex, "
+               "XrayScatterDex or Flag_RemoveSFRScatter are set. "
+               "Please choose one of these options.");
+    ABORT(EXIT_FAILURE);
   }
 #else
-  if (run_params->physics.EscapeFracScatterDex > ABS_TOL ||
-      run_params->physics.XrayScatterDex > 0.0 ||
-      run_params->physics.Flag_RemoveSFRScatter != 0 ||
-      run_params->physics.Flag_SourceRecalibration != 0) {
-    mlog_error(
-        "A scatter prescription was requested, but Meraxes was compiled "
-        "with USE_STOCHASTICITY=OFF."
-    );
+  if (run_params->physics.EscapeFracScatterDex > ABS_TOL || run_params->physics.XrayScatterDex > 0.0 ||
+      run_params->physics.Flag_RemoveSFRScatter != 0 || run_params->physics.Flag_SourceRecalibration != 0) {
+    mlog_error("A scatter prescription was requested, but Meraxes was compiled "
+               "with USE_STOCHASTICITY=OFF.");
     ABORT(EXIT_FAILURE);
   }
 #endif
@@ -61,16 +48,15 @@ static void check_problem_params(run_params_t* run_params)
       "Spin temperature features are not currently available in the GPU version of find_HII_bubbles!  Exiting...");
     ABORT(EXIT_FAILURE);
 #endif
-    if (run_globals.params.FlagMCMC != 0){
+    if (run_globals.params.FlagMCMC != 0) {
       mlog_error("Currently we have to store input sfr grids for all snapshots, so cannot MCMC :(");
       ABORT(EXIT_FAILURE);
     }
   }
 
-  if ((run_params->physics.SnMetalRetentionFraction < 0.0) ||
-            (run_params->physics.SnMetalRetentionFraction > 1.0)) {
-      mlog_error("SnMetalRetentionFraction must be between 0 and 1.");
-      ABORT(EXIT_FAILURE);
+  if ((run_params->physics.SnMetalRetentionFraction < 0.0) || (run_params->physics.SnMetalRetentionFraction > 1.0)) {
+    mlog_error("SnMetalRetentionFraction must be between 0 and 1.");
+    ABORT(EXIT_FAILURE);
   }
 }
 
@@ -212,7 +198,7 @@ void read_parameter_file(char* fname, int mode)
       required_tag[n_param] = 1;
 #endif
       params_type[n_param++] = PARAM_TYPE_STRING;
-            
+
       strcpy(params_tag[n_param], "TargetSnaps");
       params_addr[n_param] = run_params->TargetSnaps;
 #ifndef CALC_MAGS
@@ -496,7 +482,7 @@ void read_parameter_file(char* fname, int mode)
       params_addr[n_param] = &(run_params->FlagInteractive);
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_INT;
-     
+
       strncpy(params_tag[n_param], "Flag_IncludeAGNXray", tag_length);
       params_addr[n_param] = &(run_params->physics.Flag_IncludeAGNXray);
       required_tag[n_param] = 1;
@@ -590,7 +576,7 @@ void read_parameter_file(char* fname, int mode)
 #endif
       params_type[n_param++] = PARAM_TYPE_INT;
 
-      strncpy(params_tag[n_param],"Flag_SourceRecalibration",tag_length);
+      strncpy(params_tag[n_param], "Flag_SourceRecalibration", tag_length);
       params_addr[n_param] = &(run_params->physics).Flag_SourceRecalibration;
       required_tag[n_param] = 0;
       params_type[n_param++] = PARAM_TYPE_INT;
@@ -1138,12 +1124,11 @@ void read_parameter_file(char* fname, int mode)
       params_addr[n_param] = &(run_params->physics).EscapeFracScatterDex;
       required_tag[n_param] = 0;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
-      
+
       strncpy(params_tag[n_param], "Flag_RemoveSFRScatter", tag_length);
       params_addr[n_param] = &(run_params->physics).Flag_RemoveSFRScatter;
       required_tag[n_param] = 0;
       params_type[n_param++] = PARAM_TYPE_INT;
-
 
       strncpy(params_tag[n_param], "FescCGMSuppressionNorm", tag_length);
       params_addr[n_param] = &(run_params->physics).FescCGMSuppressionNorm;
@@ -1454,22 +1439,22 @@ void read_parameter_file(char* fname, int mode)
 
       strncpy(params_tag[n_param], "Flag_OutputQuasarLF", tag_length);
       params_addr[n_param] = &(run_params->Flag_OutputQuasarLF);
-      required_tag[n_param] = 1; 
+      required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_INT;
 
       strncpy(params_tag[n_param], "Flag_OutputOIIILF", tag_length);
       params_addr[n_param] = &(run_params->Flag_OutputOIIILF);
-      required_tag[n_param] = 1; 
+      required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_INT;
 
       strncpy(params_tag[n_param], "OIIILF_MinLogL", tag_length);
       params_addr[n_param] = &(run_params->OIIILF_MinLogL);
-      required_tag[n_param] = 1; 
+      required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
 
       strncpy(params_tag[n_param], "OIIILF_MaxLogL", tag_length);
       params_addr[n_param] = &(run_params->OIIILF_MaxLogL);
-      required_tag[n_param] = 1; 
+      required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
 
       strncpy(params_tag[n_param], "OIIILF_BinsPerDex", tag_length);

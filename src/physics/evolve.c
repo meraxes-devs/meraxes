@@ -152,7 +152,6 @@ int evolve_galaxies(fof_group_t* fof_group, int snapshot, int NGal, int NFof)
         }
         halo = halo->NextHaloInFOFGroup;
       }
-
     }
   }
 

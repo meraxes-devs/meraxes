@@ -28,8 +28,8 @@
 #define GAS_CONST 8.31425e7
 #define SPEED_OF_LIGHT 2.9979e10 // [cm/s]
 #define PLANCK 6.6262e-27        // [erg/s]
-#define PROTONMASS 1.6726e-24 //[g]
-#define HUBBLE 3.2407789e-18 // [h/sec]
+#define PROTONMASS 1.6726e-24    //[g]
+#define HUBBLE 3.2407789e-18     // [h/sec]
 #define SEC_PER_MEGAYEAR 3.155e13
 #define SEC_PER_YEAR 3.155e7
 #define MPC 3.086e24
@@ -41,12 +41,12 @@
 #define NUIONIZATION (double)(13.60 * NU_over_EV)     /* ionization frequency of H */
 #define HeI_NUIONIZATION (double)(24.59 * NU_over_EV) /* ionization frequency of HeI */
 #define HeII_NUIONIZATION (double)(NUIONIZATION * 4)  /* ionization frequency of HeII */
-#define NU_LA (double)(10.2 * NU_over_EV) /* frequency of Lyalpha */
-#define NU_LW (double)(11.2 * NU_over_EV) /* lower frequency of Lyman-Werner band */
-#define NU_1450 (double)(SPEED_OF_LIGHT / 1450e-8) /* frequency of 1450 Angstroms */
+#define NU_LA (double)(10.2 * NU_over_EV)             /* frequency of Lyalpha */
+#define NU_LW (double)(11.2 * NU_over_EV)             /* lower frequency of Lyman-Werner band */
+#define NU_1450 (double)(SPEED_OF_LIGHT / 1450e-8)    /* frequency of 1450 Angstroms */
 #define PLANCK_EV (double)(4.1357e-15)
 #define T_RE (double)(1e4)
-#define EDDINGTON_TIME_SCALE (double)(450.514890)  // Eddington timescale in Megayears
+#define EDDINGTON_TIME_SCALE (double)(450.514890) // Eddington timescale in Megayears
 #define SIGMA_T_CGS (double)(6.652e-25)
 #define EnergySN (double)(1e51) // Energy of a single supernova in ergs
 // Pop III stuff (Atm ENOVA_CC and ENOVA_PISN are the same but you could change)
@@ -54,13 +54,13 @@
 #define ENOVA_PISN (double)(1e51)
 
 // Extra constants for emission-line calculations
-#define HBAR_SI (PLANCK * 1e-7 / 2 / M_PI)       // [J s]
-#define BOLTZMANN_SI (BOLTZMANN * 1e-7)   // [J/K]
-#define ELECTRON_MASS_SI 9.1093837015e-31 // [kg]
-#define PLANCK_SI (PLANCK * 1e-7)         // [J s], converted from PLANCK [erg s]
-#define ALPHA_HII 2.6e-13                 // [cm^3/s]
-#define Z_SUN 0.0134                      // solar metallicity fraction
-#define SN_PROGENITOR_MASS_MSUN 12.26     // [Msun]
+#define HBAR_SI (PLANCK * 1e-7 / 2 / M_PI) // [J s]
+#define BOLTZMANN_SI (BOLTZMANN * 1e-7)    // [J/K]
+#define ELECTRON_MASS_SI 9.1093837015e-31  // [kg]
+#define PLANCK_SI (PLANCK * 1e-7)          // [J s], converted from PLANCK [erg s]
+#define ALPHA_HII 2.6e-13                  // [cm^3/s]
+#define Z_SUN 0.0134                       // solar metallicity fraction
+#define SN_PROGENITOR_MASS_MSUN 12.26      // [Msun]
 
 // ======================================================
 // Don't change these unless you know what you are doing!
@@ -178,12 +178,12 @@ typedef struct physics_params_t
   double NuXraySoftCut;
   double NuXrayMax;
 
-  int Flag_IncludeAGNXray;      /* 0=no AGN, 1=soft+hard, 2=hard only, 3=soft only */
+  int Flag_IncludeAGNXray; /* 0=no AGN, 1=soft+hard, 2=hard only, 3=soft only */
   double SpecIndexXrayAGNSoft;
   double SpecIndexXrayAGNHard;
-  double SpecIndexUVAGNSoft;    /* lambda > 912A (redward of/at the break) - LW band amplitude/shape */
-  double SpecIndexUVAGNHard;    /* lambda <= 912A (shortward of the break) - ionizing photon rate only */
-  double AGNLWEfficiency;       /* scale factor on the AGN LW amplitude */ 
+  double SpecIndexUVAGNSoft; /* lambda > 912A (redward of/at the break) - LW band amplitude/shape */
+  double SpecIndexUVAGNHard; /* lambda <= 912A (shortward of the break) - ionizing photon rate only */
+  double AGNLWEfficiency;    /* scale factor on the AGN LW amplitude */
 
   double ReionMaxHeatingRedshift;
 
@@ -202,7 +202,7 @@ typedef struct physics_params_t
   double EscapeFracBHNorm;
   double EscapeFracBHScaling;
   double EscapeFracScatterDex;
-  
+
   // CGM suppression of fesc
   double FescCGMSuppressionNorm;
   double FescCGMSuppressionScaling;
@@ -289,7 +289,7 @@ typedef struct run_params_t
   char MassRatioModifier[STRLEN];
   char BaryonFracModifier[STRLEN];
   char FFTW3WisdomDir[STRLEN];
-  char SFRTableFile[STRLEN];//sfr atable
+  char SFRTableFile[STRLEN]; // sfr atable
   physics_params_t physics;
 
   double BoxSize;
@@ -353,28 +353,28 @@ typedef struct run_params_t
   int PS_Length;
   int Flag_OutputGrids;
   int Flag_OutputGridsPostReion;
-  int Flag_OutputHMF;     //!< Flag to enable/disable HMF output
-  double HMF_MinMass;     //!< Minimum log10(M) for HMF bins (solar masses/h)
-  double HMF_MaxMass;     //!< Maximum log10(M) for HMF bins
-  int HMF_BinsPerDex;     //!< Number of HMF bins per dex
-  int Flag_OutputSMF;     //!< Flag to enable/disable Stellar Mass Function output
-  double SMF_MinMass;     //!< Minimum log10(M*) for SMF bins (solar masses)
-  double SMF_MaxMass;     //!< Maximum log10(M*) for SMF bins
-  int SMF_BinsPerDex;     //!< Number of SMF bins per dex
-  int Flag_OutputUVLF;    //!< Flag to enable/disable UV Luminosity Function output
-  double UVLF_MinMag;     //!< Minimum magnitude for UVLF bins
-  double UVLF_MaxMag;     //!< Maximum magnitude for UVLF bins
-  int UVLF_BinsPerMag;    //!< Number of UVLF bins per magnitude (linear bins)
-  int Flag_OutputDustyLF; //!< Flag to enable/disable Dusty UV Luminosity Function output
+  int Flag_OutputHMF;      //!< Flag to enable/disable HMF output
+  double HMF_MinMass;      //!< Minimum log10(M) for HMF bins (solar masses/h)
+  double HMF_MaxMass;      //!< Maximum log10(M) for HMF bins
+  int HMF_BinsPerDex;      //!< Number of HMF bins per dex
+  int Flag_OutputSMF;      //!< Flag to enable/disable Stellar Mass Function output
+  double SMF_MinMass;      //!< Minimum log10(M*) for SMF bins (solar masses)
+  double SMF_MaxMass;      //!< Maximum log10(M*) for SMF bins
+  int SMF_BinsPerDex;      //!< Number of SMF bins per dex
+  int Flag_OutputUVLF;     //!< Flag to enable/disable UV Luminosity Function output
+  double UVLF_MinMag;      //!< Minimum magnitude for UVLF bins
+  double UVLF_MaxMag;      //!< Maximum magnitude for UVLF bins
+  int UVLF_BinsPerMag;     //!< Number of UVLF bins per magnitude (linear bins)
+  int Flag_OutputDustyLF;  //!< Flag to enable/disable Dusty UV Luminosity Function output
   int Flag_OutputQuasarLF; //!< Flag to enable/disable Quasar UV Luminosity Function output
-  int Flag_OutputOIIILF;  //!< Flag to enable/disable OIII Luminosity Function output
-  double OIIILF_MinLogL;  //!< Minimum log10(LOIII [erg/s]) for OIIILF bins
-  double OIIILF_MaxLogL;  //!< Maximum log10(LOIII [erg/s]) for OIIILF bins
-  int OIIILF_BinsPerDex;  //!< Number of OIIILF bins per dex
-  int Flag_OutputXrayLF;  //!< Flag to enable/disable X-ray Luminosity Function output
-  double XrayLF_MinLogL;  //!< Minimum log10(LX [erg/s]) for XrayLF bins (e.g. 40.0)
-  double XrayLF_MaxLogL;  //!< Maximum log10(LX [erg/s]) for XrayLF bins (e.g. 48.0)
-  int XrayLF_BinsPerDex;  //!< Number of XrayLF bins per dex
+  int Flag_OutputOIIILF;   //!< Flag to enable/disable OIII Luminosity Function output
+  double OIIILF_MinLogL;   //!< Minimum log10(LOIII [erg/s]) for OIIILF bins
+  double OIIILF_MaxLogL;   //!< Maximum log10(LOIII [erg/s]) for OIIILF bins
+  int OIIILF_BinsPerDex;   //!< Number of OIIILF bins per dex
+  int Flag_OutputXrayLF;   //!< Flag to enable/disable X-ray Luminosity Function output
+  double XrayLF_MinLogL;   //!< Minimum log10(LX [erg/s]) for XrayLF bins (e.g. 40.0)
+  double XrayLF_MaxLogL;   //!< Maximum log10(LX [erg/s]) for XrayLF bins (e.g. 48.0)
+  int XrayLF_BinsPerDex;   //!< Number of XrayLF bins per dex
   int FlagIgnoreProgIndex;
 } run_params_t;
 
@@ -543,20 +543,20 @@ typedef struct reion_grids_t
 #if USE_STOCHASTICITY
   double* SMOOTHED_XRAY_LUMINOSITY_GAL; // Per-cell luminosity density per shell [erg/s/cm^3]
 #endif
-  double* SMOOTHED_AGN_hard;       //!< per-cell AGN X-ray luminosity density per shell [erg/s/cm^3] (hard band)
-  double* SMOOTHED_AGN_soft;  //!< per-cell AGN X-ray luminosity density per shell [erg/s/cm^3] (soft band)
+  double* SMOOTHED_AGN_hard; //!< per-cell AGN X-ray luminosity density per shell [erg/s/cm^3] (hard band)
+  double* SMOOTHED_AGN_soft; //!< per-cell AGN X-ray luminosity density per shell [erg/s/cm^3] (soft band)
 #if USE_MINI_HALOS
   double* SMOOTHED_SFR_III;
-  double* SMOOTHED_AGN_UV;    //!< per-cell AGN UV luminosity density per shell [1e21 erg/s/Hz/cm^3]
+  double* SMOOTHED_AGN_UV; //!< per-cell AGN UV luminosity density per shell [1e21 erg/s/Hz/cm^3]
 #endif
 
-  float* BHXrayEmissivity_hard;        //!< Per-cell AGN X-ray emissivity grid (current snapshot, hard band) [slab_n_complex*2]
-  float* bh_xray_histories_hard;       //!< Ring-buffer of NstoreSnapshots_Heating past BHXrayEmissivity_hard snapshots
-  float* BHXrayEmissivity_soft;   //!< Per-cell AGN X-ray emissivity grid (current snapshot, soft band) [slab_n_complex*2]
-  float* bh_xray_histories_soft;  //!< Ring-buffer of NstoreSnapshots_Heating past BHXrayEmissivity_soft snapshots
+  float* BHXrayEmissivity_hard; //!< Per-cell AGN X-ray emissivity grid (current snapshot, hard band) [slab_n_complex*2]
+  float* bh_xray_histories_hard; //!< Ring-buffer of NstoreSnapshots_Heating past BHXrayEmissivity_hard snapshots
+  float* BHXrayEmissivity_soft; //!< Per-cell AGN X-ray emissivity grid (current snapshot, soft band) [slab_n_complex*2]
+  float* bh_xray_histories_soft; //!< Ring-buffer of NstoreSnapshots_Heating past BHXrayEmissivity_soft snapshots
 #if USE_MINI_HALOS
-  float* BHUVEmissivity;          //!< Per-cell AGN UV emissivity grid (current snapshot) [slab_n_complex*2]
-  float* bh_uv_histories;         //!< Ring-buffer of NstoreSnapshots_Heating past BHUVEmissivity snapshots
+  float* BHUVEmissivity;  //!< Per-cell AGN UV emissivity grid (current snapshot) [slab_n_complex*2]
+  float* bh_uv_histories; //!< Ring-buffer of NstoreSnapshots_Heating past BHUVEmissivity snapshots
 #endif
 
   fftwf_complex* BHXrayEmissivity_hard_unfiltered;
@@ -594,7 +594,7 @@ typedef struct reion_grids_t
   float* Gamma12;
   float* residual_xH;
   float* clumping_factor;
-  float* t_resp;  // Relaxation timescale grid: 1/(Gamma + alpha_B * n_e)
+  float* t_resp; // Relaxation timescale grid: 1/(Gamma + alpha_B * n_e)
 
   // Grids necessary for the 21cm brightness temperature
   float* delta_T;
@@ -626,7 +626,7 @@ typedef struct reion_grids_t
 
   double volume_weighted_global_xH;
   double volume_weighted_global_Gamma12;
-  double volume_weighted_global_r_bubble;	
+  double volume_weighted_global_r_bubble;
   double volume_weighted_global_temp_kinetic_all_gas;
   double volume_weighted_global_N_rec;
   double volume_weighted_global_residual_xH;
@@ -637,7 +637,7 @@ typedef struct reion_grids_t
 
   double mass_weighted_global_xH;
   double mass_weighted_global_Gamma12;
-  double mass_weighted_global_r_bubble;	
+  double mass_weighted_global_r_bubble;
   double mass_weighted_global_temp_kinetic_all_gas;
   double mass_weighted_global_N_rec;
   double mass_weighted_global_residual_xH;
@@ -741,20 +741,23 @@ typedef struct galaxy_t
   double BlackHoleMass;
   double FescBH;
   double BHemissivity;
-  double QuasarLuv;         //!< UV luminosity LUV of quasar (1e10 Lsun, summable for mergers)
-  double QuasarLX;               //!< Intrinsic hard X-ray luminosity [1e10 Lsun]; 0 if inactive
-  int    NHbin;                  //!< Which of the 5 NH bins this snapshot's stochastic draw landed in (0-4; logNH 20-21/21-22/22-23/23-24/24-26 CTK), or -1 if no AGN.
-                                  //!<This (bin, luminosity) pair replaces the old QuasarLX_obs0-4/NHfrac0-4 fields (5 mostly-zero doubles each, every galaxy).
-  double BHXrayEmissivity_hard;  //!< Observed hard X-ray emissivity [1e10 Lsun], obscuration-weighted
-  double BHXrayEmissivity_soft;  //!< Observed soft X-ray emissivity [1e10 Lsun], obscuration-weighted
+  double QuasarLuv; //!< UV luminosity LUV of quasar (1e10 Lsun, summable for mergers)
+  double QuasarLX;  //!< Intrinsic hard X-ray luminosity [1e10 Lsun]; 0 if inactive
+  int NHbin;        //!< Which of the 5 NH bins this snapshot's stochastic draw landed in (0-4; logNH
+                    //!< 20-21/21-22/22-23/23-24/24-26 CTK), or -1 if no AGN.
+             //!< This (bin, luminosity) pair replaces the old QuasarLX_obs0-4/NHfrac0-4 fields (5 mostly-zero doubles
+             //!< each, every galaxy).
+  double BHXrayEmissivity_hard; //!< Observed hard X-ray emissivity [1e10 Lsun], obscuration-weighted
+  double BHXrayEmissivity_soft; //!< Observed soft X-ray emissivity [1e10 Lsun], obscuration-weighted
   double EffectiveBHM;
   double EffectiveBHAR;
   double DutyCycleAGN;
   double BlackHoleAccretedHotMass;
   double BlackHoleAccretedColdMass;
   double BlackHoleAccretingColdMass;
-  double BHAccretionOnTime;     //!< Random on-time fraction [0, 1] for when accretion starts within snapshot; -1 indicates no prior accretion
-  double t_resp;                //!< Local relaxation timescale (in Myr)
+  double BHAccretionOnTime; //!< Random on-time fraction [0, 1] for when accretion starts within snapshot; -1 indicates
+                            //!< no prior accretion
+  double t_resp;            //!< Local relaxation timescale (in Myr)
 #if USE_STOCHASTICITY
   // Alternative stellar sources with the SFR--halo scatter removed.
   // Source GSM accumulates SfrNoScatter * dt; SfrNoScatter is snapshot-local.
@@ -785,7 +788,8 @@ typedef struct galaxy_t
   double Remnant_Mass; // Coming from Pop III with M between 40 and 140 and larger than 260 Msol and remnant of CCSN
                        // [8,40]Msun. Atm those are silent.
 
-  int Galaxy_Population; // Disentangles Pop III/Pop II; not needed when Mini_halos is off, since all galaxies are Pop II
+  int
+    Galaxy_Population; // Disentangles Pop III/Pop II; not needed when Mini_halos is off, since all galaxies are Pop II
 
   double MvirCrit_MC;
 
@@ -820,7 +824,7 @@ typedef struct galaxy_t
   double FOFMvirModifier;
   double MvirCrit;
   double tau_cgm;
-  double cumulative_ionization;  //!< Integrated Gamma12 * dt for CGM suppression mode 2
+  double cumulative_ionization; //!< Integrated Gamma12 * dt for CGM suppression mode 2
   double MergerBurstMass;
 
   int Type;
@@ -846,8 +850,8 @@ typedef struct halo_t
   struct halo_t* NextHaloInFOFGroup;
   galaxy_t* Galaxy;
 
-  float Pos[3];    //!< Most bound particle position [Mpc/h]
-  float Vel[3];    //!< Centre of mass velocity [Mpc/h]
+  float Pos[3]; //!< Most bound particle position [Mpc/h]
+  float Vel[3]; //!< Centre of mass velocity [Mpc/h]
   float AngMom; //!< Specific angular momentum length [Mpc/h *km/s]
 
   double Mvir; //!< virial mass [M_sol/h]
@@ -993,14 +997,14 @@ typedef struct run_globals_t
 #if USE_STOCHASTICITY
   // The SFR source table holds only the current snapshot: size SFR_NTYPES * SFR_NX.
   float* SFRs;
-  double *no_sfr_gsm_stochasticity_calibrations;
-  double *fesc_stochasticity_calibrations;
-  double *no_sfr_sfr_stochasticity_calibrations;
+  double* no_sfr_gsm_stochasticity_calibrations;
+  double* fesc_stochasticity_calibrations;
+  double* no_sfr_sfr_stochasticity_calibrations;
 #if USE_MINI_HALOS
   // Independent Pop III SFR table with the same halo-mass layout.
   float* SFRsIII;
-  double *no_sfr_gsm_stochasticity_calibrations_iii;
-  double *no_sfr_sfr_stochasticity_calibrations_iii;
+  double* no_sfr_gsm_stochasticity_calibrations_iii;
+  double* no_sfr_sfr_stochasticity_calibrations_iii;
 #endif
 #endif
 #ifdef CALC_MAGS

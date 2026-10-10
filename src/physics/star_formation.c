@@ -201,7 +201,7 @@ void insitu_star_formation(galaxy_t* gal, int snapshot)
     }
     if (m_stars > gal->ColdGas)
       m_stars = gal->ColdGas;
-	
+
     // calculate the total supernova feedback which would occur if this star
     // formation happened continuously and evenly throughout the snapshot
     contemporaneous_supernova_feedback(

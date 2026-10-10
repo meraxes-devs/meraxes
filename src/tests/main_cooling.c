@@ -143,7 +143,7 @@ int main(int argc, char* argv[])
   // Default values
   char cooling_dir[STRLEN] = COOLING_FUNCS_DIR;
   double logT = 6.0;
-  double logZ = log10(0.02);  // Solar metallicity
+  double logZ = log10(0.02); // Solar metallicity
   int do_sweep = 0;
 #if USE_MINI_HALOS
   int do_mini_halos = 0;

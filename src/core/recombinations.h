@@ -46,7 +46,12 @@ extern "C"
                           double gamma12,
                           int usecaseB); // neutral fraction given H density (cm^-3), gas temperature (in 1e4 K), and
                                          // gamma12  (in 1e-12 s^-1). if usecase B, then use case B, otherwise case A
-  int splined_recombination(double z_eff, double gamma12_bg, double temp, double *recombination_rate, double *residual_xH, double *clumping_factor); // assumes case B
+  int splined_recombination(double z_eff,
+                            double gamma12_bg,
+                            double temp,
+                            double* recombination_rate,
+                            double* residual_xH,
+                            double* clumping_factor); // assumes case B
   double recombination_rate(double z_eff, double gamma12_bg, double T4, int usecaseB);
   double clumping_factor(double z_eff, double gamma12_bg, double T4, int usecaseB);
   double residual_neutral_hydrogen(double z_eff, double gamma12_bg, double T4, int usecaseB);

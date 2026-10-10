@@ -26,7 +26,7 @@ double gas_infall(fof_group_t* FOFgroup, int snapshot)
   double total_coldgas = 0.0;
   double total_ejectedgas = 0.0;
   double total_blackholemass = 0.0;
-#if USE_MINI_HALOS 
+#if USE_MINI_HALOS
   double total_remnantmass = 0.0; // This come either from the BHs formed after Pop III stars that fail becoming SN and
                                   // directly collapse or from CCSN. Atm these don't accrete and they don't do anything.
 #endif
@@ -42,7 +42,7 @@ double gas_infall(fof_group_t* FOFgroup, int snapshot)
       total_coldgas += gal->ColdGas;
       total_ejectedgas += gal->EjectedGas;
       total_blackholemass += gal->BlackHoleMass + gal->BlackHoleAccretingColdMass;
-#if USE_MINI_HALOS 
+#if USE_MINI_HALOS
       total_remnantmass += gal->Remnant_Mass;
 #endif
 
@@ -71,7 +71,7 @@ double gas_infall(fof_group_t* FOFgroup, int snapshot)
   }
 
   total_baryons = total_stellarmass + total_hotgas + total_coldgas + total_ejectedgas + total_blackholemass;
-#if USE_MINI_HALOS 
+#if USE_MINI_HALOS
   total_baryons += total_remnantmass;
 #endif
 
@@ -80,8 +80,8 @@ double gas_infall(fof_group_t* FOFgroup, int snapshot)
   fb_reion_modifier = reionization_modifier(central, FOF_Mvir, snapshot);
   fb_total_modifier = fb_reion_modifier;
   if (run_globals.RequestedBaryonFracModifier == 1)
-  fb_total_modifier *= interpolate_modifier(run_globals.baryon_frac_modifier,
-                                            log10(FOF_Mvir / FOFMvirModifier / run_globals.params.Hubble_h) + 10.0);
+    fb_total_modifier *= interpolate_modifier(run_globals.baryon_frac_modifier,
+                                              log10(FOF_Mvir / FOFMvirModifier / run_globals.params.Hubble_h) + 10.0);
   fb_modifier = fb_total_modifier;
   infall_mass = fb_modifier * run_globals.params.BaryonFrac * FOF_Mvir - total_baryons;
 

@@ -188,8 +188,7 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   parent->FescIIIWeightedSfr += gal->FescIIIWeightedSfr;
 #if USE_STOCHASTICITY
   parent->SfrIIINoScatter += gal->SfrIIINoScatter;
-  parent->GrossStellarMassIIINoScatter +=
-      gal->GrossStellarMassIIINoScatter;
+  parent->GrossStellarMassIIINoScatter += gal->GrossStellarMassIIINoScatter;
   parent->StochasticityTreatedFescIIIWeightedGSM += gal->StochasticityTreatedFescIIIWeightedGSM;
   parent->StochasticityTreatedFescIIIWeightedSfr += gal->StochasticityTreatedFescIIIWeightedSfr;
 #endif
@@ -230,7 +229,7 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
     parent->t_resp = gal->t_resp;
   }
   parent->QuasarLuv += gal->QuasarLuv;
-  parent->QuasarLX  += gal->QuasarLX;
+  parent->QuasarLX += gal->QuasarLX;
   parent->BHXrayEmissivity_hard += gal->BHXrayEmissivity_hard;
   parent->BHXrayEmissivity_soft += gal->BHXrayEmissivity_soft;
 
@@ -241,11 +240,10 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   parent->BlackHoleMass += gal->BlackHoleMass;
   parent->EffectiveBHM += gal->EffectiveBHM;
   parent->EffectiveBHAR += gal->EffectiveBHAR;
-  
+
   parent->mwmsa_num += gal->mwmsa_num;
   parent->mwmsa_denom += gal->mwmsa_denom;
   parent->MergerBurstMass += gal->MergerBurstMass;
-
 
 #if USE_MINI_HALOS
   // If I have a Merger between Pop III and Pop II the result is a Pop. II. Actually I should compute metallicity

@@ -97,7 +97,7 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
   const int slab_n_complex = (int)(slabs_n_complex[mpi_rank]);
   const int slab_n_real = local_nix * ReionGridDim * ReionGridDim;
   // preallocated grids
-  float* Gamma12 = run_globals.reion_grids.Gamma12;         // real
+  float* Gamma12 = run_globals.reion_grids.Gamma12;   // real
   float* r_bubble = run_globals.reion_grids.r_bubble; // real
   // output grids
   float* xH = run_globals.reion_grids.xH;                                 // real
@@ -476,10 +476,10 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
     const double inv_pixel_volume = 1. / pixel_volume;
 
     double Gamma_R_prefactor = (1.0 + redshift) * (1.0 + redshift) * R * UnitLength_in_cm * ReionAlphaUV;
-    Gamma_R_prefactor *= (units->UnitMass_in_g / units->UnitTime_in_s) / PROTONMASS * 
-                         pow(units->UnitLength_in_cm, -3.) * ReionNionPhotPerBary; 
+    Gamma_R_prefactor *= (units->UnitMass_in_g / units->UnitTime_in_s) / PROTONMASS *
+                         pow(units->UnitLength_in_cm, -3.) * ReionNionPhotPerBary;
     const double J_21_aux_constant = Gamma_R_prefactor * PLANCK * 1e21 / (4.0 * M_PI) * ReionGammaHaloBias;
-    Gamma_R_prefactor *= SIGMA_HI / (run_globals.params.physics.ReionAlphaUV + 2.75) * 1e12; 
+    Gamma_R_prefactor *= SIGMA_HI / (run_globals.params.physics.ReionAlphaUV + 2.75) * 1e12;
 
     try {
       if (slab_n_real > 0) {
@@ -615,7 +615,8 @@ void _find_HII_bubbles_gpu(const int snapshot, const bool flag_write_validation_
           // temperature dependence or residual_xH/clumping/t_resp grids.
           const double z_eff = (1. + redshift) * pow(density_over_mean, 1.0 / 3.0) - 1;
           double recombination_rate, rnh, cf;
-          if (splined_recombination(z_eff, (double)Gamma12[i_real] * Hubble_h * Hubble_h, 1e4, &recombination_rate, &rnh, &cf) != 1) {
+          if (splined_recombination(
+                z_eff, (double)Gamma12[i_real] * Hubble_h * Hubble_h, 1e4, &recombination_rate, &rnh, &cf) != 1) {
             mlog_error("splined_recombination failed. Aborting...");
             ABORT(EXIT_FAILURE);
           }

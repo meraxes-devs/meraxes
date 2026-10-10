@@ -57,9 +57,9 @@ static void init_globals(void)
   run_globals.params.Hubble_h = 0.6774;
 
   // Set up units (typical cosmological simulation units)
-  run_globals.units.UnitLength_in_cm = 3.085678e24;     // 1 Mpc/h
-  run_globals.units.UnitMass_in_g = 1.989e43;           // 1e10 Msun/h
-  run_globals.units.UnitVelocity_in_cm_per_s = 1.0e5;   // 1 km/s
+  run_globals.units.UnitLength_in_cm = 3.085678e24;   // 1 Mpc/h
+  run_globals.units.UnitMass_in_g = 1.989e43;         // 1e10 Msun/h
+  run_globals.units.UnitVelocity_in_cm_per_s = 1.0e5; // 1 km/s
 
   // Initialize derived units
   set_units();
@@ -83,8 +83,7 @@ static void sweep_bh_emissivity(void)
 
   // BH mass range: 1e4 to 1e10 Msun
   double bh_masses[] = { 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0 };
-  const char* mass_labels[] = { "1e4 Msun", "1e5 Msun", "1e6 Msun", "1e7 Msun",
-                                "1e8 Msun", "1e9 Msun", "1e10 Msun" };
+  const char* mass_labels[] = { "1e4 Msun", "1e5 Msun", "1e6 Msun", "1e7 Msun", "1e8 Msun", "1e9 Msun", "1e10 Msun" };
   int n_masses = sizeof(bh_masses) / sizeof(bh_masses[0]);
 
   // Accretion fractions
@@ -117,9 +116,9 @@ static void sweep_bh_emissivity(void)
     for (int j = 0; j < n_fracs; j++) {
       double accreted_mass = bh_masses[i] * acc_fractions[j];
       double emissivity, accretion_time, quasar_luv, quasar_lx, quasar_lx_soft;
-      calculate_BHemissivity(bh_masses[i], accreted_mass, &emissivity, &accretion_time,
-                             &quasar_luv, &quasar_lx, &quasar_lx_soft);
-      
+      calculate_BHemissivity(
+        bh_masses[i], accreted_mass, &emissivity, &accretion_time, &quasar_luv, &quasar_lx, &quasar_lx_soft);
+
       // Convert accretion time to Myr
       double t_acc_myr = accretion_time * run_globals.units.UnitTime_in_Megayears / run_globals.params.Hubble_h;
       printf("  %8.2e %7.1f", emissivity, t_acc_myr);
@@ -129,7 +128,9 @@ static void sweep_bh_emissivity(void)
 
   printf("\n[Note: Emissivity in 1e60 photons, accretion time in Myr]\n");
   printf("[Physics: ETA=%.2f, Eddington ratio=%.1f, fobs=%.1f]\n",
-         ETA, run_globals.params.physics.EddingtonRatio, run_globals.params.physics.quasar_fobs);
+         ETA,
+         run_globals.params.physics.EddingtonRatio,
+         run_globals.params.physics.quasar_fobs);
 }
 
 static void print_constants(void)
@@ -145,7 +146,7 @@ static void print_constants(void)
   printf("  G (internal units)             = %.5e\n", run_globals.G);
   printf("  c^2 (internal units)           = %.5e\n", run_globals.Csquare);
   printf("  Eddington timescale            = %.2f (internal units)\n", run_globals.EddingtonTimescale);
-  printf("  Eddington timescale            = %.2f Myr\n", 
+  printf("  Eddington timescale            = %.2f Myr\n",
          run_globals.EddingtonTimescale * run_globals.units.UnitTime_in_Megayears / run_globals.params.Hubble_h);
 }
 
@@ -159,15 +160,13 @@ int main(int argc, char* argv[])
   int do_sweep = 0;
 
   // Parse command line options
-  static struct option long_options[] = {
-    { "bh-mass", required_argument, 0, 'M' },
-    { "accreted", required_argument, 0, 'a' },
-    { "eddington", required_argument, 0, 'e' },
-    { "fobs", required_argument, 0, 'f' },
-    { "sweep", no_argument, 0, 's' },
-    { "help", no_argument, 0, 'h' },
-    { 0, 0, 0, 0 }
-  };
+  static struct option long_options[] = { { "bh-mass", required_argument, 0, 'M' },
+                                          { "accreted", required_argument, 0, 'a' },
+                                          { "eddington", required_argument, 0, 'e' },
+                                          { "fobs", required_argument, 0, 'f' },
+                                          { "sweep", no_argument, 0, 's' },
+                                          { "help", no_argument, 0, 'h' },
+                                          { 0, 0, 0, 0 } };
 
   int opt;
   int option_index = 0;
@@ -219,8 +218,8 @@ int main(int argc, char* argv[])
   } else {
     // Single point evaluation
     double emissivity, accretion_time, quasar_luv, quasar_lx, quasar_lx_soft;
-    calculate_BHemissivity(bh_mass, accreted_mass, &emissivity, &accretion_time,
-                           &quasar_luv, &quasar_lx, &quasar_lx_soft);
+    calculate_BHemissivity(
+      bh_mass, accreted_mass, &emissivity, &accretion_time, &quasar_luv, &quasar_lx, &quasar_lx_soft);
 
     double t_acc_myr = accretion_time * run_globals.units.UnitTime_in_Megayears / run_globals.params.Hubble_h;
     double bh_mass_msun = bh_mass * 1e10 / run_globals.params.Hubble_h;
@@ -239,10 +238,10 @@ int main(int argc, char* argv[])
     printf("    Emissivity             = %.6e (1e60 photons)\n", emissivity);
     printf("    Accretion time         = %.3e (internal units)\n", accretion_time);
     printf("    Accretion time         = %.2f Myr\n", t_acc_myr);
-    
+
     // Compute approximate bolometric luminosity
-    double Lbol = sqrt(1. + accreted_mass / bh_mass) * eddington_ratio * bh_mass /
-                  run_globals.params.Hubble_h * LUMINOSITY_CONVERTOR;
+    double Lbol = sqrt(1. + accreted_mass / bh_mass) * eddington_ratio * bh_mass / run_globals.params.Hubble_h *
+                  LUMINOSITY_CONVERTOR;
     printf("    Bolometric luminosity  = %.3e (1e10 Lsun)\n", Lbol);
     printf("    Bolometric luminosity  = %.3e Lsun\n", Lbol * 1e10);
   }

@@ -11,9 +11,9 @@
 #include <math.h>
 #include <sys/stat.h>
 
-#include "recombinations.h"
 #include "XRayHeatingFunctions.h"
 #include "meraxes.h"
+#include "recombinations.h"
 #include "reionization.h"
 
 static double A_table[A_NPTS], A_params[A_NPTS];
@@ -32,10 +32,15 @@ double *lnGamma_values, *RR_table, *RNH_table, *CF_table;
 gsl_interp_accel **RR_acc, **RNH_acc, **CF_acc;
 gsl_spline **RR_spline, **RNH_spline, **CF_spline;
 
-int splined_recombination(double z_eff, double gamma12_bg, double temp, double *recombination_rate, double *residual_xH, double *clumping_factor)
+int splined_recombination(double z_eff,
+                          double gamma12_bg,
+                          double temp,
+                          double* recombination_rate,
+                          double* residual_xH,
+                          double* clumping_factor)
 {
-  int z_ct = (int)((z_eff-RR_Z_END) / RR_DEL_Z + 0.5); // round to nearest int
-  int t_ct = (int)((log10(temp)-RR_T_STA) / RR_DEL_T + 0.5); // round to nearest int
+  int z_ct = (int)((z_eff - RR_Z_END) / RR_DEL_Z + 0.5);       // round to nearest int
+  int t_ct = (int)((log10(temp) - RR_T_STA) / RR_DEL_T + 0.5); // round to nearest int
   double lnGamma = log(gamma12_bg);
 
   // check out of bounds
@@ -43,30 +48,31 @@ int splined_recombination(double z_eff, double gamma12_bg, double temp, double *
     mlog("WARNING: splined_recombination_rate: effective redshift %g is outside of array left bound", MLOG_MESG, z_eff);
     z_ct = 0;
   } else if (z_ct >= RR_Z_NPTS) {
-    mlog("WARNING: splined_recombination_rate: effective redshift %g is outside of array right bound", MLOG_MESG, z_eff);
+    mlog(
+      "WARNING: splined_recombination_rate: effective redshift %g is outside of array right bound", MLOG_MESG, z_eff);
     z_ct = RR_Z_NPTS - 1;
   }
 
   if (t_ct < 0) { // out of array bounds
-    //mlog("WARNING: splined_recombination_rate: temperature %g is outside of array left bound", MLOG_MESG, temp);
-    //t_ct = 0;
+    // mlog("WARNING: splined_recombination_rate: temperature %g is outside of array left bound", MLOG_MESG, temp);
+    // t_ct = 0;
     *recombination_rate = 0.;
     *residual_xH = 1e4;
-	*clumping_factor = 1.0;
+    *clumping_factor = 1.0;
     return 1;
   } else if (t_ct >= RR_T_NPTS) {
-    //mlog("WARNING: splined_recombination_rate: temperature %g is outside of array right bound", MLOG_MESG, temp);
+    // mlog("WARNING: splined_recombination_rate: temperature %g is outside of array right bound", MLOG_MESG, temp);
     t_ct = RR_T_NPTS - 1;
   }
 
   if (lnGamma < RR_lnGamma_min) {
     *recombination_rate = 0.;
     *residual_xH = 1e4;
-	*clumping_factor = 1.0;
+    *clumping_factor = 1.0;
     return 1;
-  } else if (lnGamma >= (RR_lnGamma_min + RR_DEL_lnGamma * (RR_lnGamma_NPTS-1))) {
+  } else if (lnGamma >= (RR_lnGamma_min + RR_DEL_lnGamma * (RR_lnGamma_NPTS - 1))) {
     mlog("WARNING: splined_recombination_rate: Gamma12 of %g is outside of interpolation array", MLOG_MESG, gamma12_bg);
-    lnGamma = RR_lnGamma_min + RR_DEL_lnGamma * (RR_lnGamma_NPTS-1) - FRACT_FLOAT_ERR;
+    lnGamma = RR_lnGamma_min + RR_DEL_lnGamma * (RR_lnGamma_NPTS - 1) - FRACT_FLOAT_ERR;
   }
 
   int idx = z_ct * RR_T_NPTS + t_ct;
@@ -87,19 +93,11 @@ typedef struct
 // cosmology that enters No (Hubble_h, OmegaM, BaryonFrac, Y_He).
 #define RR_CACHE_ATTRS                                                                                                 \
   {                                                                                                                    \
-    { "lnGamma_min", RR_lnGamma_min },                                                                                 \
-    { "lnGamma_npts", RR_lnGamma_NPTS },                                                                               \
-    { "del_lnGamma", RR_DEL_lnGamma },                                                                                 \
-    { "z_end", RR_Z_END },                                                                                             \
-    { "z_npts", RR_Z_NPTS },                                                                                           \
-    { "del_z", RR_DEL_Z },                                                                                             \
-    { "log10T_start", RR_T_STA },                                                                                      \
-    { "T_npts", RR_T_NPTS },                                                                                           \
-    { "del_log10T", RR_DEL_T },                                                                                        \
-    { "Hubble_h", run_globals.params.Hubble_h },                                                                       \
-    { "OmegaM", run_globals.params.OmegaM },                                                                           \
-    { "BaryonFrac", run_globals.params.BaryonFrac },                                                                   \
-    { "Y_He", run_globals.params.physics.Y_He },                                                                       \
+    { "lnGamma_min", RR_lnGamma_min }, { "lnGamma_npts", RR_lnGamma_NPTS }, { "del_lnGamma", RR_DEL_lnGamma },         \
+      { "z_end", RR_Z_END }, { "z_npts", RR_Z_NPTS }, { "del_z", RR_DEL_Z }, { "log10T_start", RR_T_STA },             \
+      { "T_npts", RR_T_NPTS }, { "del_log10T", RR_DEL_T }, { "Hubble_h", run_globals.params.Hubble_h },                \
+      { "OmegaM", run_globals.params.OmegaM }, { "BaryonFrac", run_globals.params.BaryonFrac },                        \
+      { "Y_He", run_globals.params.physics.Y_He },                                                                     \
   }
 
 static bool read_rr_cache_table(hid_t fd, const char* name, double* buf, hsize_t n_expected)
@@ -154,9 +152,9 @@ static bool load_rr_cache(const char* fname, double* lnGamma, double* rr, double
       }
     }
 
-    if (ok && !(read_rr_cache_table(fd, "lnGamma", lnGamma, RR_lnGamma_NPTS) &&
-                read_rr_cache_table(fd, "RR", rr, n_table) && read_rr_cache_table(fd, "CF", cf, n_table) &&
-                read_rr_cache_table(fd, "RNH", rnh, n_table))) {
+    if (ok &&
+        !(read_rr_cache_table(fd, "lnGamma", lnGamma, RR_lnGamma_NPTS) && read_rr_cache_table(fd, "RR", rr, n_table) &&
+          read_rr_cache_table(fd, "CF", cf, n_table) && read_rr_cache_table(fd, "RNH", rnh, n_table))) {
       mlog("WARNING: could not read the recombination tables in %s.", MLOG_MESG, fname);
       ok = false;
     }
@@ -177,7 +175,11 @@ static bool same_file(const char* a, const char* b)
 // Rank 0 only. RR and RNH are stored as natural logs, laid out as
 // [z][T][lnGamma]. The attributes are written last, so a file whose
 // attributes all match also has complete tables.
-static void save_rr_cache(const char* fname, const double* lnGamma, const double* rr, const double* cf, const double* rnh)
+static void save_rr_cache(const char* fname,
+                          const double* lnGamma,
+                          const double* rr,
+                          const double* cf,
+                          const double* rnh)
 {
   hid_t fd = H5Fcreate(fname, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   bool ok = fd >= 0;
@@ -207,9 +209,9 @@ void init_MHR()
 {
   int z_ct, gamma_ct, t_ct, idx, flag_recalc;
   double z, gamma, temp;
-  int RR_ZT_NPTS = RR_Z_NPTS*RR_T_NPTS;
-  int TOT_NPTS = RR_ZT_NPTS*RR_lnGamma_NPTS;
-  
+  int RR_ZT_NPTS = RR_Z_NPTS * RR_T_NPTS;
+  int TOT_NPTS = RR_ZT_NPTS * RR_lnGamma_NPTS;
+
   char cache_fname[2 * STRLEN];
   char out_fname[2 * STRLEN];
   bool save_tables = false;
@@ -221,11 +223,11 @@ void init_MHR()
   init_beta_MHR(); /*initializes the lookup table for the beta paremeter in MHR00 model*/
   init_A_MHR();    /*initializes the lookup table for the A paremeter in MHR00 model*/
 
-  RR_table = malloc(TOT_NPTS*sizeof(double));
-  CF_table = malloc(TOT_NPTS*sizeof(double));
-  RNH_table = malloc(TOT_NPTS*sizeof(double));
+  RR_table = malloc(TOT_NPTS * sizeof(double));
+  CF_table = malloc(TOT_NPTS * sizeof(double));
+  RNH_table = malloc(TOT_NPTS * sizeof(double));
   lnGamma_values = malloc(RR_lnGamma_NPTS * sizeof(double));
-  if (!RR_table || !CF_table || !RNH_table || !lnGamma_values){
+  if (!RR_table || !CF_table || !RNH_table || !lnGamma_values) {
     mlog_error("Failed to allocate memory for the tables. Aborting...");
     ABORT(EXIT_FAILURE);
   }
@@ -237,8 +239,7 @@ void init_MHR()
     if (load_rr_cache(cache_fname, lnGamma_values, RR_table, CF_table, RNH_table, (hsize_t)TOT_NPTS)) {
       flag_recalc = 0;
       mlog("Loaded recombination tables from %s.", MLOG_MESG, cache_fname);
-    }
-    else{
+    } else {
       flag_recalc = 1;
       // Rebuilt tables go to OutputDir, never over the cache in RecombinationDir.
       save_tables = !same_file(cache_fname, out_fname);
@@ -261,104 +262,122 @@ void init_MHR()
   MPI_Bcast(&flag_recalc, 1, MPI_INT, 0, run_globals.mpi_comm);
   MPI_Bcast(lnGamma_values, RR_lnGamma_NPTS, MPI_DOUBLE, 0, run_globals.mpi_comm);
 
-  if (flag_recalc){
-      int *recvcounts = malloc(run_globals.mpi_size * sizeof(int));
-      int *displs     = malloc(run_globals.mpi_size * sizeof(int));
+  if (flag_recalc) {
+    int* recvcounts = malloc(run_globals.mpi_size * sizeof(int));
+    int* displs = malloc(run_globals.mpi_size * sizeof(int));
 
-      int local_start = (RR_ZT_NPTS * run_globals.mpi_rank) / run_globals.mpi_size;
-      int local_end   = (RR_ZT_NPTS * (run_globals.mpi_rank + 1)) / run_globals.mpi_size;
-      int local_count = local_end - local_start;
-      int local_idx;
+    int local_start = (RR_ZT_NPTS * run_globals.mpi_rank) / run_globals.mpi_size;
+    int local_end = (RR_ZT_NPTS * (run_globals.mpi_rank + 1)) / run_globals.mpi_size;
+    int local_count = local_end - local_start;
+    int local_idx;
 
-      for (int r = 0; r < run_globals.mpi_size; r++) {
-        recvcounts[r] = ((int)((RR_ZT_NPTS * (r + 1)) / run_globals.mpi_size) -
-                         (int)((RR_ZT_NPTS * r) / run_globals.mpi_size)) * RR_lnGamma_NPTS ;
-        displs[r]     = (r == 0) ? 0 : displs[r - 1] + recvcounts[r - 1];
+    for (int r = 0; r < run_globals.mpi_size; r++) {
+      recvcounts[r] =
+        ((int)((RR_ZT_NPTS * (r + 1)) / run_globals.mpi_size) - (int)((RR_ZT_NPTS * r) / run_globals.mpi_size)) *
+        RR_lnGamma_NPTS;
+      displs[r] = (r == 0) ? 0 : displs[r - 1] + recvcounts[r - 1];
+    }
+
+    double* local_RR = malloc(local_count * RR_lnGamma_NPTS * sizeof(double));
+    double* local_CF = malloc(local_count * RR_lnGamma_NPTS * sizeof(double));
+    double* local_RNH = malloc(local_count * RR_lnGamma_NPTS * sizeof(double));
+
+    for (idx = local_start; idx < local_end; idx++) {
+      z_ct = idx / RR_T_NPTS;
+      t_ct = idx % RR_T_NPTS;
+
+      z = z_ct * RR_DEL_Z + RR_Z_END; // redshift corresponding to index z_ct of the array
+
+      temp = pow(10, (t_ct * RR_DEL_T + RR_T_STA) - 4.0);
+
+      for (gamma_ct = 0; gamma_ct < RR_lnGamma_NPTS; gamma_ct++) {
+        gamma = exp(lnGamma_values[gamma_ct]);
+
+        local_idx = (idx - local_start) * RR_lnGamma_NPTS + gamma_ct;
+        local_RR[local_idx] = log(recombination_rate(z, gamma, temp, 1));
+        local_CF[local_idx] = clumping_factor(z, gamma, temp, 1);
+        local_RNH[local_idx] = log(residual_neutral_hydrogen(z, gamma, temp, 1));
+        // NOTE: although the table is more linear when taken log, it's faster otherwise have to do exp()
       }
+    }
+    MPI_Allgatherv(local_RR,
+                   local_count * RR_lnGamma_NPTS,
+                   MPI_DOUBLE,
+                   RR_table,
+                   recvcounts,
+                   displs,
+                   MPI_DOUBLE,
+                   run_globals.mpi_comm);
+    MPI_Allgatherv(local_CF,
+                   local_count * RR_lnGamma_NPTS,
+                   MPI_DOUBLE,
+                   CF_table,
+                   recvcounts,
+                   displs,
+                   MPI_DOUBLE,
+                   run_globals.mpi_comm);
+    MPI_Allgatherv(local_RNH,
+                   local_count * RR_lnGamma_NPTS,
+                   MPI_DOUBLE,
+                   RNH_table,
+                   recvcounts,
+                   displs,
+                   MPI_DOUBLE,
+                   run_globals.mpi_comm);
+    free(local_RR);
+    free(local_CF);
+    free(local_RNH);
 
-      double* local_RR  = malloc(local_count * RR_lnGamma_NPTS * sizeof(double));
-      double* local_CF  = malloc(local_count * RR_lnGamma_NPTS * sizeof(double));
-      double* local_RNH = malloc(local_count * RR_lnGamma_NPTS * sizeof(double));
-
-      for (idx = local_start; idx < local_end; idx++) {
-        z_ct = idx / RR_T_NPTS;
-        t_ct = idx % RR_T_NPTS;
-
-        z = z_ct * RR_DEL_Z + RR_Z_END; // redshift corresponding to index z_ct of the array
-
-        temp = pow(10, (t_ct * RR_DEL_T + RR_T_STA) - 4.0);
-
-        for (gamma_ct = 0; gamma_ct < RR_lnGamma_NPTS; gamma_ct++) {
-          gamma = exp(lnGamma_values[gamma_ct]);
-
-          local_idx = (idx - local_start) * RR_lnGamma_NPTS + gamma_ct;
-          local_RR[local_idx]  = log(recombination_rate(z, gamma, temp, 1));
-          local_CF[local_idx]  = clumping_factor(z, gamma, temp, 1);
-          local_RNH[local_idx] = log(residual_neutral_hydrogen(z, gamma, temp, 1));
-          // NOTE: although the table is more linear when taken log, it's faster otherwise have to do exp() 
-        }
-      }
-      MPI_Allgatherv(local_RR, local_count * RR_lnGamma_NPTS, MPI_DOUBLE,
-                     RR_table, recvcounts, displs, MPI_DOUBLE, run_globals.mpi_comm);
-      MPI_Allgatherv(local_CF, local_count * RR_lnGamma_NPTS, MPI_DOUBLE,
-                     CF_table, recvcounts, displs, MPI_DOUBLE, run_globals.mpi_comm);
-      MPI_Allgatherv(local_RNH, local_count * RR_lnGamma_NPTS, MPI_DOUBLE,
-                     RNH_table, recvcounts, displs, MPI_DOUBLE, run_globals.mpi_comm);
-      free(local_RR);
-      free(local_CF);
-      free(local_RNH);
-
-      if (run_globals.mpi_rank == 0 && save_tables)
-        save_rr_cache(out_fname, lnGamma_values, RR_table, CF_table, RNH_table);
-      mlog("...done.", MLOG_CONT | MLOG_TIMERSTOP);
+    if (run_globals.mpi_rank == 0 && save_tables)
+      save_rr_cache(out_fname, lnGamma_values, RR_table, CF_table, RNH_table);
+    mlog("...done.", MLOG_CONT | MLOG_TIMERSTOP);
+  } else {
+    MPI_Bcast(RR_table, TOT_NPTS, MPI_DOUBLE, 0, run_globals.mpi_comm);
+    MPI_Bcast(CF_table, TOT_NPTS, MPI_DOUBLE, 0, run_globals.mpi_comm);
+    MPI_Bcast(RNH_table, TOT_NPTS, MPI_DOUBLE, 0, run_globals.mpi_comm);
   }
-  else{
-      MPI_Bcast(RR_table, TOT_NPTS, MPI_DOUBLE, 0, run_globals.mpi_comm);
-      MPI_Bcast(CF_table, TOT_NPTS, MPI_DOUBLE, 0, run_globals.mpi_comm);
-      MPI_Bcast(RNH_table, TOT_NPTS, MPI_DOUBLE, 0, run_globals.mpi_comm);
-  }
-  RR_acc  = malloc(RR_ZT_NPTS * sizeof(gsl_interp_accel *));
-  CF_acc  = malloc(RR_ZT_NPTS * sizeof(gsl_interp_accel *));
-  RNH_acc = malloc(RR_ZT_NPTS * sizeof(gsl_interp_accel *));
-  RR_spline = malloc(RR_ZT_NPTS * sizeof(gsl_spline *));
-  CF_spline = malloc(RR_ZT_NPTS * sizeof(gsl_spline *));
-  RNH_spline = malloc(RR_ZT_NPTS * sizeof(gsl_spline *));
+  RR_acc = malloc(RR_ZT_NPTS * sizeof(gsl_interp_accel*));
+  CF_acc = malloc(RR_ZT_NPTS * sizeof(gsl_interp_accel*));
+  RNH_acc = malloc(RR_ZT_NPTS * sizeof(gsl_interp_accel*));
+  RR_spline = malloc(RR_ZT_NPTS * sizeof(gsl_spline*));
+  CF_spline = malloc(RR_ZT_NPTS * sizeof(gsl_spline*));
+  RNH_spline = malloc(RR_ZT_NPTS * sizeof(gsl_spline*));
 
   // now the recombination rate look up tables
   for (idx = 0; idx < RR_ZT_NPTS; idx++) {
-       //z_ct = idx / RR_T_NPTS;
-       //t_ct = idx % RR_T_NPTS;
-       //z = z_ct * RR_DEL_Z + RR_Z_END; // redshift corresponding to index z_ct of the array
-       //temp = pow(10, (t_ct * RR_DEL_T + RR_T_STA));
-      //for (gamma_ct = 0; gamma_ct < RR_lnGamma_NPTS; gamma_ct++) {
-      //  gamma = exp(lnGamma_values[gamma_ct]);
-      //  mlog("z=%.2f, temp = %.2f x 1e4 K, Gamma12=%.2f, recomibiation rate=%g, clumping factor=%g, residual xH=%g", MLOG_MESG, z, temp, gamma, RR_table[idx][gamma_ct], CF_table[idx][gamma_ct], RNH_table[idx][gamma_ct]);
-      //}
+    // z_ct = idx / RR_T_NPTS;
+    // t_ct = idx % RR_T_NPTS;
+    // z = z_ct * RR_DEL_Z + RR_Z_END; // redshift corresponding to index z_ct of the array
+    // temp = pow(10, (t_ct * RR_DEL_T + RR_T_STA));
+    // for (gamma_ct = 0; gamma_ct < RR_lnGamma_NPTS; gamma_ct++) {
+    //   gamma = exp(lnGamma_values[gamma_ct]);
+    //   mlog("z=%.2f, temp = %.2f x 1e4 K, Gamma12=%.2f, recomibiation rate=%g, clumping factor=%g, residual xH=%g",
+    //   MLOG_MESG, z, temp, gamma, RR_table[idx][gamma_ct], CF_table[idx][gamma_ct], RNH_table[idx][gamma_ct]);
+    // }
 
-      // set up the spline in gamma
-      RR_acc[idx] = gsl_interp_accel_alloc();
-      RR_spline[idx] = gsl_spline_alloc(gsl_interp_cspline, RR_lnGamma_NPTS);
-      gsl_spline_init(RR_spline[idx], lnGamma_values, &RR_table[idx * RR_lnGamma_NPTS], RR_lnGamma_NPTS);
+    // set up the spline in gamma
+    RR_acc[idx] = gsl_interp_accel_alloc();
+    RR_spline[idx] = gsl_spline_alloc(gsl_interp_cspline, RR_lnGamma_NPTS);
+    gsl_spline_init(RR_spline[idx], lnGamma_values, &RR_table[idx * RR_lnGamma_NPTS], RR_lnGamma_NPTS);
 
-      CF_acc[idx] = gsl_interp_accel_alloc();
-      CF_spline[idx] = gsl_spline_alloc(gsl_interp_cspline, RR_lnGamma_NPTS);
-      gsl_spline_init(CF_spline[idx], lnGamma_values, &CF_table[idx * RR_lnGamma_NPTS], RR_lnGamma_NPTS);
-    
-      RNH_acc[idx] = gsl_interp_accel_alloc();
-      RNH_spline[idx] = gsl_spline_alloc(gsl_interp_cspline, RR_lnGamma_NPTS);
-      gsl_spline_init(RNH_spline[idx], lnGamma_values, &RNH_table[idx * RR_lnGamma_NPTS], RR_lnGamma_NPTS);
+    CF_acc[idx] = gsl_interp_accel_alloc();
+    CF_spline[idx] = gsl_spline_alloc(gsl_interp_cspline, RR_lnGamma_NPTS);
+    gsl_spline_init(CF_spline[idx], lnGamma_values, &CF_table[idx * RR_lnGamma_NPTS], RR_lnGamma_NPTS);
 
+    RNH_acc[idx] = gsl_interp_accel_alloc();
+    RNH_spline[idx] = gsl_spline_alloc(gsl_interp_cspline, RR_lnGamma_NPTS);
+    gsl_spline_init(RNH_spline[idx], lnGamma_values, &RNH_table[idx * RR_lnGamma_NPTS], RR_lnGamma_NPTS);
   }
 
   mlog("...done.", MLOG_CLOSE | MLOG_TIMERSTOP);
-
 }
 
 void free_MHR()
 {
   int idx;
 
-  if (!RR_spline) return;  /* init_MHR was never called — nothing to free */
+  if (!RR_spline)
+    return; /* init_MHR was never called — nothing to free */
 
   free_A_MHR();
   free_C_MHR();
@@ -366,12 +385,12 @@ void free_MHR()
 
   // now the recombination rate look up tables
   for (idx = 0; idx < RR_Z_NPTS * RR_T_NPTS; idx++) {
-      gsl_spline_free(RR_spline[idx]);
-      gsl_interp_accel_free(RR_acc[idx]);
-      gsl_spline_free(CF_spline[idx]);
-      gsl_interp_accel_free(CF_acc[idx]);
-      gsl_spline_free(RNH_spline[idx]);
-      gsl_interp_accel_free(RNH_acc[idx]);
+    gsl_spline_free(RR_spline[idx]);
+    gsl_interp_accel_free(RR_acc[idx]);
+    gsl_spline_free(CF_spline[idx]);
+    gsl_interp_accel_free(CF_acc[idx]);
+    gsl_spline_free(RNH_spline[idx]);
+    gsl_interp_accel_free(RNH_acc[idx]);
   }
   free(RR_spline);
   free(RR_acc);
