@@ -67,6 +67,14 @@ void update_reservoirs_from_sn_feedback(galaxy_t* gal,
   central->MetalsHotGas += m_reheat * metallicity * transferred_fraction;
   central->HotGas += m_reheat;
 
+  // With metal retention, heavy reheating can leave more metals than cold gas
+  // to hold them (all of them if every bit is reheated); move the excess to the
+  // hot phase so metal mass is conserved and metallicity stays physical.
+  if (retained_fraction > 0.0 && gal->MetalsColdGas > gal->ColdGas) {
+    central->MetalsHotGas += gal->MetalsColdGas - gal->ColdGas;
+    gal->MetalsColdGas = gal->ColdGas;
+  }
+
   // If this is a ghost then we don't know what the real ejected mass is as we
   // don't know the properties of the halo!
   if (!gal->ghost_flag) {
