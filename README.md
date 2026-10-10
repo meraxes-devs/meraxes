@@ -1,5 +1,5 @@
 # **Meraxes**
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit) [![All Contributors](https://img.shields.io/badge/all_contributors-11-orange.svg?style=flat-square)](https://github.com/meraxes-devs/meraxes/graphs/contributors)  
+[![Documentation](https://readthedocs.org/projects/meraxes-docs/badge/?version=latest)](https://meraxes-docs.readthedocs.io/en/latest/) [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit) [![All Contributors](https://img.shields.io/badge/all_contributors-11-orange.svg?style=flat-square)](https://github.com/meraxes-devs/meraxes/graphs/contributors)  
 
 ![Galaxy UV luminosity function](output/results/figs/glfs.jpg)
 ---
@@ -17,12 +17,23 @@ A full list of publications directly using Meraxes is available on [ADS](https:/
 
 
 ## **Installation**
-Please refer to [`BUILD.md`](./BUILD.md) for detailed installation and build instructions.
+See [Build and run](https://meraxes-docs.readthedocs.io/en/latest/getting-started.html) in the Meraxes Guide for
+dependencies, compilation and job submission. [`BUILD.md`](./BUILD.md) covers installing the dependencies on Linux and
+macOS, and lists every CMake build option.
 
 
 ## **Documentation**
-Read the [Meraxes Guide](docs/index.md) for build instructions, model parameters,
-execution workflow, outputs, formulas and [post-processing tools](docs/post-processing.md).
+The **[Meraxes Guide](https://meraxes-docs.readthedocs.io/en/latest/)** explains how to build, configure and run
+Meraxes, what it outputs, and the physics behind it:
+
+- [Build and run](https://meraxes-docs.readthedocs.io/en/latest/getting-started.html): dependencies, compilation and job submission
+- [Inputs and configuration](https://meraxes-docs.readthedocs.io/en/latest/inputs.html): parameter files and model parameters
+- [Execution workflow](https://meraxes-docs.readthedocs.io/en/latest/workflow.html): what happens during a run
+- [Outputs](https://meraxes-docs.readthedocs.io/en/latest/outputs.html): galaxy catalogues, grids and distribution functions
+- [Post-processing tools](https://meraxes-docs.readthedocs.io/en/latest/post-processing.html): reading and analysing output with DRAGONS
+- [Formulas](https://meraxes-docs.readthedocs.io/en/latest/formulas/index.html): the equations implemented in the model
+
+The guide's sources are in [`docs/`](docs/).
 
 
 ## **Acknowledging**
