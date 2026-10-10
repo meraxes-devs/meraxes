@@ -23,6 +23,11 @@ void setup(void)
   // Absolute source-tree path set by CMake, so the test works from ctest's build directory.
   snprintf(run_globals.params.CoolingFuncsDir, sizeof(run_globals.params.CoolingFuncsDir), "%s", COOLING_FUNCS_DIR);
 
+  // Cosmology (Genesis simulations); Mcool_SV -> Tvir_to_Mvir needs E(z)
+  run_globals.params.OmegaM = 0.3121;
+  run_globals.params.OmegaK = 0.0;
+  run_globals.params.OmegaLambda = 0.6879;
+
   // Read the cooling function tables
   read_cooling_functions();
 }
