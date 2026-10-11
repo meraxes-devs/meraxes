@@ -40,7 +40,7 @@ GRID_LABELS = {
     "residual_xH": r"$\langle x_{\rm HI,res} \rangle \times 10^4$",
     "clumping_factor": r"$\langle C \rangle$",
     "N_rec": r"$\langle N_{\rm rec} \rangle$",
-    "t_resp": r"$\langle t_{\rm resp} \rangle$ [Myr] (cells with finite $t_{\rm resp}$)",
+    "t_resp": r"$t_{\rm resp}$ [Myr] (cells with finite $t_{\rm resp}$)",
     "temp_kinetic_all_gas": r"$\langle T_{\rm gas} \rangle$ [K]",
     "Mvir_crit": r"$\langle M_{\rm vir,crit} \rangle$",
     "weighted_sfr": r"$\langle$ $f_{\rm esc}$-weighted SFR $\rangle$",
@@ -216,7 +216,8 @@ def _plot_galaxies(ref, new, snaps, z, differing, labels):
 
 
 def _plot_igm(ref, new, snaps, z, colours, differing, labels):
-    grid_names = [g for g in GRID_LABELS if any(f"{s}/grids/volume_mean/{g}" in ref for s in snaps)]
+    grid_names = [g for g in GRID_LABELS
+                  if any(f"{s}/grids/volume_mean/{g}" in ref or f"{s}/grids/log10_median/{g}" in ref for s in snaps)]
     ps_snaps = [s for s in snaps if f"{s}/grids/PS_data" in ref]
     xray = sorted(k for k in ref if k.startswith("global/XrayEmissivity_"))
     n_panels = len(grid_names) + (1 if ps_snaps else 0) + (1 if xray else 0)
@@ -228,6 +229,18 @@ def _plot_igm(ref, new, snaps, z, colours, differing, labels):
         ax = axes[i]
         i += 1
         differs = False
+        mkey = "{snap}/grids/log10_median/" + g
+        if any(mkey.format(snap=s) in ref for s in snaps):
+            # heavy-tailed grids are summarised by the median of log10
+            ax.plot(z, _series(ref, snaps, mkey), color="k", lw=1.5, label="median")
+            if new:
+                ax.plot(z, _series(new, snaps, mkey), color="tab:orange", ls="none", marker="o", ms=4)
+            differs = any(mkey.format(snap=s) in differing for s in snaps)
+            ax.set_xlabel("redshift", fontsize=8)
+            ax.set_ylabel(r"$\log_{10}$ " + GRID_LABELS[g], fontsize=8)
+            ax.legend(fontsize=7, frameon=False)
+            _title(ax, f"{g}: median", differs)
+            continue
         for kind, ls in (("volume_mean", "-"), ("mass_mean", "--")):
             path = "{snap}/grids/" + kind + "/" + g
             r = _series(ref, snaps, path)

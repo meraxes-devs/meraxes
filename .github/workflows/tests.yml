@@ -112,7 +112,7 @@ jobs:
             libgsl-dev libhdf5-openmpi-dev \
             libfftw3-dev libfftw3-mpi-dev \
             libcriterion-dev \
-            python3-h5py python3-numpy
+            python3-h5py python3-numpy python3-matplotlib
 
       # GCC 13's AddressSanitizer crashes at startup with the runner kernel's
       # default 32-bit mmap randomisation.
@@ -145,8 +145,9 @@ jobs:
             extra="-DSECTOR_ROOT=${GITHUB_WORKSPACE}/sector/sector/clib"
           fi
           if [ "${{ matrix.regression }}" = "true" ]; then
-            # strict: the references come from this same CI environment
-            extra="$extra -DMERAXES_TESTDATA_DIR=${GITHUB_WORKSPACE}/testdata -DREGRESSION_COMPARE=strict"
+            # strict: the references come from this same CI environment.
+            # Plots of each run over its reference go in the artifact too.
+            extra="$extra -DMERAXES_TESTDATA_DIR=${GITHUB_WORKSPACE}/testdata -DREGRESSION_COMPARE=strict -DREGRESSION_PLOTS=ON"
           fi
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Debug \
@@ -172,13 +173,15 @@ jobs:
         if: matrix.regression
         run: ctest --test-dir build --output-on-failure -L regression
 
-      # This run's summaries: the new references when results change on purpose,
-      # or something to plot over the references when a comparison fails
+      # This run's summaries (the new references when results change on purpose)
+      # and its plots over the references, with differing quantities in red
       # (see src/tests/regression/reference/README.md).
-      - name: Upload regression summaries
+      - name: Upload regression summaries and plots
         if: always() && matrix.regression
         uses: actions/upload-artifact@v4
         with:
           name: regression-summaries-${{ matrix.name }}
-          path: build/src/tests/regression/*/summary.h5
+          path: |
+            build/src/tests/regression/*/summary.h5
+            build/src/tests/regression/*/plots/*.png
           if-no-files-found: ignore
