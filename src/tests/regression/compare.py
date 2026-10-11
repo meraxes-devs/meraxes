@@ -28,9 +28,10 @@ Modes:
   strict  counts exact; everything else to 1e-6 relative. For CI, whose
           references come from the same build environment.
   loose   distribution functions within 3 sigma of their stored errors;
-          counts within 3 sqrt(N) or 1%; totals, quantiles, grid means and
-          spectra within 1%. For other platforms, where compiler and library
-          differences shift results.
+          counts within 3 sqrt(N) or 1%; log10 quantiles and medians within
+          0.05 dex;
+          totals, grid means and spectra within 1%. For other platforms,
+          where compiler and library differences shift results.
 """
 import argparse
 import os
@@ -64,6 +65,15 @@ MASS_WEIGHTED_GRID_FIELDS = ["xH", "x_e_box", "Tk_box", "residual_xH", "temp_kin
 # Placeholder values meaning "not set" (t_resp is 1e30 where nothing ionizes the
 # cell): excluded from the averages, and the fraction of such cells recorded
 GRID_UNSET_THRESHOLD = {"t_resp": 1e29}
+# Heavy-tailed grids summarised by the median of log10 instead of mean and spread.
+# The finite t_resp values span decades and early on only ~100 cells have one, so
+# a few cells changing between finite and unset (e.g. with a different libm) swing
+# the mean by tens of percent and the tail quantiles by up to 2.5 dex; the median
+# moves by < 0.03 dex.
+GRID_LOG_MEDIAN_FIELDS = ["t_resp"]
+# Loose mode compares log10 values (quantiles, medians) to this many dex
+# (relative tolerances misbehave for log values near zero)
+LOOSE_DEX = 0.05
 
 
 def _snapshot_groups(f):
@@ -125,6 +135,10 @@ def summarize(output_dir):
                             unset = g >= GRID_UNSET_THRESHOLD[name]
                             s[f"{base}/grids/fraction_unset/{name}"] = np.array([np.mean(unset)])
                             ok &= ~unset
+                        if name in GRID_LOG_MEDIAN_FIELDS:
+                            v = g[ok & (g > 0)]
+                            s[f"{base}/grids/log10_median/{name}"] = np.array([np.median(np.log10(v)) if v.size else np.nan])
+                            continue
                         s[f"{base}/grids/volume_mean/{name}"] = np.array([np.mean(g[ok]) if ok.any() else np.nan])
                         s[f"{base}/grids/std/{name}"] = np.array([np.std(g[ok]) if ok.any() else np.nan])
                         if density is not None and name in MASS_WEIGHTED_GRID_FIELDS and ok.any():
@@ -210,6 +224,14 @@ def compare(ref, new, mode):
                 i = int(np.argmax(np.where(bad, dphi / np.where(sigma > 0, sigma, np.inf), 0)))
                 problems.append((key, f"{bad.sum()} bins beyond 3 sigma (e.g. x={a[i, 0]:g}: "
                                       f"{a[i, 1]:.6g} -> {b[i, 1]:.6g} +- {sigma[i]:.3g})", float(bad.sum())))
+            continue
+
+        if mode == "loose" and ("/log10_quantiles/" in key or "/log10_median/" in key):
+            d = np.abs(np.where(finite, a - b, 0.0))
+            if np.any(d > LOOSE_DEX) or np.any(np.isfinite(a) != np.isfinite(b)):
+                i = int(np.argmax(d))
+                problems.append((key, f"{a.reshape(-1)[i]:.6g} -> {b.reshape(-1)[i]:.6g} "
+                                      f"({d.reshape(-1)[i]:.3g} dex)", float(d.max())))
             continue
 
         rtol = 1e-6 if mode == "strict" else 1e-2
