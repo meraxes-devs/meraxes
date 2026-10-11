@@ -284,3 +284,24 @@ The references must come from CI, not from a local build, because CI compares th
 | stochasticity-mini-halos | none (unit tests only) | as stochasticity |
 
 Every configuration runs when the build system, the workflow, `src/tests/regression/` or `input/` changes, on manual runs, and when the changes can't be determined.
+
+A final job, `All tests passed`, succeeds only if every configuration did. Branch protection requires this one check, since the names of the configuration jobs change from run to run.
+
+## Formatting
+
+C, C++ and CUDA sources under `src/` follow the repository's `.clang-format`, checked with clang-format 14 by `.github/workflows/clang-format-check.yml`. The check fails with the diff to apply; it doesn't fix the code for you. Format your changes before pushing:
+
+```bash
+pipx install clang-format==14.0.6  # once; other versions format differently
+tools/format.sh                    # format every source under src/
+tools/format.sh src/core/foo.c     # or just the files you changed
+tools/format.sh --check            # change nothing, show what would change
+```
+
+To check every commit automatically, enable the pre-commit hook once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+It refuses a commit whose staged sources aren't formatted. Run `tools/format.sh` on the files it lists, stage them again, and commit. If clang-format 14 isn't installed, the hook skips the check and lets the commit through.

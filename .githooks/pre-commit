@@ -1,0 +1,18 @@
+#!/bin/bash
+# Refuse commits whose staged C/C++/CUDA sources under src/ aren't formatted, which
+# would fail CI's clang-format check. Enable it once per clone with
+#   git config core.hooksPath .githooks
+# Fix the files with tools/format.sh <files> and stage them again, or skip the check
+# for one commit with git commit --no-verify.
+mapfile -t files < <(git diff --cached --name-only --diff-filter=ACMR -- 'src/*.c' 'src/*.h' 'src/*.cu' 'src/*.cpp' 'src/*.hh')
+if [ ${#files[@]} -eq 0 ] || [ ! -x tools/format.sh ]; then
+  exit 0
+fi
+tools/format.sh --check --cached "${files[@]}"
+status=$?
+if [ $status -eq 2 ]; then
+  # clang-format 14 isn't installed; CI will still check.
+  echo "pre-commit: skipped the formatting check" >&2
+  exit 0
+fi
+exit $status
