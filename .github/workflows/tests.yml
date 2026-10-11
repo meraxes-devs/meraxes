@@ -15,7 +15,9 @@ concurrency:
 jobs:
   # Pick the configurations to test. default always runs. The others run only
   # if a changed C source/header mentions their compile flag, or the build
-  # system changed, or the changes can't be determined.
+  # system, regression tests or input files changed, or the changes can't be
+  # determined. Configurations with a regression setup also run it on the
+  # L10_N512 test set.
   configs:
     runs-on: ubuntu-24.04
     outputs:
@@ -47,7 +49,7 @@ jobs:
           if [ "$all" = false ]; then
             while IFS= read -r f; do
               case "$f" in
-                CMakeLists.txt | */CMakeLists.txt | cmake/* | .github/workflows/tests.yml)
+                CMakeLists.txt | */CMakeLists.txt | cmake/* | .github/workflows/tests.yml | src/tests/regression/* | input/*)
                   mini=true; mags=true; stoch=true ;;
                 *.c | *.h | *.cu | *.in)
                   # Check the new version, or the old one if the file was deleted.
@@ -59,12 +61,12 @@ jobs:
             done < <(git diff --name-only "$base" HEAD)
           fi
 
-          m='{"name":"default","cmake_args":""}'
-          if [ "$mini" = true ]; then m+=',{"name":"mini-halos","cmake_args":"-DUSE_MINI_HALOS=ON"}'; fi
-          if [ "$mags" = true ]; then m+=',{"name":"calc-mags","cmake_args":"-DCALC_MAGS=ON -DMAGS_N_SNAPS=3 -DMAGS_N_BANDS=2","needs_sector":true}'; fi
+          m='{"name":"default","cmake_args":"","regression":true}'
+          if [ "$mini" = true ]; then m+=',{"name":"mini-halos","cmake_args":"-DUSE_MINI_HALOS=ON","regression":true}'; fi
+          if [ "$mags" = true ]; then m+=',{"name":"calc-mags","cmake_args":"-DCALC_MAGS=ON -DMAGS_N_SNAPS=3 -DMAGS_N_BANDS=2","needs_sector":true,"regression":true}'; fi
           # Stochasticity has separate branches with and without mini-halos.
           if [ "$stoch" = true ]; then
-            m+=',{"name":"stochasticity","cmake_args":"-DUSE_STOCHASTICITY=ON"}'
+            m+=',{"name":"stochasticity","cmake_args":"-DUSE_STOCHASTICITY=ON","regression":true}'
             m+=',{"name":"stochasticity-mini-halos","cmake_args":"-DUSE_STOCHASTICITY=ON -DUSE_MINI_HALOS=ON"}'
           fi
           echo "matrix={\"include\":[$m]}" >> "$GITHUB_OUTPUT"
@@ -82,6 +84,9 @@ jobs:
       # MPI and HDF5 keep allocations alive until exit; only report real memory errors.
       ASAN_OPTIONS: detect_leaks=0
       UBSAN_OPTIONS: print_stacktrace=1
+      # Genesis L10_N512 regression test set (Zenodo, doi:10.5281/zenodo.23281409)
+      TESTDATA_URL: https://zenodo.org/records/23281409/files/L10_N512.zip?download=1
+      TESTDATA_MD5: afe3719ce9144869c9f0b8629c62e9d5
 
     steps:
       - uses: actions/checkout@v5
@@ -106,12 +111,31 @@ jobs:
             libopenmpi-dev openmpi-bin \
             libgsl-dev libhdf5-openmpi-dev \
             libfftw3-dev libfftw3-mpi-dev \
-            libcriterion-dev
+            libcriterion-dev \
+            python3-h5py python3-numpy
 
       # GCC 13's AddressSanitizer crashes at startup with the runner kernel's
       # default 32-bit mmap randomisation.
       - name: Reduce ASLR entropy for AddressSanitizer
         run: sudo sysctl vm.mmap_rnd_bits=28
+
+      # Cached by checksum, so it's only downloaded when the data change.
+      - name: Cache regression test data
+        if: matrix.regression
+        uses: actions/cache@v4
+        with:
+          path: testdata/L10_N512.zip
+          key: meraxes-testdata-L10_N512-${{ env.TESTDATA_MD5 }}
+
+      - name: Get regression test data
+        if: matrix.regression
+        run: |
+          mkdir -p testdata
+          if [ ! -f testdata/L10_N512.zip ]; then
+            curl -fL --retry 5 --retry-delay 15 -o testdata/L10_N512.zip "$TESTDATA_URL"
+          fi
+          echo "$TESTDATA_MD5  testdata/L10_N512.zip" | md5sum -c -
+          unzip -q -o testdata/L10_N512.zip -d testdata
 
       # Debug enables -Werror=implicit plus AddressSanitizer and UBSan.
       - name: Configure
@@ -119,6 +143,10 @@ jobs:
           extra=""
           if [ "${{ matrix.needs_sector }}" = "true" ]; then
             extra="-DSECTOR_ROOT=${GITHUB_WORKSPACE}/sector/sector/clib"
+          fi
+          if [ "${{ matrix.regression }}" = "true" ]; then
+            # strict: the references come from this same CI environment
+            extra="$extra -DMERAXES_TESTDATA_DIR=${GITHUB_WORKSPACE}/testdata -DREGRESSION_COMPARE=strict"
           fi
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Debug \
@@ -129,10 +157,28 @@ jobs:
       - name: Build
         run: cmake --build build --parallel
 
-      - name: Run tests
-        run: ctest --test-dir build --output-on-failure
+      - name: Run unit tests
+        run: ctest --test-dir build --output-on-failure -LE regression
 
       - name: Run standalone drivers
         run: |
           ./build/bin/main_cooling
           ./build/bin/main_blackhole_feedback
+
+      # Runs each setup on 2 MPI ranks and compares it with
+      # src/tests/regression/reference/<setup>.h5 (or just writes the summary
+      # when there's no reference yet).
+      - name: Run regression tests
+        if: matrix.regression
+        run: ctest --test-dir build --output-on-failure -L regression
+
+      # This run's summaries: the new references when results change on purpose,
+      # or something to plot over the references when a comparison fails
+      # (see src/tests/regression/reference/README.md).
+      - name: Upload regression summaries
+        if: always() && matrix.regression
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-summaries-${{ matrix.name }}
+          path: build/src/tests/regression/*/summary.h5
+          if-no-files-found: ignore
