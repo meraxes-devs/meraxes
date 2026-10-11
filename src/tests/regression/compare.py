@@ -267,8 +267,11 @@ def _plot(ref, new, outdir, name, problems=(), ref_meta=None, new_meta=None):
         return
     ref_label = f"reference {str((ref_meta or {}).get('gitref', ''))[:8]}".strip()
     new_label = f"this run {str((new_meta or {}).get('gitref', ''))[:8]}".strip()
-    for path in make_plots(ref, new, outdir, name, {p[0] for p in problems}, ref_label, new_label):
-        print(f"Wrote {path}")
+    try:
+        for path in make_plots(ref, new, outdir, name, {p[0] for p in problems}, ref_label, new_label):
+            print(f"Wrote {path}")
+    except Exception as err:  # plots are a convenience: never change the result
+        print(f"Plotting failed, continuing without plots: {err!r}")
 
 
 def report(problems, mode, label):

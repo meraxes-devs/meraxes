@@ -64,9 +64,10 @@ endif()
 if(NOT can_compare)
     message(STATUS "Regression runs enabled, but comparisons disabled: need Python 3 with h5py and numpy")
 endif()
-# Plots are for developers, not CI: with REGRESSION_PLOTS=ON each comparison
-# also plots the run over its reference in plots/ next to summary.h5 (needs
-# matplotlib). Without it, plot by hand with compare.py plot.
+# With REGRESSION_PLOTS=ON each comparison also plots the run over its reference
+# in plots/ next to summary.h5 (needs matplotlib; CI turns it on and uploads the
+# plots). Plotting never changes a test's result. Without it, plot by hand with
+# compare.py plot.
 option(REGRESSION_PLOTS "Plot each regression run over its reference" OFF)
 set(plot_args "")
 if(REGRESSION_PLOTS AND can_compare)
