@@ -28,8 +28,8 @@ Modes:
   strict  counts exact; everything else to 1e-6 relative. For CI, whose
           references come from the same build environment.
   loose   distribution functions within 3 sigma of their stored errors;
-          counts within 3 sqrt(N) or 1%; log10 quantiles and medians within
-          0.05 dex;
+          counts within 3 sqrt(N) or 1%; log10 medians and the 16/50/84%
+          log10 quantiles within 0.05 dex (5/95% tails only in strict mode);
           totals, grid means and spectra within 1%. For other platforms,
           where compiler and library differences shift results.
 """
@@ -74,6 +74,10 @@ GRID_LOG_MEDIAN_FIELDS = ["t_resp"]
 # Loose mode compares log10 values (quantiles, medians) to this many dex
 # (relative tolerances misbehave for log values near zero)
 LOOSE_DEX = 0.05
+# ... and only these quantiles: the 5% and 95% tails depend on the few galaxies
+# nearest a threshold (e.g. tau_cgm down to 1e-10) and can move by 0.5 dex across
+# platforms. Strict mode checks all of them.
+LOOSE_QUANTILES = [16, 50, 84]
 
 
 def _snapshot_groups(f):
@@ -228,6 +232,8 @@ def compare(ref, new, mode):
 
         if mode == "loose" and ("/log10_quantiles/" in key or "/log10_median/" in key):
             d = np.abs(np.where(finite, a - b, 0.0))
+            if "/log10_quantiles/" in key and d.shape == (len(QUANTILES),):
+                d = np.where(np.isin(QUANTILES, LOOSE_QUANTILES), d, 0.0)
             if np.any(d > LOOSE_DEX) or np.any(np.isfinite(a) != np.isfinite(b)):
                 i = int(np.argmax(d))
                 problems.append((key, f"{a.reshape(-1)[i]:.6g} -> {b.reshape(-1)[i]:.6g} "
