@@ -185,3 +185,17 @@ jobs:
             build/src/tests/regression/*/summary.h5
             build/src/tests/regression/*/plots/*.png
           if-no-files-found: ignore
+
+  # A single check with a fixed name for branch protection to require: the
+  # test jobs are named after the configurations picked for each run, so they
+  # can't be required individually. Fails if any of them failed or was cancelled.
+  all-tests:
+    name: All tests passed
+    if: always()
+    needs: [configs, test]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check the configuration and test jobs
+        run: |
+          echo "configs: ${{ needs.configs.result }}, test: ${{ needs.test.result }}"
+          [ "${{ needs.configs.result }}" = success ] && [ "${{ needs.test.result }}" = success ]
