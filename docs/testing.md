@@ -102,27 +102,163 @@ Configure with `-DREGRESSION_PLOTS=ON` to have each comparison plot the run over
 python3 src/tests/regression/compare.py plot src/tests/regression/reference/<setup>.h5 plots/ --new <summary.h5>
 ```
 
-Each setup gets three figures. The reference is drawn as lines (with ±σ or quantile bands) and the run as points; panels holding a quantity that differs beyond tolerance get a red title. The reference figures themselves are in `src/tests/regression/reference/plots/`, for example:
+Each setup gets three figures. The reference is drawn as lines (with ±σ or quantile bands) and the run as points; panels holding a quantity that differs beyond tolerance get a red title. The reference figures themselves are in `src/tests/regression/reference/plots/` and are shown in
+[Reference figures](#reference-figures).
+
+### Reference figures
+
+The current references, plotted by CI from the runs they come from. Each figure shows a reference
+on its own; plotting a comparison adds the new run as points. The figures are updated together with
+the references.
+
+#### `default`
+
+Galaxy formation, black-hole feedback and patchy reionization with the default parameters.
 
 ```{figure} ../src/tests/regression/reference/plots/default_distributions.png
-:alt: Reference distribution functions of the default setup
+:alt: default reference: distribution functions
 :width: 100%
 
-Distribution functions of the `default` reference at *z* = 15, 12 and 10.
+`default`: Distribution functions at *z* = 15, 12 and 10.
 ```
 
-```{figure} ../src/tests/regression/reference/plots/mini_halos_galaxies.png
-:alt: Reference galaxy-property quantiles, counts and totals of the mini_halos setup
+```{figure} ../src/tests/regression/reference/plots/default_galaxies.png
+:alt: default reference: galaxy properties
 :width: 100%
 
-Galaxy-property quantiles, galaxy counts and box totals of the `mini_halos` reference.
+`default`: Quantiles of galaxy properties, galaxy counts and box totals against redshift.
+```
+
+```{figure} ../src/tests/regression/reference/plots/default_igm.png
+:alt: default reference: IGM quantities
+:width: 100%
+
+`default`: Averages of the reionization grids against redshift.
+```
+
+#### `igm`
+
+Temperature-dependent recombinations, residual neutral fraction, clumping and CGM suppression of the escape fraction.
+
+```{figure} ../src/tests/regression/reference/plots/igm_distributions.png
+:alt: igm reference: distribution functions
+:width: 100%
+
+`igm`: Distribution functions at *z* = 15, 12 and 10.
+```
+
+```{figure} ../src/tests/regression/reference/plots/igm_galaxies.png
+:alt: igm reference: galaxy properties
+:width: 100%
+
+`igm`: Quantiles of galaxy properties, galaxy counts and box totals against redshift.
+```
+
+```{figure} ../src/tests/regression/reference/plots/igm_igm.png
+:alt: igm reference: IGM quantities
+:width: 100%
+
+`igm`: Averages of the reionization grids against redshift.
+```
+
+#### `xray`
+
+Spin temperature, 21-cm brightness temperature and power spectrum, with HMXB and AGN X-ray heating.
+
+```{figure} ../src/tests/regression/reference/plots/xray_distributions.png
+:alt: xray reference: distribution functions
+:width: 100%
+
+`xray`: Distribution functions at *z* = 15, 12 and 10.
+```
+
+```{figure} ../src/tests/regression/reference/plots/xray_galaxies.png
+:alt: xray reference: galaxy properties
+:width: 100%
+
+`xray`: Quantiles of galaxy properties, galaxy counts and box totals against redshift.
 ```
 
 ```{figure} ../src/tests/regression/reference/plots/xray_igm.png
-:alt: Reference IGM quantities of the xray setup
+:alt: xray reference: IGM quantities
 :width: 100%
 
-Grid averages, 21-cm power spectrum and X-ray emissivity histories of the `xray` reference.
+`xray`: Averages of the reionization and 21-cm grids against redshift, the 21-cm power spectrum and the X-ray emissivity histories.
+```
+
+#### `mini_halos`
+
+Pop. III stars, Lyman–Werner feedback and IGM metal enrichment, on top of `xray`.
+
+```{figure} ../src/tests/regression/reference/plots/mini_halos_distributions.png
+:alt: mini_halos reference: distribution functions
+:width: 100%
+
+`mini_halos`: Distribution functions at *z* = 15, 12 and 10.
+```
+
+```{figure} ../src/tests/regression/reference/plots/mini_halos_galaxies.png
+:alt: mini_halos reference: galaxy properties
+:width: 100%
+
+`mini_halos`: Quantiles of galaxy properties, galaxy counts and box totals against redshift.
+```
+
+```{figure} ../src/tests/regression/reference/plots/mini_halos_igm.png
+:alt: mini_halos reference: IGM quantities
+:width: 100%
+
+`mini_halos`: Averages of the reionization and 21-cm grids against redshift, the 21-cm power spectrum and the X-ray emissivity histories.
+```
+
+#### `calc_mags`
+
+Photometry and the UV and dust-attenuated luminosity functions.
+
+```{figure} ../src/tests/regression/reference/plots/calc_mags_distributions.png
+:alt: calc_mags reference: distribution functions
+:width: 100%
+
+`calc_mags`: Distribution functions at *z* = 15, 12 and 10.
+```
+
+```{figure} ../src/tests/regression/reference/plots/calc_mags_galaxies.png
+:alt: calc_mags reference: galaxy properties
+:width: 100%
+
+`calc_mags`: Quantiles of galaxy properties, galaxy counts and box totals against redshift.
+```
+
+```{figure} ../src/tests/regression/reference/plots/calc_mags_igm.png
+:alt: calc_mags reference: IGM quantities
+:width: 100%
+
+`calc_mags`: Averages of the reionization grids against redshift.
+```
+
+#### `stochasticity`
+
+Escape-fraction and X-ray scatter with source recalibration, with spin temperature on.
+
+```{figure} ../src/tests/regression/reference/plots/stochasticity_distributions.png
+:alt: stochasticity reference: distribution functions
+:width: 100%
+
+`stochasticity`: Distribution functions at *z* = 15, 12 and 10.
+```
+
+```{figure} ../src/tests/regression/reference/plots/stochasticity_galaxies.png
+:alt: stochasticity reference: galaxy properties
+:width: 100%
+
+`stochasticity`: Quantiles of galaxy properties, galaxy counts and box totals against redshift.
+```
+
+```{figure} ../src/tests/regression/reference/plots/stochasticity_igm.png
+:alt: stochasticity reference: IGM quantities
+:width: 100%
+
+`stochasticity`: Averages of the reionization and 21-cm grids against redshift, the 21-cm power spectrum and the X-ray emissivity histories.
 ```
 
 ### Updating the references
