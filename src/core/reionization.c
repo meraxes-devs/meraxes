@@ -19,6 +19,7 @@
 #include "virial_properties.h"
 #if USE_STOCHASTICITY
 #include "Stochasticity.h"
+#include <gsl/gsl_cdf.h>
 #endif
 
 static hid_t create_reion_grid(const int snapshot, const bool parallel);
@@ -597,9 +598,7 @@ void init_reion_grids()
 
     for (int ii = 0; ii < slab_n_real_smoothedHeating; ii++) {
       grids->SMOOTHED_SFR_GAL[ii] = 0.0;
-#if USE_STOCHASTICITY
       grids->SMOOTHED_XRAY_LUMINOSITY_GAL[ii] = 0.0;
-#endif
 #if USE_MINI_HALOS
       grids->SMOOTHED_SFR_III[ii] = 0.0;
 #endif
@@ -648,10 +647,8 @@ void init_reion_grids()
     if (run_globals.params.Flag_IncludeSpinTemp) {
       grids->sfr_filtered[ii] = 0 + 0I;
       grids->sfr_unfiltered[ii] = 0 + 0I;
-#if USE_STOCHASTICITY
       grids->xray_luminosity_filtered[ii] = 0 + 0I;
       grids->xray_luminosity_unfiltered[ii] = 0 + 0I;
-#endif
       grids->x_e_filtered[ii] = 0 + 0I;
       grids->x_e_unfiltered[ii] = 0 + 0I;
 #if USE_MINI_HALOS
@@ -683,9 +680,7 @@ void init_reion_grids()
 
     if (run_globals.params.Flag_IncludeSpinTemp) {
       grids->sfr[ii] = 0;
-#if USE_STOCHASTICITY
       grids->xray_luminosity[ii] = 0;
-#endif
       grids->x_e_box_prev[ii] = 0;
       grids->x_e_box[ii] = 0;
 #if USE_MINI_HALOS
@@ -693,9 +688,7 @@ void init_reion_grids()
 #endif
       for (int jj = 0; jj < run_globals.NstoreSnapshots_Heating; jj++) {
         grids->sfr_histories[jj * slab_n_complex * 2 + ii] = 0;
-#if USE_STOCHASTICITY
         grids->xray_luminosity_histories[jj * slab_n_complex * 2 + ii] = 0;
-#endif
 #if USE_MINI_HALOS
         grids->sfrIII_histories[jj * slab_n_complex * 2 + ii] = 0;
 #endif
@@ -786,12 +779,10 @@ void malloc_reionization_grids()
   grids->sfr_histories = NULL;
   grids->sfr_unfiltered = NULL;
   grids->sfr_filtered = NULL;
-#if USE_STOCHASTICITY
   grids->xray_luminosity = NULL;
   grids->xray_luminosity_histories = NULL;
   grids->xray_luminosity_unfiltered = NULL;
   grids->xray_luminosity_filtered = NULL;
-#endif
   grids->weighted_sfr = NULL;
   grids->weighted_sfr_unfiltered = NULL;
   grids->weighted_sfr_filtered = NULL;
@@ -823,9 +814,7 @@ void malloc_reionization_grids()
   grids->x_e_filtered = NULL;
 
   grids->SMOOTHED_SFR_GAL = NULL;
-#if USE_STOCHASTICITY
   grids->SMOOTHED_XRAY_LUMINOSITY_GAL = NULL;
-#endif
 
   grids->BHXrayEmissivity_hard = NULL;
   grids->bh_xray_histories_hard = NULL;
@@ -1075,7 +1064,6 @@ void malloc_reionization_grids()
                                                                    run_globals.mpi_comm,
                                                                    plan_flags);
 
-#if USE_STOCHASTICITY
       grids->xray_luminosity = fftwf_alloc_real((size_t)slab_n_complex * 2);
       grids->xray_luminosity_histories =
         fftwf_alloc_real((size_t)slab_n_complex * 2 * run_globals.NstoreSnapshots_Heating);
@@ -1096,7 +1084,6 @@ void malloc_reionization_grids()
                                                                                (float*)grids->xray_luminosity_filtered,
                                                                                run_globals.mpi_comm,
                                                                                plan_flags);
-#endif
 
       {
         /* Flag_IncludeAGNXray: 0=off, 1=soft+hard, 2=hard only, 3=soft only.
@@ -1268,9 +1255,7 @@ void malloc_reionization_grids()
       grids->TS_box = fftwf_alloc_real((size_t)slab_n_real);
 
       grids->SMOOTHED_SFR_GAL = calloc((size_t)slab_n_real_smoothedHeating, sizeof(double));
-#if USE_STOCHASTICITY
       grids->SMOOTHED_XRAY_LUMINOSITY_GAL = calloc((size_t)slab_n_real_smoothedHeating, sizeof(double));
-#endif
 #if USE_MINI_HALOS
       grids->Tk_boxII = fftwf_alloc_real((size_t)slab_n_real);
       grids->TS_boxII = fftwf_alloc_real((size_t)slab_n_real);
@@ -1450,9 +1435,7 @@ void free_reionization_grids()
 
   if (run_globals.params.Flag_IncludeSpinTemp) {
     free(grids->SMOOTHED_SFR_GAL);
-#if USE_STOCHASTICITY
     free(grids->SMOOTHED_XRAY_LUMINOSITY_GAL);
-#endif
 
     free(grids->SMOOTHED_AGN_hard);
     free(grids->SMOOTHED_AGN_soft);
@@ -1511,14 +1494,12 @@ void free_reionization_grids()
     fftwf_free(grids->sfr);
     fftwf_free(grids->sfr_histories);
 
-#if USE_STOCHASTICITY
     fftwf_destroy_plan(grids->xray_luminosity_filtered_reverse_plan);
     fftwf_destroy_plan(grids->xray_luminosity_forward_plan);
     fftwf_free(grids->xray_luminosity_filtered);
     fftwf_free(grids->xray_luminosity_unfiltered);
     fftwf_free(grids->xray_luminosity);
     fftwf_free(grids->xray_luminosity_histories);
-#endif
 
 #if USE_MINI_HALOS
     fftwf_destroy_plan(grids->sfrIII_filtered_reverse_plan);
@@ -1983,8 +1964,44 @@ void assign_Mvir_crit_to_galaxies(int ngals_in_slabs, int flag_feed)
   mlog("...done.", MLOG_CLOSE);
 }
 
-#if USE_STOCHASTICITY
-static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, double sfr_timescale)
+static double galaxy_xray_band_fraction(void)
+{
+  // Convert 0.5-2 keV luminosity to the band normalised by ComputeTs.
+  // The adopted energy spectrum is L_E proportional to E^(-alpha).
+  double e_min = run_globals.params.physics.NuXrayThreshold;
+  double e_max = run_globals.params.physics.NuXraySoftCut;
+  double alpha = run_globals.params.physics.SpecIndexXrayGal;
+
+  if (fabs(alpha - 1.0) < REL_TOL)
+    return log(e_max / e_min) / log(2000.0 / 500.0);
+
+  double exponent = 1.0 - alpha;
+  return (pow(e_max, exponent) - pow(e_min, exponent)) / (pow(2000.0, exponent) - pow(500.0, exponent));
+}
+
+static double galaxy_xray_metallicity(const galaxy_t* source_view)
+{
+  if (source_view->ColdGas > 0.0)
+    return calc_metallicity(source_view->ColdGas, source_view->MetalsColdGas);
+
+  // Gas can be exhausted after star formation; use the recorded stellar metallicity in that case.
+#if USE_MINI_HALOS
+  double new_stars = source_view->NewStars_II[0];
+  double stellar_mass = source_view->StellarMass_II;
+#else
+  double new_stars = source_view->NewStars[0];
+  double stellar_mass = source_view->StellarMass;
+#endif
+  if (new_stars > 0.0)
+    return calc_metallicity(new_stars, source_view->NewMetals[0]);
+  if (stellar_mass > 0.0)
+    return calc_metallicity(stellar_mass, source_view->MetalsStellarMass);
+
+  // No abundance estimate is available; retain the original Lx-SFR relation.
+  return -1.0;
+}
+
+static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, double sfr_timescale, double scatter_dex)
 {
   double source_sfr;
 
@@ -1994,9 +2011,41 @@ static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, doub
   source_sfr *= run_globals.units.UnitMass_in_g / SOLAR_MASS;
   source_sfr *= SEC_PER_YEAR / run_globals.units.UnitTime_in_s;
 
-  return run_globals.params.physics.LXrayGal * source_sfr / XRAY_LUMINOSITY_UNIT;
-}
+  double metallicity = run_globals.params.physics.Flag_useZ_Lx ? galaxy_xray_metallicity(source_view) : -1.0;
+  if (metallicity < 0.0) {
+    double luminosity = run_globals.params.physics.LXrayGal * source_sfr / XRAY_LUMINOSITY_UNIT;
+#if USE_STOCHASTICITY
+    if (scatter_dex > 0.0)
+      luminosity = apply_lognormal_scatter(luminosity, scatter_dex);
+#else
+    (void)scatter_dex;
 #endif
+    return luminosity;
+  }
+
+  if (source_sfr <= 0.0)
+    return 0.0;
+
+  double z_solar = metallicity / run_globals.params.physics.XrayMetallicitySolar;
+  double oxygen_abundance = run_globals.params.physics.XrayOxygenAbundanceFactor * z_solar;
+
+  // Kyritsis et al. (2025), Eq. (8): log10[L_X(0.5-2 keV)/SFR] = B + A * (O/H)/(O/H)_sun + epsilon.
+  double log_lx_sfr =
+    run_globals.params.physics.XrayLogLNorm + run_globals.params.physics.XrayMetallicitySlope * oxygen_abundance;
+  double band_fraction = galaxy_xray_band_fraction();
+
+#if USE_STOCHASTICITY
+  // A zero-mean Gaussian residual in dex.
+  if (scatter_dex > 0.0) {
+    double u = gsl_rng_uniform(run_globals.random_generator);
+    log_lx_sfr += scatter_dex * gsl_cdf_ugaussian_Pinv(u);
+  }
+#else
+  (void)scatter_dex;
+#endif
+
+  return pow(10.0, log_lx_sfr) * band_fraction * source_sfr / XRAY_LUMINOSITY_UNIT;
+}
 
 void construct_baryon_grids(int snapshot, int local_ngals)
 {
@@ -2006,9 +2055,9 @@ void construct_baryon_grids(int snapshot, int local_ngals)
   float* effective_bhar_grid = run_globals.reion_grids.effective_bhar;
   float* sfr_grid = run_globals.reion_grids.sfr;
   float* sfr_histories_grid = run_globals.reion_grids.sfr_histories;
-#if USE_STOCHASTICITY
   float* xray_luminosity_grid = run_globals.reion_grids.xray_luminosity;
   float* xray_luminosity_histories_grid = run_globals.reion_grids.xray_luminosity_histories;
+#if USE_STOCHASTICITY
   // Recalibrate the X-ray field only when source recalibration is enabled and either noSFR treatment or X-ray scatter
   // modifies the source luminosities.
   int recalibrate_xray_sources =
@@ -2083,12 +2132,10 @@ void construct_baryon_grids(int snapshot, int local_ngals)
       sfr_grid[ii] = 0.0;
       for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
         sfr_histories_grid[(snap + 1) * local_n_complex * 2 + ii] = sfr_histories_grid[snap * local_n_complex * 2 + ii];
-#if USE_STOCHASTICITY
       xray_luminosity_grid[ii] = 0.0;
       for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
         xray_luminosity_histories_grid[(snap + 1) * local_n_complex * 2 + ii] =
           xray_luminosity_histories_grid[snap * local_n_complex * 2 + ii];
-#endif
 #if USE_MINI_HALOS
       sfrIII_grid[ii] = 0.0;
       for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
@@ -2136,9 +2183,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
     prop_weighted_sfrIII,
     prop_sfrIII,
 #endif
-#if USE_STOCHASTICITY
     prop_xray_luminosity,
-#endif
     prop_sfr,
     prop_bh_xray_emissivity_hard,
     prop_bh_xray_emissivity_soft,
@@ -2161,10 +2206,8 @@ void construct_baryon_grids(int snapshot, int local_ngals)
     if ((!run_globals.params.Flag_IncludeSpinTemp) && (prop == prop_sfr))
       continue;
 
-#if USE_STOCHASTICITY
     if ((!run_globals.params.Flag_IncludeSpinTemp) && (prop == prop_xray_luminosity))
       continue;
-#endif
 
     if (prop == prop_bh_xray_emissivity_hard && (!run_globals.params.Flag_IncludeSpinTemp || !agn_hard_needed))
       continue;
@@ -2316,31 +2359,30 @@ void construct_baryon_grids(int snapshot, int local_ngals)
               }
               break;
 
-#if USE_STOCHASTICITY
             case prop_xray_luminosity: {
-              double xray_target = calculate_galaxy_xray_luminosity(gal, sfr_timescale);
+              // The calibration target uses the physical SFR and no luminosity residual.
+              double xray_target = calculate_galaxy_xray_luminosity(gal, sfr_timescale, 0.0);
               double xray_raw = xray_target;
-
+#if USE_STOCHASTICITY
               if (run_globals.params.physics.Flag_RemoveSFRScatter == 1) {
                 galaxy_t source_view = *gal;
                 source_view.GrossStellarMass = source_view.GrossStellarMassNoScatter;
                 source_view.Sfr = source_view.SfrNoScatter;
 
-                xray_raw = calculate_galaxy_xray_luminosity(&source_view, sfr_timescale);
-              }
-
-              if (run_globals.params.physics.XrayScatterDex > 0.0)
-                xray_raw = apply_lognormal_scatter(xray_raw, run_globals.params.physics.XrayScatterDex);
+                xray_raw = calculate_galaxy_xray_luminosity(
+                  &source_view, sfr_timescale, run_globals.params.physics.XrayScatterDex);
+              } else if (run_globals.params.physics.XrayScatterDex > 0.0)
+                xray_raw =
+                  calculate_galaxy_xray_luminosity(gal, sfr_timescale, run_globals.params.physics.XrayScatterDex);
 
               if (recalibrate_xray_sources) {
                 local_xray_raw += xray_raw;
                 local_xray_target += xray_target;
               }
-
+#endif
               buffer[ind] += (float)xray_raw;
               break;
             }
-#endif
 
             case prop_sfr: {
 #if USE_STOCHASTICITY
@@ -2461,7 +2503,6 @@ void construct_baryon_grids(int snapshot, int local_ngals)
                 }
             break;
 
-#if USE_STOCHASTICITY
           case prop_xray_luminosity:
             for (int ix = 0; ix < slab_nix[i_r]; ix++)
               for (int iy = 0; iy < ReionGridDim; iy++)
@@ -2471,7 +2512,6 @@ void construct_baryon_grids(int snapshot, int local_ngals)
                   xray_luminosity_histories_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = val;
                 }
             break;
-#endif
 
           case prop_bh_xray_emissivity_hard:
             for (int ix = 0; ix < slab_nix[i_r]; ix++)
@@ -2747,12 +2787,10 @@ void load_reion_sfr_grids(int snapshot_counter_backwards, float weight, const in
             grids->sfr_histories[snapshot_counter_backwards * local_n_complex * 2 +
                                  grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
             weight;
-#if USE_STOCHASTICITY
           (grids->xray_luminosity)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] =
             grids->xray_luminosity_histories[snapshot_counter_backwards * local_n_complex * 2 +
                                              grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
             weight;
-#endif
 #if USE_MINI_HALOS
           (grids->sfrIII)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] =
             grids->sfrIII_histories[snapshot_counter_backwards * local_n_complex * 2 +
@@ -2768,12 +2806,10 @@ void load_reion_sfr_grids(int snapshot_counter_backwards, float weight, const in
             grids->sfr_histories[snapshot_counter_backwards * local_n_complex * 2 +
                                  grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
             weight;
-#if USE_STOCHASTICITY
           (grids->xray_luminosity)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] +=
             grids->xray_luminosity_histories[snapshot_counter_backwards * local_n_complex * 2 +
                                              grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
             weight;
-#endif
 #if USE_MINI_HALOS
           (grids->sfrIII)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] +=
             grids->sfrIII_histories[snapshot_counter_backwards * local_n_complex * 2 +
