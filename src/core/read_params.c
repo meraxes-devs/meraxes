@@ -1,6 +1,7 @@
 #include "meraxes.h"
 #include "mlog.h"
 #include "parse_paramfile.h"
+#include <math.h>
 #include <string.h>
 // test
 static void check_problem_params(run_params_t* run_params)
@@ -37,6 +38,22 @@ static void check_problem_params(run_params_t* run_params)
     ABORT(EXIT_FAILURE);
   }
 #endif
+
+  if (run_params->physics.Flag_useZ_Lx != 0 && run_params->physics.Flag_useZ_Lx != 1) {
+    mlog_error("useZ-Lx must be 0 or 1.");
+    ABORT(EXIT_FAILURE);
+  }
+  if (run_params->physics.Flag_useZ_Lx) {
+    if (!isfinite(run_params->physics.XrayLogLNorm) || !isfinite(run_params->physics.XrayMetallicitySlope) ||
+        !isfinite(run_params->physics.XrayMetallicitySolar) || run_params->physics.XrayMetallicitySolar <= 0.0 ||
+        !isfinite(run_params->physics.XrayOxygenAbundanceFactor) || run_params->physics.XrayOxygenAbundanceFactor < 0.0 ||
+        !isfinite(run_params->physics.SpecIndexXrayGal) || !isfinite(run_params->physics.NuXrayThreshold) ||
+        !isfinite(run_params->physics.NuXraySoftCut) || run_params->physics.NuXrayThreshold <= 0.0 ||
+        run_params->physics.NuXraySoftCut <= run_params->physics.NuXrayThreshold) {
+      mlog_error("Invalid metallicity-dependent X-ray parameters or energy band.");
+      ABORT(EXIT_FAILURE);
+    }
+  }
 
   if (strlen(run_globals.params.ForestIDFile) != 0) {
     mlog("*** YOU HAVE PROVIDED A REQUESTED FORESTID FILE. THIS FEATURE HAS NOT BE WELL TESTED. YMMV! ***", MLOG_MESG);
@@ -1219,6 +1236,36 @@ void read_parameter_file(char* fname, int mode)
       params_addr[n_param] = &(run_params->physics).XrayScatterDex;
       required_tag[n_param] = 0;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strcpy(params_tag[n_param], "useZ-Lx");
+      params_addr[n_param] = &(run_params->physics).Flag_useZ_Lx;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_INT;
+      run_params->physics.Flag_useZ_Lx = 0;
+
+      strcpy(params_tag[n_param], "XrayLogLNorm");
+      params_addr[n_param] = &(run_params->physics).XrayLogLNorm;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      run_params->physics.XrayLogLNorm = 40.68;
+
+      strcpy(params_tag[n_param], "XrayMetallicitySlope");
+      params_addr[n_param] = &(run_params->physics).XrayMetallicitySlope;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      run_params->physics.XrayMetallicitySlope = -1.22;
+
+      strcpy(params_tag[n_param], "XrayMetallicitySolar");
+      params_addr[n_param] = &(run_params->physics).XrayMetallicitySolar;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      run_params->physics.XrayMetallicitySolar = 0.0134;
+
+      strcpy(params_tag[n_param], "XrayOxygenAbundanceFactor");
+      params_addr[n_param] = &(run_params->physics).XrayOxygenAbundanceFactor;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      run_params->physics.XrayOxygenAbundanceFactor = 1.0;
 
       strcpy(params_tag[n_param], "NuXrayThreshold");
       params_addr[n_param] = &(run_params->physics).NuXrayThreshold;
