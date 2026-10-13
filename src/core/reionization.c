@@ -1984,7 +1984,7 @@ static double galaxy_xray_metallicity(const galaxy_t* source_view)
   if (source_view->ColdGas > 0.0)
     return calc_metallicity(source_view->ColdGas, source_view->MetalsColdGas);
 
-  // Gas can be exhausted after star formation; use the recorded stellar metallicity in that case.
+    // Gas can be exhausted after star formation; use the recorded stellar metallicity in that case.
 #if USE_MINI_HALOS
   double new_stars = source_view->NewStars_II[0];
   double stellar_mass = source_view->StellarMass_II;
