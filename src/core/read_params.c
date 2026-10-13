@@ -31,19 +31,25 @@ static void check_problem_params(run_params_t* run_params)
     ABORT(EXIT_FAILURE);
   }
 #else
-  if (run_params->physics.EscapeFracScatterDex > ABS_TOL || run_params->physics.XrayScatterDex > 0.0 ||
-      run_params->physics.Flag_RemoveSFRScatter != 0 || run_params->physics.Flag_SourceRecalibration != 0) {
+  if (run_params->physics.XrayScatterDex > 0.0) {
+    mlog("<WARNING> XrayScatterDex > 0 was requested, but Meraxes was compiled "
+         "with USE_STOCHASTICITY=OFF. X-ray luminosity scatter will be ignored. "
+         "Recompile with USE_STOCHASTICITY=ON to enable it.",
+         MLOG_MESG);
+  }
+  if (run_params->physics.EscapeFracScatterDex > ABS_TOL || run_params->physics.Flag_RemoveSFRScatter != 0 ||
+      run_params->physics.Flag_SourceRecalibration != 0) {
     mlog_error("A scatter prescription was requested, but Meraxes was compiled "
                "with USE_STOCHASTICITY=OFF.");
     ABORT(EXIT_FAILURE);
   }
 #endif
 
-  if (run_params->physics.Flag_useZ_Lx != 0 && run_params->physics.Flag_useZ_Lx != 1) {
-    mlog_error("useZ-Lx must be 0 or 1.");
+  if (run_params->physics.Flag_UseXrayMetallicity != 0 && run_params->physics.Flag_UseXrayMetallicity != 1) {
+    mlog_error("Flag_UseXrayMetallicity must be 0 or 1.");
     ABORT(EXIT_FAILURE);
   }
-  if (run_params->physics.Flag_useZ_Lx) {
+  if (run_params->physics.Flag_UseXrayMetallicity) {
     if (!isfinite(run_params->physics.XrayLogLNorm) || !isfinite(run_params->physics.XrayMetallicitySlope) ||
         !isfinite(run_params->physics.XrayMetallicitySolar) || run_params->physics.XrayMetallicitySolar <= 0.0 ||
         !isfinite(run_params->physics.XrayOxygenAbundanceFactor) ||
@@ -1238,11 +1244,11 @@ void read_parameter_file(char* fname, int mode)
       required_tag[n_param] = 0;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
 
-      strcpy(params_tag[n_param], "useZ-Lx");
-      params_addr[n_param] = &(run_params->physics).Flag_useZ_Lx;
+      strcpy(params_tag[n_param], "Flag_UseXrayMetallicity");
+      params_addr[n_param] = &(run_params->physics).Flag_UseXrayMetallicity;
       required_tag[n_param] = 0;
       params_type[n_param++] = PARAM_TYPE_INT;
-      run_params->physics.Flag_useZ_Lx = 0;
+      run_params->physics.Flag_UseXrayMetallicity = 0;
 
       strcpy(params_tag[n_param], "XrayLogLNorm");
       params_addr[n_param] = &(run_params->physics).XrayLogLNorm;

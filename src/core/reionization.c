@@ -505,6 +505,7 @@ void init_reion_grids()
 {
 
   reion_grids_t* grids = &(run_globals.reion_grids);
+  bool xray_luminosity_needed = USE_STOCHASTICITY || run_globals.params.physics.Flag_UseXrayMetallicity;
   int ReionGridDim = run_globals.params.ReionGridDim;
   ptrdiff_t* slab_nix = run_globals.reion_grids.slab_nix;
   ptrdiff_t slab_n_real = slab_nix[run_globals.mpi_rank] * ReionGridDim * ReionGridDim;
@@ -598,7 +599,8 @@ void init_reion_grids()
 
     for (int ii = 0; ii < slab_n_real_smoothedHeating; ii++) {
       grids->SMOOTHED_SFR_GAL[ii] = 0.0;
-      grids->SMOOTHED_XRAY_LUMINOSITY_GAL[ii] = 0.0;
+      if (xray_luminosity_needed)
+        grids->SMOOTHED_XRAY_LUMINOSITY_GAL[ii] = 0.0;
 #if USE_MINI_HALOS
       grids->SMOOTHED_SFR_III[ii] = 0.0;
 #endif
@@ -647,8 +649,10 @@ void init_reion_grids()
     if (run_globals.params.Flag_IncludeSpinTemp) {
       grids->sfr_filtered[ii] = 0 + 0I;
       grids->sfr_unfiltered[ii] = 0 + 0I;
-      grids->xray_luminosity_filtered[ii] = 0 + 0I;
-      grids->xray_luminosity_unfiltered[ii] = 0 + 0I;
+      if (xray_luminosity_needed) {
+        grids->xray_luminosity_filtered[ii] = 0 + 0I;
+        grids->xray_luminosity_unfiltered[ii] = 0 + 0I;
+      }
       grids->x_e_filtered[ii] = 0 + 0I;
       grids->x_e_unfiltered[ii] = 0 + 0I;
 #if USE_MINI_HALOS
@@ -680,7 +684,8 @@ void init_reion_grids()
 
     if (run_globals.params.Flag_IncludeSpinTemp) {
       grids->sfr[ii] = 0;
-      grids->xray_luminosity[ii] = 0;
+      if (xray_luminosity_needed)
+        grids->xray_luminosity[ii] = 0;
       grids->x_e_box_prev[ii] = 0;
       grids->x_e_box[ii] = 0;
 #if USE_MINI_HALOS
@@ -688,7 +693,8 @@ void init_reion_grids()
 #endif
       for (int jj = 0; jj < run_globals.NstoreSnapshots_Heating; jj++) {
         grids->sfr_histories[jj * slab_n_complex * 2 + ii] = 0;
-        grids->xray_luminosity_histories[jj * slab_n_complex * 2 + ii] = 0;
+        if (xray_luminosity_needed)
+          grids->xray_luminosity_histories[jj * slab_n_complex * 2 + ii] = 0;
 #if USE_MINI_HALOS
         grids->sfrIII_histories[jj * slab_n_complex * 2 + ii] = 0;
 #endif
@@ -720,6 +726,7 @@ void malloc_reionization_grids()
   mlog("Allocating reionization grids...", MLOG_OPEN);
 
   reion_grids_t* grids = &(run_globals.reion_grids);
+  bool xray_luminosity_needed = USE_STOCHASTICITY || run_globals.params.physics.Flag_UseXrayMetallicity;
 
   fftwf_mpi_init();
 
@@ -783,6 +790,8 @@ void malloc_reionization_grids()
   grids->xray_luminosity_histories = NULL;
   grids->xray_luminosity_unfiltered = NULL;
   grids->xray_luminosity_filtered = NULL;
+  grids->xray_luminosity_forward_plan = NULL;
+  grids->xray_luminosity_filtered_reverse_plan = NULL;
   grids->weighted_sfr = NULL;
   grids->weighted_sfr_unfiltered = NULL;
   grids->weighted_sfr_filtered = NULL;
@@ -1064,26 +1073,29 @@ void malloc_reionization_grids()
                                                                    run_globals.mpi_comm,
                                                                    plan_flags);
 
-      grids->xray_luminosity = fftwf_alloc_real((size_t)slab_n_complex * 2);
-      grids->xray_luminosity_histories =
-        fftwf_alloc_real((size_t)slab_n_complex * 2 * run_globals.NstoreSnapshots_Heating);
-      grids->xray_luminosity_unfiltered = fftwf_alloc_complex((size_t)slab_n_complex);
-      grids->xray_luminosity_filtered = fftwf_alloc_complex((size_t)slab_n_complex);
+      if (xray_luminosity_needed) {
+        grids->xray_luminosity = fftwf_alloc_real((size_t)slab_n_complex * 2);
+        grids->xray_luminosity_histories =
+          fftwf_alloc_real((size_t)slab_n_complex * 2 * run_globals.NstoreSnapshots_Heating);
+        grids->xray_luminosity_unfiltered = fftwf_alloc_complex((size_t)slab_n_complex);
+        grids->xray_luminosity_filtered = fftwf_alloc_complex((size_t)slab_n_complex);
 
-      grids->xray_luminosity_forward_plan = fftwf_mpi_plan_dft_r2c_3d(ReionGridDim,
-                                                                      ReionGridDim,
-                                                                      ReionGridDim,
-                                                                      grids->xray_luminosity,
-                                                                      grids->xray_luminosity_unfiltered,
-                                                                      run_globals.mpi_comm,
-                                                                      plan_flags);
-      grids->xray_luminosity_filtered_reverse_plan = fftwf_mpi_plan_dft_c2r_3d(ReionGridDim,
-                                                                               ReionGridDim,
-                                                                               ReionGridDim,
-                                                                               grids->xray_luminosity_filtered,
-                                                                               (float*)grids->xray_luminosity_filtered,
-                                                                               run_globals.mpi_comm,
-                                                                               plan_flags);
+        grids->xray_luminosity_forward_plan = fftwf_mpi_plan_dft_r2c_3d(ReionGridDim,
+                                                                        ReionGridDim,
+                                                                        ReionGridDim,
+                                                                        grids->xray_luminosity,
+                                                                        grids->xray_luminosity_unfiltered,
+                                                                        run_globals.mpi_comm,
+                                                                        plan_flags);
+        grids->xray_luminosity_filtered_reverse_plan =
+          fftwf_mpi_plan_dft_c2r_3d(ReionGridDim,
+                                    ReionGridDim,
+                                    ReionGridDim,
+                                    grids->xray_luminosity_filtered,
+                                    (float*)grids->xray_luminosity_filtered,
+                                    run_globals.mpi_comm,
+                                    plan_flags);
+      }
 
       {
         /* Flag_IncludeAGNXray: 0=off, 1=soft+hard, 2=hard only, 3=soft only.
@@ -1255,7 +1267,8 @@ void malloc_reionization_grids()
       grids->TS_box = fftwf_alloc_real((size_t)slab_n_real);
 
       grids->SMOOTHED_SFR_GAL = calloc((size_t)slab_n_real_smoothedHeating, sizeof(double));
-      grids->SMOOTHED_XRAY_LUMINOSITY_GAL = calloc((size_t)slab_n_real_smoothedHeating, sizeof(double));
+      if (xray_luminosity_needed)
+        grids->SMOOTHED_XRAY_LUMINOSITY_GAL = calloc((size_t)slab_n_real_smoothedHeating, sizeof(double));
 #if USE_MINI_HALOS
       grids->Tk_boxII = fftwf_alloc_real((size_t)slab_n_real);
       grids->TS_boxII = fftwf_alloc_real((size_t)slab_n_real);
@@ -1366,6 +1379,7 @@ void free_reionization_grids()
   mlog("Freeing reionization grids...", MLOG_OPEN);
 
   reion_grids_t* grids = &(run_globals.reion_grids);
+  bool xray_luminosity_needed = USE_STOCHASTICITY || run_globals.params.physics.Flag_UseXrayMetallicity;
 
   free(run_globals.reion_grids.slab_n_complex);
   free(run_globals.reion_grids.slab_ix_start);
@@ -1435,7 +1449,8 @@ void free_reionization_grids()
 
   if (run_globals.params.Flag_IncludeSpinTemp) {
     free(grids->SMOOTHED_SFR_GAL);
-    free(grids->SMOOTHED_XRAY_LUMINOSITY_GAL);
+    if (xray_luminosity_needed)
+      free(grids->SMOOTHED_XRAY_LUMINOSITY_GAL);
 
     free(grids->SMOOTHED_AGN_hard);
     free(grids->SMOOTHED_AGN_soft);
@@ -1494,12 +1509,14 @@ void free_reionization_grids()
     fftwf_free(grids->sfr);
     fftwf_free(grids->sfr_histories);
 
-    fftwf_destroy_plan(grids->xray_luminosity_filtered_reverse_plan);
-    fftwf_destroy_plan(grids->xray_luminosity_forward_plan);
-    fftwf_free(grids->xray_luminosity_filtered);
-    fftwf_free(grids->xray_luminosity_unfiltered);
-    fftwf_free(grids->xray_luminosity);
-    fftwf_free(grids->xray_luminosity_histories);
+    if (xray_luminosity_needed) {
+      fftwf_destroy_plan(grids->xray_luminosity_filtered_reverse_plan);
+      fftwf_destroy_plan(grids->xray_luminosity_forward_plan);
+      fftwf_free(grids->xray_luminosity_filtered);
+      fftwf_free(grids->xray_luminosity_unfiltered);
+      fftwf_free(grids->xray_luminosity);
+      fftwf_free(grids->xray_luminosity_histories);
+    }
 
 #if USE_MINI_HALOS
     fftwf_destroy_plan(grids->sfrIII_filtered_reverse_plan);
@@ -2011,7 +2028,7 @@ static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, doub
   source_sfr *= run_globals.units.UnitMass_in_g / SOLAR_MASS;
   source_sfr *= SEC_PER_YEAR / run_globals.units.UnitTime_in_s;
 
-  double metallicity = run_globals.params.physics.Flag_useZ_Lx ? galaxy_xray_metallicity(source_view) : -1.0;
+  double metallicity = run_globals.params.physics.Flag_UseXrayMetallicity ? galaxy_xray_metallicity(source_view) : -1.0;
   if (metallicity < 0.0) {
     double luminosity = run_globals.params.physics.LXrayGal * source_sfr / XRAY_LUMINOSITY_UNIT;
 #if USE_STOCHASTICITY
@@ -2057,6 +2074,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
   float* sfr_histories_grid = run_globals.reion_grids.sfr_histories;
   float* xray_luminosity_grid = run_globals.reion_grids.xray_luminosity;
   float* xray_luminosity_histories_grid = run_globals.reion_grids.xray_luminosity_histories;
+  bool xray_luminosity_needed = USE_STOCHASTICITY || run_globals.params.physics.Flag_UseXrayMetallicity;
 #if USE_STOCHASTICITY
   // Recalibrate the X-ray field only when source recalibration is enabled and either noSFR treatment or X-ray scatter
   // modifies the source luminosities.
@@ -2132,10 +2150,12 @@ void construct_baryon_grids(int snapshot, int local_ngals)
       sfr_grid[ii] = 0.0;
       for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
         sfr_histories_grid[(snap + 1) * local_n_complex * 2 + ii] = sfr_histories_grid[snap * local_n_complex * 2 + ii];
-      xray_luminosity_grid[ii] = 0.0;
-      for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
-        xray_luminosity_histories_grid[(snap + 1) * local_n_complex * 2 + ii] =
-          xray_luminosity_histories_grid[snap * local_n_complex * 2 + ii];
+      if (xray_luminosity_needed) {
+        xray_luminosity_grid[ii] = 0.0;
+        for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
+          xray_luminosity_histories_grid[(snap + 1) * local_n_complex * 2 + ii] =
+            xray_luminosity_histories_grid[snap * local_n_complex * 2 + ii];
+      }
 #if USE_MINI_HALOS
       sfrIII_grid[ii] = 0.0;
       for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
@@ -2206,7 +2226,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
     if ((!run_globals.params.Flag_IncludeSpinTemp) && (prop == prop_sfr))
       continue;
 
-    if ((!run_globals.params.Flag_IncludeSpinTemp) && (prop == prop_xray_luminosity))
+    if (prop == prop_xray_luminosity && (!run_globals.params.Flag_IncludeSpinTemp || !xray_luminosity_needed))
       continue;
 
     if (prop == prop_bh_xray_emissivity_hard && (!run_globals.params.Flag_IncludeSpinTemp || !agn_hard_needed))
@@ -2775,6 +2795,7 @@ void load_reion_sfr_grids(int snapshot_counter_backwards, float weight, const in
 {
   // Load the source histories used by ComputeTs.
   reion_grids_t* grids = &(run_globals.reion_grids);
+  bool xray_luminosity_needed = USE_STOCHASTICITY || run_globals.params.physics.Flag_UseXrayMetallicity;
   int ReionGridDim = run_globals.params.ReionGridDim;
   int local_nix = (int)(run_globals.reion_grids.slab_nix[run_globals.mpi_rank]);
   int local_n_complex = (int)(run_globals.reion_grids.slab_n_complex[run_globals.mpi_rank]);
@@ -2787,10 +2808,11 @@ void load_reion_sfr_grids(int snapshot_counter_backwards, float weight, const in
             grids->sfr_histories[snapshot_counter_backwards * local_n_complex * 2 +
                                  grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
             weight;
-          (grids->xray_luminosity)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] =
-            grids->xray_luminosity_histories[snapshot_counter_backwards * local_n_complex * 2 +
-                                             grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
-            weight;
+          if (xray_luminosity_needed)
+            (grids->xray_luminosity)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] =
+              grids->xray_luminosity_histories[snapshot_counter_backwards * local_n_complex * 2 +
+                                               grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
+              weight;
 #if USE_MINI_HALOS
           (grids->sfrIII)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] =
             grids->sfrIII_histories[snapshot_counter_backwards * local_n_complex * 2 +
@@ -2806,10 +2828,11 @@ void load_reion_sfr_grids(int snapshot_counter_backwards, float weight, const in
             grids->sfr_histories[snapshot_counter_backwards * local_n_complex * 2 +
                                  grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
             weight;
-          (grids->xray_luminosity)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] +=
-            grids->xray_luminosity_histories[snapshot_counter_backwards * local_n_complex * 2 +
-                                             grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
-            weight;
+          if (xray_luminosity_needed)
+            (grids->xray_luminosity)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] +=
+              grids->xray_luminosity_histories[snapshot_counter_backwards * local_n_complex * 2 +
+                                               grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
+              weight;
 #if USE_MINI_HALOS
           (grids->sfrIII)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] +=
             grids->sfrIII_histories[snapshot_counter_backwards * local_n_complex * 2 +

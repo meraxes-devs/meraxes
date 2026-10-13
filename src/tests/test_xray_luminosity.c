@@ -16,7 +16,7 @@ static void setup(void)
   run_globals.units.UnitTime_in_s = SEC_PER_YEAR;
 
   physics_params_t* params = &run_globals.params.physics;
-  params->Flag_useZ_Lx = 1;
+  params->Flag_UseXrayMetallicity = 1;
   params->LXrayGal = 3.16e40;
   params->XrayLogLNorm = 40.68;
   params->XrayMetallicitySlope = -1.22;
@@ -65,7 +65,7 @@ Test(xray_luminosity, flag_off_uses_legacy_relation)
 {
   galaxy_t gal = make_galaxy();
   physics_params_t* params = &run_globals.params.physics;
-  params->Flag_useZ_Lx = 0;
+  params->Flag_UseXrayMetallicity = 0;
 
   // Disabled metallicity parameters must not affect the original relation.
   params->XrayLogLNorm = NAN;
@@ -100,7 +100,7 @@ Test(xray_luminosity, source_units_and_sfr_scaling)
   run_globals.units.UnitTime_in_s = 2.0 * SEC_PER_YEAR;
 
   for (int flag = 0; flag <= 1; flag++) {
-    run_globals.params.physics.Flag_useZ_Lx = flag;
+    run_globals.params.physics.Flag_UseXrayMetallicity = flag;
     double lx_per_sfr = flag ? pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT : 3.16;
     gal.Sfr = 0.4; // 2 Msun/yr with the units above.
     expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), 2.0 * lx_per_sfr);
@@ -116,7 +116,7 @@ Test(xray_luminosity, time_averaged_sfr_uses_gross_stellar_mass)
   run_globals.params.Flag_InstantaneousSFR = 0;
 
   for (int flag = 0; flag <= 1; flag++) {
-    run_globals.params.physics.Flag_useZ_Lx = flag;
+    run_globals.params.physics.Flag_UseXrayMetallicity = flag;
     double lx_per_sfr = flag ? pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT : 3.16;
     expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 4.0, 0.0), 2.0 * lx_per_sfr);
   }
@@ -206,7 +206,7 @@ Test(xray_luminosity, zero_sfr_has_zero_luminosity)
   gal.Sfr = 0.0;
   gal.GrossStellarMass = 0.0;
   for (int flag = 0; flag <= 1; flag++) {
-    run_globals.params.physics.Flag_useZ_Lx = flag;
+    run_globals.params.physics.Flag_UseXrayMetallicity = flag;
     for (int instant = 0; instant <= 1; instant++) {
       run_globals.params.Flag_InstantaneousSFR = instant;
       cr_expect_float_eq(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.3), 0.0, 0.0);
@@ -218,7 +218,7 @@ Test(xray_luminosity, zero_sfr_has_zero_luminosity)
 Test(xray_luminosity, flag_off_preserves_legacy_scatter_and_rng_sequence)
 {
   galaxy_t gal = make_galaxy();
-  run_globals.params.physics.Flag_useZ_Lx = 0;
+  run_globals.params.physics.Flag_UseXrayMetallicity = 0;
 
   double expected[16];
   for (int i = 0; i < 16; i++)
@@ -254,7 +254,7 @@ Test(xray_luminosity, zero_scatter_and_zero_sfr_do_not_consume_rng)
   cr_assert_not_null(reference_rng);
 
   for (int flag = 0; flag <= 1; flag++) {
-    run_globals.params.physics.Flag_useZ_Lx = flag;
+    run_globals.params.physics.Flag_UseXrayMetallicity = flag;
     gal.Sfr = 1.0;
     double expected = flag ? pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT : 3.16;
     expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), expected);
@@ -269,7 +269,7 @@ Test(xray_luminosity, scatter_is_ignored_without_stochasticity)
 {
   galaxy_t gal = make_galaxy();
   for (int flag = 0; flag <= 1; flag++) {
-    run_globals.params.physics.Flag_useZ_Lx = flag;
+    run_globals.params.physics.Flag_UseXrayMetallicity = flag;
     double expected = flag ? pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT : 3.16;
     expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.3), expected);
   }

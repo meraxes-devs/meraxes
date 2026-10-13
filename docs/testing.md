@@ -122,12 +122,12 @@ With a fixed seed and rank count, repeated runs give bitwise-identical output. E
 | `calc_mags` | `-DCALC_MAGS=ON -DMAGS_N_SNAPS=3 -DMAGS_N_BANDS=2` | `TargetSnaps 48, 63, 75`, `RestBands 1550, 1650, 4958, 5058` | Photometry, UVLF, DustyLF, OIIIDustyLF |
 | `stochasticity` | `-DUSE_STOCHASTICITY=ON` | spin temperature and power spectrum, `EscapeFracScatterDex 0.3`, `XrayScatterDex 0.3`, `Flag_SourceRecalibration 1` | Escape-fraction and X-ray scatter, source recalibration |
 
-The `xray_metallicity` setup adds `useZ-Lx 1` to `xray` in the default build.
+The `xray_metallicity` setup adds `Flag_UseXrayMetallicity 1` to `xray` in the default build.
 The `xray_metallicity_scatter` setup uses the same physics in a
 `USE_STOCHASTICITY` build, with `XrayScatterDex 0.3` and
 `Flag_SourceRecalibration 1`. Both use `EscapeFracScatterDex 0` and keep
 separate references, leaving the original `xray` and `stochasticity`
-references as checks of `useZ-Lx 0`.
+references as checks of `Flag_UseXrayMetallicity 0`.
 
 In Debug builds the runs take from about 10 s (`default`, `igm`, `calc_mags`) to 2–3 minutes (`xray`, `mini_halos`).
 

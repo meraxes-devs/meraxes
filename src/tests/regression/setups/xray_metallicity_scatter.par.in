@@ -25,7 +25,7 @@ Flag_OutputXrayLF          : 1
 Flag_BHARExponentialCut    : 1
 
 # Metallicity-dependent HMXB luminosity
-useZ-Lx                   : 1
+Flag_UseXrayMetallicity                   : 1
 XrayLogLNorm              : 40.68
 XrayMetallicitySlope      : -1.22
 XrayMetallicitySolar      : 0.0134
