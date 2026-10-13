@@ -1123,9 +1123,10 @@ void _ComputeTs(int snapshot)
                                (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
                                pow(1 + zp, run_globals.params.physics.SpecIndexXrayGal + 3);
     } else {
-      const_zp_prefactor_GAL = (run_globals.params.physics.LXrayGal * SEC_PER_YEAR * Luminosity_converstion_factor_GAL) /
-                               (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
-                               pow(1 + zp, run_globals.params.physics.SpecIndexXrayGal + 3);
+      const_zp_prefactor_GAL =
+        (run_globals.params.physics.LXrayGal * SEC_PER_YEAR * Luminosity_converstion_factor_GAL) /
+        (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
+        pow(1 + zp, run_globals.params.physics.SpecIndexXrayGal + 3);
     }
 #endif
 #if USE_MINI_HALOS

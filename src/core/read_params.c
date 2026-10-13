@@ -46,9 +46,10 @@ static void check_problem_params(run_params_t* run_params)
   if (run_params->physics.Flag_useZ_Lx) {
     if (!isfinite(run_params->physics.XrayLogLNorm) || !isfinite(run_params->physics.XrayMetallicitySlope) ||
         !isfinite(run_params->physics.XrayMetallicitySolar) || run_params->physics.XrayMetallicitySolar <= 0.0 ||
-        !isfinite(run_params->physics.XrayOxygenAbundanceFactor) || run_params->physics.XrayOxygenAbundanceFactor < 0.0 ||
-        !isfinite(run_params->physics.SpecIndexXrayGal) || !isfinite(run_params->physics.NuXrayThreshold) ||
-        !isfinite(run_params->physics.NuXraySoftCut) || run_params->physics.NuXrayThreshold <= 0.0 ||
+        !isfinite(run_params->physics.XrayOxygenAbundanceFactor) ||
+        run_params->physics.XrayOxygenAbundanceFactor < 0.0 || !isfinite(run_params->physics.SpecIndexXrayGal) ||
+        !isfinite(run_params->physics.NuXrayThreshold) || !isfinite(run_params->physics.NuXraySoftCut) ||
+        run_params->physics.NuXrayThreshold <= 0.0 ||
         run_params->physics.NuXraySoftCut <= run_params->physics.NuXrayThreshold) {
       mlog_error("Invalid metallicity-dependent X-ray parameters or energy band.");
       ABORT(EXIT_FAILURE);

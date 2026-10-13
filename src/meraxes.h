@@ -544,8 +544,8 @@ typedef struct reion_grids_t
 
   double* SMOOTHED_SFR_GAL;
   double* SMOOTHED_XRAY_LUMINOSITY_GAL; // Per-cell luminosity density per shell [erg/s/cm^3]
-  double* SMOOTHED_AGN_hard; //!< per-cell AGN X-ray luminosity density per shell [erg/s/cm^3] (hard band)
-  double* SMOOTHED_AGN_soft; //!< per-cell AGN X-ray luminosity density per shell [erg/s/cm^3] (soft band)
+  double* SMOOTHED_AGN_hard;            //!< per-cell AGN X-ray luminosity density per shell [erg/s/cm^3] (hard band)
+  double* SMOOTHED_AGN_soft;            //!< per-cell AGN X-ray luminosity density per shell [erg/s/cm^3] (soft band)
 #if USE_MINI_HALOS
   double* SMOOTHED_SFR_III;
   double* SMOOTHED_AGN_UV; //!< per-cell AGN UV luminosity density per shell [1e21 erg/s/Hz/cm^3]
