@@ -1391,7 +1391,7 @@ void evolveInt(float zp,
 #if USE_STOCHASTICITY
       zpp_integrand_GAL = XRAY_LUMINOSITY_GAL[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayGal);
 #else
-      if (run_globals.params.physics.Flag_useZ_Lx) {
+      if (run_globals.params.physics.Flag_UseXrayMetallicity) {
         zpp_integrand_GAL = XRAY_LUMINOSITY_GAL[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayGal);
       } else {
         zpp_integrand_GAL = SFR_GAL[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayGal);
