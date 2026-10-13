@@ -56,7 +56,7 @@ SpecIndexXrayIII           : 1.              # Same as above for Pop III
 NuXrayThreshold            : 500.            # Energy threshold for HMXB X-rays escaping host galaxy (eV), this threshold used for Gal, popIII, and AGN
 NuXraySoftCut              : 2000.           # X-ray soft-band cut off in (eV)
 NuXrayMax                  : 10000.          # Maximum energy for X-ray band integration. 
-useZ-Lx                    : 0               # 0: original LXrayGal*SFR; 1: metallicity-dependent Lx following log10[L_X(0.5-2 keV)/SFR] = B + A * (O/H)/(O/H)_sun + epsilon
+Flag_UseXrayMetallicity                    : 0               # 0: original LXrayGal*SFR; 1: metallicity-dependent Lx following log10[L_X(0.5-2 keV)/SFR] = B + A * (O/H)/(O/H)_sun + epsilon
 XrayLogLNorm               : 40.68
 XrayMetallicitySlope       : -1.22           # Kyritsis et al. (2025), Eq. (8)
 XrayMetallicitySolar       : 0.0134          # Solar metal mass fraction

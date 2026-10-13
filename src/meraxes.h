@@ -171,7 +171,7 @@ typedef struct physics_params_t
   double XrayScatterDex; // Standard deviation of the Gaussian residual in log10 luminosity (dex).
 
   // log10[L_X(0.5-2 keV)/SFR] = XrayLogLNorm + XrayMetallicitySlope * (O/H)/(O/H)_sun + epsilon.
-  int Flag_useZ_Lx;
+  int Flag_UseXrayMetallicity;
   double XrayLogLNorm;
   double XrayMetallicitySlope;
   double XrayMetallicitySolar;
