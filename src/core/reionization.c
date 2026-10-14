@@ -1983,25 +1983,29 @@ void assign_Mvir_crit_to_galaxies(int ngals_in_slabs, int flag_feed)
 
 static double galaxy_xray_band_fraction(void)
 {
-  // Convert 0.5-2 keV luminosity to the band normalised by ComputeTs.
+  // Convert calibration-band luminosity to the band normalised by ComputeTs.
   // The adopted energy spectrum is L_E proportional to E^(-alpha).
   double e_min = run_globals.params.physics.NuXrayThreshold;
   double e_max = run_globals.params.physics.NuXraySoftCut;
+  double e_cal_min = run_globals.params.physics.XrayCalibrationBandMin;
+  double e_cal_max = run_globals.params.physics.XrayCalibrationBandMax;
   double alpha = run_globals.params.physics.SpecIndexXrayGal;
 
+  // Use the logarithmic limit near alpha = 1 to avoid cancellation.
   if (fabs(alpha - 1.0) < REL_TOL)
-    return log(e_max / e_min) / log(2000.0 / 500.0);
+    return log(e_max / e_min) / log(e_cal_max / e_cal_min);
 
   double exponent = 1.0 - alpha;
-  return (pow(e_max, exponent) - pow(e_min, exponent)) / (pow(2000.0, exponent) - pow(500.0, exponent));
+  return (pow(e_max, exponent) - pow(e_min, exponent)) / (pow(e_cal_max, exponent) - pow(e_cal_min, exponent));
 }
 
 static double galaxy_xray_metallicity(const galaxy_t* source_view)
 {
-  if (source_view->ColdGas > 0.0)
+  if (source_view->ColdGas > 0.0) {
     return calc_metallicity(source_view->ColdGas, source_view->MetalsColdGas);
+  }
 
-    // Gas can be exhausted after star formation; use the recorded stellar metallicity in that case.
+  // Gas can be exhausted after star formation; use the recorded stellar metallicity in that case.
 #if USE_MINI_HALOS
   double new_stars = source_view->NewStars_II[0];
   double stellar_mass = source_view->StellarMass_II;
@@ -2046,7 +2050,8 @@ static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, doub
   double z_solar = metallicity / run_globals.params.physics.XrayMetallicitySolar;
   double oxygen_abundance = run_globals.params.physics.XrayOxygenAbundanceFactor * z_solar;
 
-  // Kyritsis et al. (2025), Eq. (8): log10[L_X(0.5-2 keV)/SFR] = B + A * (O/H)/(O/H)_sun + epsilon.
+  // log10[L_X(calibration band)/SFR] = B + A * (O/H)/(O/H)_sun + epsilon.
+  // Defaults follow Kyritsis et al. (2025), Eq. (8), calibrated over 0.5-2 keV.
   double log_lx_sfr =
     run_globals.params.physics.XrayLogLNorm + run_globals.params.physics.XrayMetallicitySlope * oxygen_abundance;
   double band_fraction = galaxy_xray_band_fraction();

@@ -22,6 +22,8 @@ static void setup(void)
   params->XrayMetallicitySlope = -1.22;
   params->XrayMetallicitySolar = 0.0134;
   params->XrayOxygenAbundanceFactor = 1.0;
+  params->XrayCalibrationBandMin = 500.0;
+  params->XrayCalibrationBandMax = 2000.0;
   params->NuXrayThreshold = 500.0;
   params->NuXraySoftCut = 2000.0;
   params->SpecIndexXrayGal = 1.0;
@@ -71,6 +73,8 @@ Test(xray_luminosity, flag_off_uses_legacy_relation)
   params->XrayLogLNorm = NAN;
   params->XrayMetallicitySlope = NAN;
   params->XrayMetallicitySolar = 0.0;
+  params->XrayCalibrationBandMin = NAN;
+  params->XrayCalibrationBandMax = 0.0;
   gal.MetalsColdGas = 0.0;
   expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), 3.16);
   gal.MetalsColdGas = 0.2;
@@ -134,6 +138,81 @@ Test(xray_luminosity, energy_band_conversion)
   expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), 2.0 * reference);
   params->SpecIndexXrayGal = 2.0;
   expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), 2.5 * reference);
+}
+
+Test(xray_luminosity, configurable_calibration_band)
+{
+  galaxy_t gal = make_galaxy();
+  physics_params_t* params = &run_globals.params.physics;
+
+  // Hold the calibration-band luminosity fixed to isolate the band conversion.
+  // Change each calibration edge separately; the heating band stays at 500-2000 eV.
+  const double calibration_min[] = { 1000.0, 1000.0, 500.0, 500.0 };
+  const double calibration_max[] = { 2000.0, 2000.0, 4000.0, 4000.0 };
+  const double spectral_indices[] = { 1.0, 2.0, 1.0, 2.0 };
+  const double expected_fractions[] = { 2.0, 3.0, 2.0 / 3.0, 6.0 / 7.0 };
+  double reference = pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT;
+
+  for (int i = 0; i < 4; i++) {
+    params->XrayCalibrationBandMin = calibration_min[i];
+    params->XrayCalibrationBandMax = calibration_max[i];
+    params->SpecIndexXrayGal = spectral_indices[i];
+    expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), expected_fractions[i] * reference);
+  }
+}
+
+Test(xray_luminosity, matching_calibration_and_heating_bands)
+{
+  galaxy_t gal = make_galaxy();
+  physics_params_t* params = &run_globals.params.physics;
+  params->XrayCalibrationBandMin = 800.0;
+  params->XrayCalibrationBandMax = 6000.0;
+  params->NuXrayThreshold = 800.0;
+  params->NuXraySoftCut = 6000.0;
+  const double spectral_indices[] = { 0.5, 1.0, 1.5, 2.0 };
+
+  for (int i = 0; i < 4; i++) {
+    params->SpecIndexXrayGal = spectral_indices[i];
+    expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT);
+  }
+}
+
+Test(xray_luminosity, energy_band_conversion_with_non_default_threshold)
+{
+  galaxy_t gal = make_galaxy();
+  physics_params_t* params = &run_globals.params.physics;
+  params->NuXrayThreshold = 1000.0;
+  params->NuXraySoftCut = 2000.0;
+
+  // Only raise the lower edge: integrals over 1000-2000 eV relative to 500-2000 eV.
+  const double spectral_indices[] = { 0.5, 1.5, 2.0 };
+  const double expected_fractions[] = { 2.0 - sqrt(2.0), sqrt(2.0) - 1.0, 1.0 / 3.0 };
+  double reference = pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT;
+
+  for (int i = 0; i < 3; i++) {
+    params->SpecIndexXrayGal = spectral_indices[i];
+    expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), expected_fractions[i] * reference);
+  }
+}
+
+Test(xray_luminosity, energy_band_conversion_near_unit_spectral_index)
+{
+  physics_params_t* params = &run_globals.params.physics;
+  params->NuXrayThreshold = 1000.0;
+  params->NuXraySoftCut = 2000.0;
+
+  // Sample inside and outside the REL_TOL interval on both sides of alpha = 1.
+  const double offsets[] = { -2e-5, -5e-6, 0.0, 5e-6, 2e-5 };
+  const double tolerances[] = { 1e-10, 1e-5, 1e-12, 1e-5, 1e-10 };
+  for (int i = 0; i < 5; i++) {
+    params->SpecIndexXrayGal = 1.0 + offsets[i];
+    // Equal logarithmic half-bands give this exact, cancellation-free ratio.
+    double expected = 1.0 / (1.0 + pow(2.0, offsets[i]));
+    double fraction = galaxy_xray_band_fraction();
+    cr_assert(isfinite(fraction));
+    // The logarithmic limit is approximate when alpha is close to, but not equal to, 1.
+    cr_expect_float_eq(fraction / expected, 1.0, tolerances[i]);
+  }
 }
 
 Test(xray_luminosity, oxygen_conversion_and_solar_metallicity)
