@@ -50,6 +50,13 @@ static void check_problem_params(run_params_t* run_params)
     ABORT(EXIT_FAILURE);
   }
   if (run_params->physics.Flag_UseXrayMetallicity) {
+    if (!isfinite(run_params->physics.XrayCalibrationBandMin) ||
+        !isfinite(run_params->physics.XrayCalibrationBandMax) || run_params->physics.XrayCalibrationBandMin <= 0.0 ||
+        run_params->physics.XrayCalibrationBandMax <= run_params->physics.XrayCalibrationBandMin) {
+      mlog_error("Invalid X-ray calibration band: require finite 0 < XrayCalibrationBandMin < "
+                 "XrayCalibrationBandMax (eV).");
+      ABORT(EXIT_FAILURE);
+    }
     if (!isfinite(run_params->physics.XrayLogLNorm) || !isfinite(run_params->physics.XrayMetallicitySlope) ||
         !isfinite(run_params->physics.XrayMetallicitySolar) || run_params->physics.XrayMetallicitySolar <= 0.0 ||
         !isfinite(run_params->physics.XrayOxygenAbundanceFactor) ||
@@ -1273,6 +1280,18 @@ void read_parameter_file(char* fname, int mode)
       required_tag[n_param] = 0;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
       run_params->physics.XrayOxygenAbundanceFactor = 1.0;
+
+      strcpy(params_tag[n_param], "XrayCalibrationBandMin");
+      params_addr[n_param] = &(run_params->physics).XrayCalibrationBandMin;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      run_params->physics.XrayCalibrationBandMin = 500.0;
+
+      strcpy(params_tag[n_param], "XrayCalibrationBandMax");
+      params_addr[n_param] = &(run_params->physics).XrayCalibrationBandMax;
+      required_tag[n_param] = 0;
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      run_params->physics.XrayCalibrationBandMax = 2000.0;
 
       strcpy(params_tag[n_param], "NuXrayThreshold");
       params_addr[n_param] = &(run_params->physics).NuXrayThreshold;
