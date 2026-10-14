@@ -37,7 +37,55 @@ Without Criterion, only the two standalone drivers are built. Without Python, th
 | `test_cooling` | Cooling tables, cooling rates and the streaming-velocity cooling mass. |
 | `test_blackhole_feedback` | Black-hole emissivity, accretion time and luminosities. |
 | `test_emission_lines` | [O III] coefficients and luminosities. |
+| `test_xray_luminosity` | The original and metallicity-dependent Lx-SFR relations, units, energy bands, abundance fallbacks and scatter. |
 | `main_cooling`, `main_blackhole_feedback` | Standalone drivers that print the same quantities for given inputs. |
+
+## Metallicity-dependent X-ray luminosity tests
+
+`test_xray_luminosity.c` includes `core/reionization.c`, following the existing
+cooling test, so it exercises the actual static source functions without
+changing their visibility. It runs in every Criterion build; the conditional
+cases test the RNG sequence and Gaussian residual when `USE_STOCHASTICITY` is
+on, and the absence of scatter when it is off. The abundance fallback also
+checks the Pop II stellar mass fields in mini-halo builds.
+
+Build and run the unit test in both stochasticity configurations:
+
+```bash
+for stoch in OFF ON; do
+  cmake -S . -B "build_xray_test_${stoch}" \
+    -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON \
+    -DUSE_STOCHASTICITY="$stoch" -DUSE_MINI_HALOS=OFF \
+    -DHDF5_PREFER_PARALLEL=ON
+  cmake --build "build_xray_test_${stoch}" --target test_xray_luminosity --parallel 4
+  ASAN_OPTIONS=detect_leaks=0 ctest --test-dir "build_xray_test_${stoch}" \
+    --output-on-failure --no-tests=error -R '^test_xray_luminosity$'
+done
+```
+
+Repeat with `-DUSE_MINI_HALOS=ON` in separate build directories to cover the
+Pop II fallback branches. CI already builds these configurations. Criterion
+is required; if it is installed under a custom prefix, pass
+`-DCRITERION_INCLUDE_DIR=/path/to/criterion/include` and
+`-DCRITERION_LIBRARY=/path/to/criterion/lib/libcriterion.so` to CMake.
+
+For the end-to-end tests, configure with
+`-DMERAXES_TESTDATA_DIR=/path/to/testdata`, build `meraxes`, then run:
+
+```bash
+ASAN_OPTIONS=detect_leaks=0 ctest --test-dir build_xray_test_OFF \
+  --output-on-failure --no-tests=error -R '^regression_xray(_|$)'
+ASAN_OPTIONS=detect_leaks=0 ctest --test-dir build_xray_test_ON \
+  --output-on-failure --no-tests=error -R '^regression_(stochasticity|xray_metallicity_scatter)(_|$)'
+```
+
+The first run of a new setup has no reference: its comparison step only
+writes `summary.h5`. It is a simulation smoke test until a reviewed reference
+is added. Use the CI artifacts to create
+`reference/xray_metallicity.h5` and `reference/xray_metallicity_scatter.h5`,
+following [Updating the references](#updating-the-references), and reconfigure
+to enable numerical comparisons. Do not replace the original flag-off
+references to make a compatibility failure pass.
 
 ## Regression tests
 
@@ -73,6 +121,13 @@ With a fixed seed and rank count, repeated runs give bitwise-identical output. E
 | `mini_halos` | `-DUSE_MINI_HALOS=ON` | as `xray`, plus `Flag_IncludeLymanWerner 1`, `Flag_IncludeMetalEvo 1`, `MetalGridDim 32` | Pop. III stars, Lyman–Werner feedback (including AGN), IGM metal enrichment |
 | `calc_mags` | `-DCALC_MAGS=ON -DMAGS_N_SNAPS=3 -DMAGS_N_BANDS=2` | `TargetSnaps 48, 63, 75`, `RestBands 1550, 1650, 4958, 5058` | Photometry, UVLF, DustyLF, OIIIDustyLF |
 | `stochasticity` | `-DUSE_STOCHASTICITY=ON` | spin temperature and power spectrum, `EscapeFracScatterDex 0.3`, `XrayScatterDex 0.3`, `Flag_SourceRecalibration 1` | Escape-fraction and X-ray scatter, source recalibration |
+
+The `xray_metallicity` setup adds `Flag_UseXrayMetallicity 1` to `xray` in the default build.
+The `xray_metallicity_scatter` setup uses the same physics in a
+`USE_STOCHASTICITY` build, with `XrayScatterDex 0.3` and
+`Flag_SourceRecalibration 1`. Both use `EscapeFracScatterDex 0` and keep
+separate references, leaving the original `xray` and `stochasticity`
+references as checks of `Flag_UseXrayMetallicity 0`.
 
 In Debug builds the runs take from about 10 s (`default`, `igm`, `calc_mags`) to 2–3 minutes (`xray`, `mini_halos`).
 
@@ -277,10 +332,10 @@ The references must come from CI, not from a local build, because CI compares th
 
 | Configuration | Regression setups | Runs when |
 |---|---|---|
-| default | `default`, `igm`, `xray` | always |
+| default | `default`, `igm`, `xray`, `xray_metallicity` | always |
 | mini-halos | `mini_halos` | a changed C source or header mentions `USE_MINI_HALOS` |
 | calc-mags | `calc_mags` | a changed C source or header mentions `CALC_MAGS`, `USE_JWST` or `USE_HST` |
-| stochasticity | `stochasticity` | a changed C source or header mentions `USE_STOCHASTICITY` |
+| stochasticity | `stochasticity`, `xray_metallicity_scatter` | a changed C source or header mentions `USE_STOCHASTICITY` |
 | stochasticity-mini-halos | none (unit tests only) | as stochasticity |
 
 Every configuration runs when the build system, the workflow, `src/tests/regression/` or `input/` changes, on manual runs, and when the changes can't be determined.

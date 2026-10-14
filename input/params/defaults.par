@@ -49,13 +49,20 @@ ZCrit                      : 0.0001 # Critical metallicity. If Z >= Zcrit -> Pop
 #----- including PopIII which is required when using Minihalos -----
 #-------------------------------------------------------------------
 LXrayGal                   : 3.16e40         # Soft-band (< NuXraySoftCut keV) X-ray luminosity per SFR for galaxy based sources (erg/s)/(Msun/yr)
-XrayScatterDex             : 0.0             # Galaxy-to-galaxy 1-sigma scatter in log10 X-ray luminosity at fixed SFR (dex)
+XrayScatterDex             : 0.0             # Galaxy-to-galaxy 1-sigma scatter in log10 X-ray luminosity at fixed SFR (dex), 0.17 for Kyritsis et al. (2025), Eq. (8)
 LXrayGalIII                : 3.16e40         # Same as above for PopIII 
 SpecIndexXrayGal           : 1.              # Spectral index of galaxy X-ray sources  (nu^-alpha)
 SpecIndexXrayIII           : 1.              # Same as above for Pop III
 NuXrayThreshold            : 500.            # Energy threshold for HMXB X-rays escaping host galaxy (eV), this threshold used for Gal, popIII, and AGN
 NuXraySoftCut              : 2000.           # X-ray soft-band cut off in (eV)
 NuXrayMax                  : 10000.          # Maximum energy for X-ray band integration. 
+Flag_UseXrayMetallicity    : 0               # 0: original LXrayGal*SFR; 1: metallicity-dependent Lx following log10[L_X(calibration band)/SFR] = B + A * (O/H)/(O/H)_sun + epsilon
+XrayLogLNorm               : 40.68
+XrayMetallicitySlope       : -1.22           # Kyritsis et al. (2025), Eq. (8)
+XrayMetallicitySolar       : 0.0134          # Solar metal mass fraction
+XrayOxygenAbundanceFactor  : 1.0
+XrayCalibrationBandMin     : 500.0           # Calibration-band lower edge (eV)
+XrayCalibrationBandMax     : 2000.0          # Calibration-band upper edge (eV)
 
 # Adding AGN broken-power Spectral index
 Flag_IncludeAGNXray        : 0               # 0=no AGN, 1=soft+hard, 2=hard only, 3=soft only

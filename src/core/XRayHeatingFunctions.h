@@ -214,9 +214,7 @@ extern "C"
   void evolveInt(float zp,
                  float curr_delNL0,
                  const double SFR_GAL[],
-#if USE_STOCHASTICITY
                  const double XRAY_LUMINOSITY_GAL[],
-#endif
                  const double SFR_III[],
                  const double XAGN_soft[],
                  const double XAGN_hard[],
@@ -240,9 +238,7 @@ extern "C"
 void evolveInt(float zp,
                float curr_delNL0,
                const double SFR_GAL[],
-#if USE_STOCHASTICITY
                const double XRAY_LUMINOSITY_GAL[],
-#endif
                const double XAGN_soft[],
                const double XAGN_hard[],
                const double freq_int_heat_GAL[],
