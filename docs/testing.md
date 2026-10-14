@@ -1,11 +1,12 @@
 # Testing
 
-Meraxes has two kinds of tests:
+Meraxes has three kinds of tests:
 
 - **Unit tests** check individual physics modules (cooling, black-hole feedback, emission lines, parameter parsing).
-- **Regression tests** run the whole model on a small simulation and compare the results with stored references, so any change to the outputs is caught.
+- **Synthetic integration tests** follow a small in-memory merger tree through several snapshots, checking galaxy connections, mass transfers and stellar histories without simulation data.
+- **Regression tests** run the whole model on a small simulation and compare selected output summaries with stored references to detect changes in the quantities they cover.
 
-GitHub Actions runs both on every push and pull request (see [Continuous integration](#continuous-integration)).
+GitHub Actions runs all three on every push and pull request (see [Continuous integration](#continuous-integration)).
 
 ## Running the tests
 
@@ -16,28 +17,90 @@ mkdir build
 cd build
 cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DMERAXES_TESTDATA_DIR=/path/to/testdata
 make
-ctest -LE regression    # unit tests
+ctest -LE regression    # unit and synthetic integration tests
 ctest -L regression     # regression tests
 ```
 
-Debug builds compile with `-Werror=implicit` and run under AddressSanitizer and UBSan. The tests need:
+Debug builds compile with `-Werror=implicit` and run under AddressSanitizer and UBSan. All C tests link against `meraxes_lib`, so they need the usual Meraxes build dependencies, including MPI, HDF5, FFTW and GSL. Additional requirements are:
 
 | Tests | Requirement |
 |---|---|
 | Unit tests | [Criterion](https://github.com/Snaipe/Criterion) |
+| Synthetic tree test | `CALC_MAGS=OFF`, `N_HISTORY_SNAPS>=3`; no Criterion, simulation data or physics tables needed at runtime |
 | Regression runs | MPI; each run uses 2 ranks |
 | Regression comparisons | Python 3 with `h5py` and `numpy` |
 | Regression plots (optional) | `matplotlib` |
 
-Without Criterion, only the two standalone drivers are built. Without Python, the regression runs still happen but aren't compared.
+Without Criterion, the two standalone drivers and the synthetic tree test are still built, subject to the synthetic test's configuration requirements. Without Python, the regression runs still happen but aren't compared.
 
-| Unit test | Checks |
+| Test or driver | Checks |
 |---|---|
 | `test_parse_snaplist` | Parsing of snapshot lists such as `OutputSnapshots`. |
 | `test_cooling` | Cooling tables, cooling rates and the streaming-velocity cooling mass. |
 | `test_blackhole_feedback` | Black-hole emissivity, accretion time and luminosities. |
 | `test_emission_lines` | [O III] coefficients and luminosities. |
+| `test_synthetic_tree` | Galaxy transitions, halo/FOF links, merger timing, mass and metal transfers, and stellar histories across four artificial snapshots. |
 | `main_cooling`, `main_blackhole_feedback` | Standalone drivers that print the same quantities for given inputs. |
+
+## Synthetic merger tree test
+
+`test_synthetic_tree` constructs four snapshots, six halo records and two galaxies in memory. Each execution starts from the same initial conditions; no merger-tree files or HDF5 reference outputs are generated or downloaded.
+
+| Snapshot | State | Main checks |
+|---|---|---|
+| 0 | Two central galaxies in separate FOF groups | Galaxy creation, IDs, descendant indices and initial reservoirs |
+| 1 | A central and a satellite in one FOF group | Halo/FOF connections, prescribed cooling and star-formation transfers |
+| 2 | A central and an orphan in one halo | Orphan attachment, merger target, positive merger clock and stellar-history rollover |
+| 3 | The orphan merges into the central | Clock expiry, reservoir and history addition, and one remaining live galaxy |
+
+The fixture calls production functions for galaxy creation, property resets, halo connections and merger-time calculation. The test calls `cool_gas_onto_galaxy`, `update_reservoirs_from_sf` and `merge_with_target` from the same `meraxes_lib` built for the current source checkout. It checks galaxy IDs and linked lists, the reset of snapshot-local quantities, and conservation of the counted baryonic mass and metals. Dead galaxies are excluded from the final totals to avoid counting their transferred reservoirs twice.
+
+Cooling and star-formation amounts are prescribed inputs. Feedback, merger-induced bursts and stochastic scatter are disabled for this case, and no stellar metal production is invoked. This makes the reservoir changes calculable by hand. The test does not calculate cooling or star-formation rates, read simulation files, or call the full `evolve_galaxies` loop; the fixture explicitly advances the relevant lifecycle steps. It therefore complements the individual physics tests and full-model regression tests.
+
+### Files and reuse
+
+| File | Role |
+|---|---|
+| `src/tests/fixtures/synthetic_tree.h` | Snapshot and tree structures, sizes and fixture interface |
+| `src/tests/fixtures/synthetic_tree.c` | Initial conditions, snapshot transitions and cleanup |
+| `src/tests/test_synthetic_tree.c` | Test sequence, expected transfers and checks |
+| `src/tests/CMakeLists.txt` | Build target and CTest registration |
+
+The fixture owns `run_globals` for its test process. Initialise it with `synthetic_tree_init`, call `synthetic_tree_finish_snapshot` after processing each snapshot, advance with `synthetic_tree_advance`, and release it with `synthetic_tree_free`. Keep the fixture at the same address because the globals and halo links point into it. Its current topology has no skipped snapshots and no dead galaxies before the final snapshot; additional scenarios should define their own initial conditions and expected transitions.
+
+### Optional local run
+
+From the repository root, with the normal Meraxes build dependencies available:
+
+```bash
+cmake -S . -B build-synthetic \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DHDF5_PREFER_PARALLEL=ON \
+  -DBUILD_TESTS=ON \
+  -DCALC_MAGS=OFF \
+  -DUSE_MINI_HALOS=OFF \
+  -DUSE_STOCHASTICITY=OFF \
+  -DN_HISTORY_SNAPS=17 &&
+cmake --build build-synthetic --target test_synthetic_tree --parallel 4 &&
+ctest --test-dir build-synthetic --output-on-failure \
+  -R '^test_synthetic_tree$'
+```
+
+Use `-V` with CTest to see the snapshot messages and final result:
+
+```text
+PASS: synthetic merger tree (4 snapshots, 6 halo records, 2 galaxies)
+```
+
+The test is also selected by `ctest -L synthetic` or `ctest -LE regression`. Its labels are `synthetic`, `integration` and `fast`, and its timeout is 30 seconds. One CTest entry runs all the checks; `No tests were found` does not mean they passed. The `CHECK` macro remains active in Release builds.
+
+The target is available with `USE_MINI_HALOS` and/or `USE_STOCHASTICITY` enabled, while this fixture keeps its galaxies in Pop II and its scatter parameters at zero. It is not registered when `CALC_MAGS=ON` or `N_HISTORY_SNAPS<3`; the former would require photometric tables during star formation, and the latter cannot hold the tested history. A missing-Criterion warning does not disable this test. Neither `MERAXES_TESTDATA_DIR` nor an `mpirun` command is needed to run it.
+
+Commit the fixture, test source and CMake registration together. Keep generated build directories out of version control; do not ignore the fixture source files.
+
+### Interpreting failures
+
+A failed check identifies a change in the tested behaviour; it does not by itself establish that a new physical prescription is wrong. A change to a cooling-rate formula need not alter this test because the cooling amount is supplied explicitly. If the intended transfer changes, review the expected reservoir changes and update the relevant checks in the same PR, explaining the new behaviour. Include any added source or sink in the mass or metal budget. Do not replace expected values solely with the latest program output.
 
 ## Regression tests
 
@@ -273,7 +336,7 @@ The references must come from CI, not from a local build, because CI compares th
 
 ## Continuous integration
 
-`.github/workflows/tests.yml` runs on every push and pull request, and can be started by hand from the Actions tab. Each job builds Meraxes in Debug, runs the unit tests and drivers, and, where a setup exists, the regression tests on the L10_N512 data, downloaded from Zenodo and cached. To save time, only the configurations a change can affect are built:
+`.github/workflows/tests.yml` runs on every push and pull request, and can be started by hand from the Actions tab. It installs the build and test dependencies automatically. Each job builds Meraxes in Debug, runs the unit tests, the synthetic integration test where enabled, and the standalone drivers, and, where a setup exists, the regression tests on the L10_N512 data, downloaded from Zenodo and cached. To save time, only the configurations a change can affect are built:
 
 | Configuration | Regression setups | Runs when |
 |---|---|---|
@@ -281,11 +344,17 @@ The references must come from CI, not from a local build, because CI compares th
 | mini-halos | `mini_halos` | a changed C source or header mentions `USE_MINI_HALOS` |
 | calc-mags | `calc_mags` | a changed C source or header mentions `CALC_MAGS`, `USE_JWST` or `USE_HST` |
 | stochasticity | `stochasticity` | a changed C source or header mentions `USE_STOCHASTICITY` |
-| stochasticity-mini-halos | none (unit tests only) | as stochasticity |
+| stochasticity-mini-halos | none (unit and synthetic integration tests, plus drivers) | as stochasticity |
 
 Every configuration runs when the build system, the workflow, `src/tests/regression/` or `input/` changes, on manual runs, and when the changes can't be determined.
 
-A final job, `All tests passed`, succeeds only if every configuration did. Branch protection requires this one check, since the names of the configuration jobs change from run to run.
+The existing `Run unit tests` step executes `ctest --test-dir build --output-on-failure -LE regression`. This includes `test_synthetic_tree` because its labels do not contain `regression`. The default configuration is always selected and meets the synthetic test's configuration requirements, so no additional workflow step is needed for it.
+
+The PR that introduces the test runs it as soon as its sources and CMake registration are committed and pushed. After merging, subsequent PRs inherit the test. Contributors only need to open a PR or push updates to it; they do not need to install dependencies, prepare the artificial tree, run local commands or start Actions manually to trigger this test. The local commands above are optional development checks. Depending on the repository's Actions policy, a PR from a fork may first need [workflow approval from a maintainer](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/approve-runs-from-forks).
+
+The current workflow retrieves the L10_N512 regression data before building and running the tests in configurations that use those data. The synthetic test itself does not use them, but a failure of that earlier CI step prevents it from running in those jobs.
+
+A final job, `All tests passed`, succeeds only if every selected configuration did. To require successful tests before merging, maintainers must make this a required check on the target branch; running the workflow alone does not enforce that rule. The fixed check name accommodates the configuration jobs that change from run to run.
 
 ## Formatting
 

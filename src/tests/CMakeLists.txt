@@ -32,7 +32,7 @@ if(CRITERION_FOUND)
     target_link_libraries(test_emission_lines PRIVATE ${CRITERION_LIBRARY} meraxes_lib)
     add_test(NAME test_emission_lines COMMAND test_emission_lines)
 else()
-    message(WARNING "Failed to find Criterion. You will not be able to run tests.")
+    message(WARNING "Failed to find Criterion. Criterion unit tests will be unavailable.")
 endif(CRITERION_FOUND)
 
 # Standalone test driver for cooling module (no Criterion required)
@@ -47,6 +47,19 @@ add_executable(main_blackhole_feedback main_blackhole_feedback.c)
 set_property(TARGET main_blackhole_feedback PROPERTY C_STANDARD 99)
 target_include_directories(main_blackhole_feedback PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR})
 target_link_libraries(main_blackhole_feedback PRIVATE meraxes_lib)
+
+# Small in-memory merger tree: no Criterion, simulation data or physics tables required.
+# Star-formation transfers in CALC_MAGS builds require photometric tables.
+if(NOT CALC_MAGS AND N_HISTORY_SNAPS GREATER_EQUAL 3)
+    add_executable(test_synthetic_tree test_synthetic_tree.c fixtures/synthetic_tree.c)
+    set_property(TARGET test_synthetic_tree PROPERTY C_STANDARD 99)
+    target_include_directories(test_synthetic_tree PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR})
+    target_link_libraries(test_synthetic_tree PRIVATE meraxes_lib GSL::gsl GSL::gslcblas)
+    add_test(NAME test_synthetic_tree COMMAND test_synthetic_tree)
+    set_tests_properties(test_synthetic_tree PROPERTIES LABELS "synthetic;integration;fast" TIMEOUT 30)
+else()
+    message(STATUS "Synthetic tree test disabled: needs CALC_MAGS=OFF and N_HISTORY_SNAPS>=3")
+endif()
 
 # Regression tests on the L10_N512 test set (no Criterion needed)
 add_subdirectory(regression)
