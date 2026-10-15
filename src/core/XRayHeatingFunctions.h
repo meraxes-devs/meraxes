@@ -21,6 +21,26 @@
 #define Pop2_ion run_globals.params.physics.ReionNionPhotPerBary
 #define Pop3_ion run_globals.params.physics.ReionNionPhotPerBaryIII
 
+/* Blended Lyb+OIV line, Lusso+15 Table 2. Only its EW (AGNBandLineEW) is tunable. */
+#define AGN_BAND_LINE_LAMBDA (double)1029.7
+
+/* deriv[]/dansdz[] layout, shared by evolveInt() and _ComputeTs().
+ *
+ * Slots 0-6 exist in every build. 7-13 are the mini-halo (Pop III / Lyman-Werner)
+ * quantities, which only exist under USE_MINI_HALOS. The two AGN Lya diagnostics
+ * are appended after whichever of those is the last live slot, so a non-mini build
+ * carries 9 doubles instead of 16 and every entry it declares is one it writes.
+ * They are diagnostics only: nothing here feeds back into the ODE. */
+#if USE_MINI_HALOS
+#define DERIV_NUM          16
+#define DERIV_JA_AGN_UV    14
+#define DERIV_JA_AGN_XRAY  15
+#else
+#define DERIV_NUM           9
+#define DERIV_JA_AGN_UV     7
+#define DERIV_JA_AGN_XRAY   8
+#endif
+
 #define NSPEC_MAX (int)23
 // Row stride for LW_spectral_*: the Lyman loop reaches n_ct = NSPEC_MAX, so rows need NSPEC_MAX+1.
 #define LW_NLEV (NSPEC_MAX + 1)
@@ -56,6 +76,9 @@ double* sum_lyn_LW;
 double* sum_lyn_III;
 double* sum_lyn_LW_III;
 double* sum_lyn_LW_AGN;
+// Lya analogue of sum_lyn for the AGN UV continuum: sum over Lyman levels of
+// frecycle(n) * (nu'/nu_1450)^-alpha / (h nu'), i.e. photons per unit L_1450 per Hz.
+double* sum_lyn_AGN;
 // Per-Lyman-level breakdown of the LW sums, indexed [R_ct*LW_NLEV + n_ct]; LW_zpp is each shell's source redshift.
 double* LW_spectral_stellar;
 double* LW_spectral_III;
@@ -87,6 +110,7 @@ extern double* sum_lyn_LW;
 extern double* sum_lyn_III;
 extern double* sum_lyn_LW_III;
 extern double* sum_lyn_LW_AGN;
+extern double* sum_lyn_AGN;
 extern double* LW_spectral_stellar;
 extern double* LW_spectral_III;
 extern double* LW_spectral_AGN;
@@ -220,7 +244,8 @@ extern "C"
                  const double SFR_III[],
                  const double XAGN_soft[],
                  const double XAGN_hard[],
-                 const double AGN_UV[],
+                 const double AGN_LW[],
+                 const double AGN_eps1450[],
                  const double freq_int_heat_GAL[],
                  const double freq_int_ion_GAL[],
                  const double freq_int_lya_GAL[],
@@ -245,6 +270,7 @@ void evolveInt(float zp,
 #endif
                const double XAGN_soft[],
                const double XAGN_hard[],
+               const double AGN_eps1450[],
                const double freq_int_heat_GAL[],
                const double freq_int_ion_GAL[],
                const double freq_int_lya_GAL[],

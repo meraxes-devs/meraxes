@@ -488,6 +488,24 @@ void read_parameter_file(char* fname, int mode)
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_INT;
 
+      strncpy(params_tag[n_param], "Flag_IncludeAGNLyAlpha", tag_length);
+      params_addr[n_param] = &(run_params->physics.Flag_IncludeAGNLyAlpha);
+      required_tag[n_param] = 0;                 /* optional: absent -> 0 (channel off) */
+      params_type[n_param++] = PARAM_TYPE_INT;
+      (run_params->physics).Flag_IncludeAGNLyAlpha = 0;
+
+      strncpy(params_tag[n_param], "Flag_IncludeAGNLyaLine", tag_length);
+      params_addr[n_param] = &(run_params->physics.Flag_IncludeAGNLyaLine);
+      required_tag[n_param] = 0;                 /* optional: absent -> 0 (line channel off) */
+      params_type[n_param++] = PARAM_TYPE_INT;
+      (run_params->physics).Flag_IncludeAGNLyaLine = 0;
+
+      strncpy(params_tag[n_param], "Flag_IncludeStarLya", tag_length);
+      params_addr[n_param] = &(run_params->physics.Flag_IncludeStarLya);
+      required_tag[n_param] = 0;                 /* optional: absent -> 1 (previous behaviour) */
+      params_type[n_param++] = PARAM_TYPE_INT;
+      (run_params->physics).Flag_IncludeStarLya = 1;
+
       strncpy(params_tag[n_param], "FlagMCMC", tag_length);
       params_addr[n_param] = &(run_params->FlagMCMC);
       required_tag[n_param] = 1;
@@ -1244,6 +1262,18 @@ void read_parameter_file(char* fname, int mode)
       params_addr[n_param] = &(run_params->physics).SpecIndexUVAGNSoft;
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strcpy(params_tag[n_param], "AGNLyaLineEW");
+      params_addr[n_param] = &(run_params->physics).AGNLyaLineEW;
+      required_tag[n_param] = 0;                 /* optional: absent -> 74.0 A (Lusso+15 Table 2) */
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      (run_params->physics).AGNLyaLineEW = 74.0;
+
+      strcpy(params_tag[n_param], "AGNBandLineEW");
+      params_addr[n_param] = &(run_params->physics).AGNBandLineEW;
+      required_tag[n_param] = 0;                 /* optional: absent -> 0.0 (pure power law) */
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      (run_params->physics).AGNBandLineEW = 0.0;
 
       strcpy(params_tag[n_param], "SpecIndexUVAGNHard");
       params_addr[n_param] = &(run_params->physics).SpecIndexUVAGNHard;

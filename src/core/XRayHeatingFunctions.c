@@ -51,6 +51,7 @@ int init_heat()
 #if USE_MINI_HALOS
   sum_lyn_III = calloc(TsNumFilterSteps, sizeof(double));
 #endif
+  sum_lyn_AGN = calloc(TsNumFilterSteps, sizeof(double));
 
   kappa_10(1.0, 1); // 1 is the flag, allocates memory.
   if (kappa_10_elec(1.0, 1) < 0)
@@ -87,6 +88,7 @@ void destruct_heat()
 #if USE_MINI_HALOS
   free(sum_lyn_III);
 #endif
+  free(sum_lyn_AGN);
 }
 
 #if USE_MINI_HALOS
@@ -1290,6 +1292,7 @@ void evolveInt(float zp,
                const double XAGN_soft[],
                const double XAGN_hard[],
                const double AGN_LW[],
+               const double AGN_eps1450[],
                const double freq_int_heat_GAL[],
                const double freq_int_ion_GAL[],
                const double freq_int_lya_GAL[],
@@ -1315,6 +1318,7 @@ void evolveInt(float zp,
 #endif
                const double XAGN_soft[],
                const double XAGN_hard[],
+               const double AGN_eps1450[],
                const double freq_int_heat_GAL[],
                const double freq_int_ion_GAL[],
                const double freq_int_lya_GAL[],
@@ -1334,7 +1338,8 @@ void evolveInt(float zp,
   double zpp, dzpp;
   double Conversion_factor =
     (SPEED_OF_LIGHT / (4. * M_PI)) / (PROTONMASS / SOLAR_MASS); // I am using this many times so it's worth save this
-  double Conversion_factor_AGN_LW = SPEED_OF_LIGHT / (4.0 * M_PI);
+  /* Shared by the AGN Lya and Lyman-Werner channels. */
+  double Conversion_factor_AGN_UV = SPEED_OF_LIGHT / (4.0 * M_PI);
 
   int zpp_ct;
   double T, TII, x_e, zpp_integrand_GAL;
@@ -1344,6 +1349,8 @@ void evolveInt(float zp,
   double dxlya_dt_III, dstarlya_dt_III, dstarlyLW_dt_III, dxheat_dt_III, dxion_source_dt_III, zpp_integrand_III;
   double dspec_dzp_II, dxheat_dzp_II;
 #endif
+  /* dx = X-ray excitation, dstar = stellar UV, duv = AGN UV continuum. */
+  double duvlya_dt_AGN;
 
   double dxheat_dt_AGN_soft = 0.0;
   double dxion_source_dt_AGN_soft = 0.0;
@@ -1353,7 +1360,8 @@ void evolveInt(float zp,
   double dxion_source_dt_AGN_hard = 0.0;
   double dxlya_dt_AGN_hard = 0.0;
   double zpp_integrand_AGN_hard;
-  double dstarlyLW_dt_AGN = 0.0;
+  double duvlyLW_dt_AGN = 0.0;
+  double lya_line_ew_cm, lya_line_nphot; /* AGN broad Lya line: EW in cm, photons per erg */
 
   x_e = y[0];
   T = y[1];
@@ -1376,6 +1384,7 @@ void evolveInt(float zp,
   dstarlya_dt_III = 0;
   dstarlyLW_dt_III = 0;
 #endif
+  duvlya_dt_AGN = 0;
   deriv[5] = 0.0;
   deriv[6] = 0.0;
 
@@ -1410,7 +1419,8 @@ void evolveInt(float zp,
       dxlya_dt_GAL += dt_dzpp * dzpp * zpp_integrand_GAL * freq_int_lya_GAL[zpp_ct];
       // Use this when using the SFR provided by Meraxes
       // Units should be M_solar/s. Factor of (dt_dzp * dzpp) converts from per s to per z'
-      dstarlya_dt_GAL += SFR_GAL[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn[zpp_ct] * dt_dzpp * dzpp;
+      if (run_globals.params.physics.Flag_IncludeStarLya)
+        dstarlya_dt_GAL += SFR_GAL[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn[zpp_ct] * dt_dzpp * dzpp;
 
 #if USE_MINI_HALOS
       dxheat_dt_III += dt_dzpp * dzpp * zpp_integrand_III *
@@ -1418,14 +1428,19 @@ void evolveInt(float zp,
       dxion_source_dt_III += dt_dzpp * dzpp * zpp_integrand_III * freq_int_ion_III[zpp_ct];
       dxlya_dt_III += dt_dzpp * dzpp * zpp_integrand_III * freq_int_lya_III[zpp_ct];
 
-      dstarlya_dt_III += SFR_III[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_III[zpp_ct] * dt_dzpp * dzpp;
+      if (run_globals.params.physics.Flag_IncludeStarLya)
+        dstarlya_dt_III += SFR_III[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_III[zpp_ct] * dt_dzpp * dzpp;
 
       if (run_globals.params.Flag_IncludeLymanWerner) {
         dstarlyLW_dt_GAL += SFR_GAL[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW[zpp_ct] * dt_dzpp * dzpp;
         dstarlyLW_dt_III += SFR_III[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW_III[zpp_ct] * dt_dzpp * dzpp;
-        dstarlyLW_dt_AGN += AGN_LW[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW_AGN[zpp_ct] * dt_dzpp * dzpp;
+        duvlyLW_dt_AGN += AGN_LW[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW_AGN[zpp_ct] * dt_dzpp * dzpp;
       }
 #endif
+
+      // AGN UV continuum Lya pumping; sum_lyn_AGN already carries 1/(h nu).
+      if (run_globals.params.physics.Flag_IncludeAGNLyAlpha)
+        duvlya_dt_AGN += AGN_eps1450[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_AGN[zpp_ct] * dt_dzpp * dzpp;
 
       /* dX_AGN_soft/dt += (dt/dz'')dz'' × XAGN_soft[zpp_ct] × (1+z'')^-alpha_soft × freq_int_X_AGN_soft[zpp_ct]
        * dX_AGN_hard/dt += (dt/dz'')dz'' × XAGN_hard[zpp_ct] × (1+z'')^-alpha_hard × freq_int_X_AGN_hard[zpp_ct] */
@@ -1466,9 +1481,24 @@ void evolveInt(float zp,
     if (run_globals.params.Flag_IncludeLymanWerner) {
       dstarlyLW_dt_GAL *= Conversion_factor;
       dstarlyLW_dt_III *= Conversion_factor;
-      dstarlyLW_dt_AGN *= Conversion_factor_AGN_LW;
+      duvlyLW_dt_AGN *= Conversion_factor_AGN_UV;
     }
 #endif
+
+    /* AGN broad Lya line: emitted at resonance, so the shell integral collapses
+     * to one local term at zpp == zp. */
+    if (run_globals.params.physics.Flag_IncludeAGNLyAlpha &&
+        run_globals.params.physics.Flag_IncludeAGNLyaLine) {
+      lya_line_ew_cm = run_globals.params.physics.AGNLyaLineEW * 1e-8; /* Angstrom -> cm */
+      lya_line_nphot = lya_line_ew_cm *
+                       pow(NU_LA / NU_1450, -run_globals.params.physics.SpecIndexUVAGNSoft) *
+                       NU_LA / (SPEED_OF_LIGHT * PLANCK);
+      duvlya_dt_AGN += AGN_eps1450[0] * pow(1 + zp, 4) * lya_line_nphot *
+                         fabs(dtdz(zp)) / NU_LA;
+    }
+
+    if (run_globals.params.physics.Flag_IncludeAGNLyAlpha)
+      duvlya_dt_AGN *= Conversion_factor_AGN_UV;
 
     dxheat_dt_AGN_soft *= const_zp_prefactor_AGN_soft;
     dxion_source_dt_AGN_soft *= const_zp_prefactor_AGN_soft;
@@ -1547,8 +1577,22 @@ void evolveInt(float zp,
   deriv[2] =
     (dxlya_dt_GAL + dxlya_dt_III + dxlya_dt_AGN_soft + dxlya_dt_AGN_hard) + (dstarlya_dt_GAL + dstarlya_dt_III);
   deriv[10] = dxlya_dt_GAL + dxlya_dt_AGN_soft + dxlya_dt_AGN_hard + dstarlya_dt_GAL;
+  if (run_globals.params.physics.Flag_IncludeAGNLyAlpha) {
+    deriv[2] += duvlya_dt_AGN;
+    deriv[10] += duvlya_dt_AGN;
+  }
+
+  /* Diagnostics only, set in both builds -- _ComputeTs() reads them unconditionally. */
+  deriv[DERIV_JA_AGN_UV] = run_globals.params.physics.Flag_IncludeAGNLyAlpha ? duvlya_dt_AGN : 0.0;
+  deriv[DERIV_JA_AGN_XRAY] = dxlya_dt_AGN_soft + dxlya_dt_AGN_hard;
 #else
   deriv[2] = dxlya_dt_GAL + dxlya_dt_AGN_soft + dxlya_dt_AGN_hard + dstarlya_dt_GAL;
+  if (run_globals.params.physics.Flag_IncludeAGNLyAlpha)
+    deriv[2] += duvlya_dt_AGN;
+
+  /* Same two diagnostics as the mini-halo branch. */
+  deriv[DERIV_JA_AGN_UV] = run_globals.params.physics.Flag_IncludeAGNLyAlpha ? duvlya_dt_AGN : 0.0;
+  deriv[DERIV_JA_AGN_XRAY] = dxlya_dt_AGN_soft + dxlya_dt_AGN_hard;
 #endif
 
   // stuff for marcos
@@ -1557,10 +1601,14 @@ void evolveInt(float zp,
   deriv[11] = dxheat_dzp_II;
 
   if (run_globals.params.Flag_IncludeLymanWerner) {
-    deriv[8] =
-      (dstarlyLW_dt_GAL + dstarlyLW_dt_III) * NU_LA / (NUIONIZATION - NU_LW) * PLANCK * 1e21 + dstarlyLW_dt_AGN;
-    deriv[13] = dstarlyLW_dt_GAL * NU_LA / (NUIONIZATION - NU_LW) * PLANCK * 1e21 + dstarlyLW_dt_AGN;
-    deriv[7] = dstarlyLW_dt_AGN;
+    // Band-average both contributions over the LW band and convert to J_21. The stellar terms
+    // carry PLANCK because sum_lyn_LW* is a photon count; the AGN term is already an energy and
+    // is normalised to NU_1450 rather than NU_LA.
+    deriv[8] = ((dstarlyLW_dt_GAL + dstarlyLW_dt_III) * NU_LA * PLANCK + duvlyLW_dt_AGN * NU_1450) /
+               (NUIONIZATION - NU_LW) * 1e21;
+    deriv[13] = (dstarlyLW_dt_GAL * NU_LA * PLANCK + duvlyLW_dt_AGN * NU_1450) /
+                (NUIONIZATION - NU_LW) * 1e21;
+    deriv[7] = duvlyLW_dt_AGN * NU_1450 / (NUIONIZATION - NU_LW) * 1e21;
   }
 
   deriv[4] = dt_dzp * (dxion_source_dt_GAL + dxion_source_dt_III + dxion_source_dt_AGN_soft + dxion_source_dt_AGN_hard);

@@ -181,9 +181,19 @@ typedef struct physics_params_t
   int Flag_IncludeAGNXray; /* 0=no AGN, 1=soft+hard, 2=hard only, 3=soft only */
   double SpecIndexXrayAGNSoft;
   double SpecIndexXrayAGNHard;
-  double SpecIndexUVAGNSoft; /* lambda > 912A (redward of/at the break) - LW band amplitude/shape */
-  double SpecIndexUVAGNHard; /* lambda <= 912A (shortward of the break) - ionizing photon rate only */
-  double AGNLWEfficiency;    /* scale factor on the AGN LW amplitude */
+  double SpecIndexUVAGNSoft; /* lambda > 912A (redward of/at the break) — LW band amplitude/shape */
+  double SpecIndexUVAGNHard; /* lambda <= 912A (shortward of the break) — ionizing photon rate only */
+  double AGNLWEfficiency; /* scale factor on the AGN LW amplitude */
+  int Flag_IncludeAGNLyAlpha; /* 0=off, 1=direct AGN UV continuum Lya pumping */
+  int Flag_IncludeAGNLyaLine; /* 0=off, 1=also add the AGN broad Lya EMISSION LINE. Those photons
+                                 * are emitted AT resonance, so they are absorbed at the source and
+                                 * couple gas at the EMISSION redshift. Summed into the continuum. */
+  double AGNLyaLineEW; /* rest-frame EW (Angstrom) of that Lya line. Lusso+15 Table 2: 74.0 */
+  double AGNBandLineEW; /* rest-frame EW (Angstrom) of the BLR line inside Lyman band 2, at
+                                 * AGN_BAND_LINE_LAMBDA. Lusso+15 Table 2 blended Lyb+OIV = 8.5 (use
+                                 * 9.8 to also count FeII+FeIII 1122A). 0 = pure power law. The band-2
+                                 * multiplier is DERIVED from this and SpecIndexUVAGNSoft. */
+  int Flag_IncludeStarLya; /* 0=off, 1=direct stellar UV continuum Lya pumping (Wouthuysen-Field) */
 
   double ReionMaxHeatingRedshift;
 
@@ -546,17 +556,15 @@ typedef struct reion_grids_t
   double* SMOOTHED_AGN_soft; //!< per-cell AGN X-ray luminosity density per shell [erg/s/cm^3] (soft band)
 #if USE_MINI_HALOS
   double* SMOOTHED_SFR_III;
-  double* SMOOTHED_AGN_UV; //!< per-cell AGN UV luminosity density per shell [1e21 erg/s/Hz/cm^3]
 #endif
+  double* SMOOTHED_AGN_UV;    //!< per-cell AGN UV luminosity density per shell [1e21 erg/s/Hz/cm^3]
 
   float* BHXrayEmissivity_hard; //!< Per-cell AGN X-ray emissivity grid (current snapshot, hard band) [slab_n_complex*2]
   float* bh_xray_histories_hard; //!< Ring-buffer of NstoreSnapshots_Heating past BHXrayEmissivity_hard snapshots
   float* BHXrayEmissivity_soft; //!< Per-cell AGN X-ray emissivity grid (current snapshot, soft band) [slab_n_complex*2]
   float* bh_xray_histories_soft; //!< Ring-buffer of NstoreSnapshots_Heating past BHXrayEmissivity_soft snapshots
-#if USE_MINI_HALOS
-  float* BHUVEmissivity;  //!< Per-cell AGN UV emissivity grid (current snapshot) [slab_n_complex*2]
+  float* BHUVEmissivity; //!< Per-cell AGN UV emissivity grid (current snapshot) [slab_n_complex*2]
   float* bh_uv_histories; //!< Ring-buffer of NstoreSnapshots_Heating past BHUVEmissivity snapshots
-#endif
 
   fftwf_complex* BHXrayEmissivity_hard_unfiltered;
   fftwf_complex* BHXrayEmissivity_hard_filtered;
@@ -566,12 +574,10 @@ typedef struct reion_grids_t
   fftwf_complex* BHXrayEmissivity_soft_filtered;
   fftwf_plan BHXrayEmissivity_soft_forward_plan;
   fftwf_plan BHXrayEmissivity_soft_filtered_reverse_plan;
-#if USE_MINI_HALOS
   fftwf_complex* BHUVEmissivity_unfiltered;
   fftwf_complex* BHUVEmissivity_filtered;
   fftwf_plan BHUVEmissivity_forward_plan;
   fftwf_plan BHUVEmissivity_filtered_reverse_plan;
-#endif
 
   // Grids necessary for LW background and future disentangling between MC/AC Pop3/Pop2 stuff
 
@@ -653,6 +659,8 @@ typedef struct reion_grids_t
   double volume_ave_xalpha;
   double volume_ave_Xheat;
   double volume_ave_Xion;
+  double volume_ave_J_alpha_AGN_UV;   /* direct AGN UV continuum Lya pumping */
+  double volume_ave_J_alpha_AGN_Xray; /* Lya from AGN X-ray secondary excitation */
   double volume_ave_Xheat_AGN_soft;
   double volume_ave_Xheat_AGN_hard;
   double volume_ave_TS;
