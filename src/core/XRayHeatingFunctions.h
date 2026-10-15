@@ -32,13 +32,13 @@
  * carries 9 doubles instead of 16 and every entry it declares is one it writes.
  * They are diagnostics only: nothing here feeds back into the ODE. */
 #if USE_MINI_HALOS
-#define DERIV_NUM          16
-#define DERIV_JA_AGN_UV    14
-#define DERIV_JA_AGN_XRAY  15
+#define DERIV_NUM 16
+#define DERIV_JA_AGN_UV 14
+#define DERIV_JA_AGN_XRAY 15
 #else
-#define DERIV_NUM           9
-#define DERIV_JA_AGN_UV     7
-#define DERIV_JA_AGN_XRAY   8
+#define DERIV_NUM 9
+#define DERIV_JA_AGN_UV 7
+#define DERIV_JA_AGN_XRAY 8
 #endif
 
 #define NSPEC_MAX (int)23
