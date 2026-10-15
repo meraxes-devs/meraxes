@@ -61,10 +61,15 @@ NuXrayMax                  : 10000.          # Maximum energy for X-ray band int
 Flag_IncludeAGNXray        : 0               # 0=no AGN, 1=soft+hard, 2=hard only, 3=soft only
 SpecIndexXrayAGNSoft       : 2.2             # Soft-band spectral index (nu^{-alpha}, E < E_break)
 SpecIndexXrayAGNHard       : 1.7             # Hard-band spectral index (nu^{-alpha}, E >= E_break)
-SpecIndexUVAGNSoft         : 0.61            # AGN NUV/FUV continuum slope (nu^{-alpha}, lambda > 912A) — Lusso et al. 2015 (MNRAS 449, 4204; arXiv:1503.02075). 
+SpecIndexUVAGNSoft         : 0.61            # AGN NUV/FUV continuum slope (nu^{-alpha}, lambda > 912A) — Lusso et al. 2015 (MNRAS 449, 4204; arXiv:1503.02075).
+AGNBandLineEW              : 0.0             # rest-frame EW (Angstrom) of the BLR line inside Lyman band 2 (blended Lyb+OIV at 1029.7A). Lusso+15 Table 2 gives 8.5 A; use 9.8 A to also count FeII+FeIII 1122A. 0 = pure power law. The band-2 multiplier is derived from this and SpecIndexUVAGNSoft.
 SpecIndexUVAGNHard         : 1.70            # AGN EUV continuum slope (nu^{-alpha}, lambda <= 912A)
 AGNLWEfficiency            : 1.0             # Tunable scale factor on the AGN LW amplitude only, should be 1 for physical models
 Flag_BHARExponentialCut    : 0               # 0=duty-cycle weighted emissivity, 1=exponential cut with random on-time
+Flag_IncludeAGNLyAlpha     : 0               # if 1, add direct AGN UV continuum Lya pumping (separate from the AGN X-ray Lya channel)
+Flag_IncludeStarLya        : 1               # if 0, turn off direct stellar UV continuum Lya pumping -- default 1 preserves existing behaviour
+Flag_IncludeAGNLyaLine     : 0               # if 1, also add the AGN broad Lya emission line (emitted at resonance, absorbed locally). Needs Flag_IncludeAGNLyAlpha = 1
+AGNLyaLineEW               : 74.0            # rest-frame EW (Angstrom) of that Lya line; Lusso+15 Table 2 gives 74.0 A at 1216.1 A
 Flag_OutputXrayLF          : 0               # 0=off, 1=output X-ray luminosity function histograms
 XrayLF_MinLogL             : 38.0            # minimum log10(LX/erg/s) for X-ray LF histogram
 XrayLF_MaxLogL             : 46.0            # maximum log10(LX/erg/s) for X-ray LF histogram
