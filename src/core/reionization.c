@@ -3239,7 +3239,8 @@ void save_reion_output_attributes(int snapshot)
     H5LTset_attribute_double(file_id, "TS_box", "volume_ave_Xheat", &(grids->volume_ave_Xheat), 1);
     H5LTset_attribute_double(file_id, "TS_box", "volume_ave_Xion", &(grids->volume_ave_Xion), 1);
     H5LTset_attribute_double(file_id, "TS_box", "volume_ave_J_alpha_AGN_UV", &(grids->volume_ave_J_alpha_AGN_UV), 1);
-    H5LTset_attribute_double(file_id, "TS_box", "volume_ave_J_alpha_AGN_Xray", &(grids->volume_ave_J_alpha_AGN_Xray), 1);
+    H5LTset_attribute_double(
+      file_id, "TS_box", "volume_ave_J_alpha_AGN_Xray", &(grids->volume_ave_J_alpha_AGN_Xray), 1);
     H5LTset_attribute_double(file_id, "TS_box", "volume_ave_Xheat_AGN_soft", &(grids->volume_ave_Xheat_AGN_soft), 1);
     H5LTset_attribute_double(file_id, "TS_box", "volume_ave_Xheat_AGN_hard", &(grids->volume_ave_Xheat_AGN_hard), 1);
 

@@ -120,7 +120,7 @@ void _ComputeTs(int snapshot)
   double Luminosity_converstion_factor_AGN_soft; /* soft band: nu_thresh -> nu_break   */
   double Luminosity_converstion_factor_AGN_hard; /* hard band: nu_break  -> nu_hard_cut */
   float bh, bh_soft; /* per-cell BHXrayEmissivity(_soft), read while building SMOOTHED_AGN_hard(_soft) */
-  float bh_uv; /* per-cell BHUVEmissivity, read while building SMOOTHED_AGN_UV */
+  float bh_uv;       /* per-cell BHUVEmissivity, read while building SMOOTHED_AGN_UV */
 
 #if USE_MINI_HALOS
   double Luminosity_converstion_factor_III, collapse_fractionIII, collapse_fractionIII_in_cell;
@@ -180,8 +180,8 @@ void _ComputeTs(int snapshot)
   int i_spec;
 #endif
   double AGN_eps1450[TsNumFilterSteps]; /* AGN UV emissivity at 1450A, per shell */
-  double nu_emit;        /* emitted-frame frequency, for the AGN Lya weight */
-  double lya_band_boost; /* band-2 BLR multiplier, derived below */
+  double nu_emit;                       /* emitted-frame frequency, for the AGN Lya weight */
+  double lya_band_boost;                /* band-2 BLR multiplier, derived below */
   double a_uv, nu_lo, nu_hi, nu_L, n_cont, n_line;
 
 #if USE_MINI_HALOS
@@ -781,12 +781,15 @@ void _ComputeTs(int snapshot)
       nu_hi = nu_n(3) * NU_LA;
       nu_L = SPEED_OF_LIGHT / (AGN_BAND_LINE_LAMBDA * 1e-8);
       n_cont = pow(NU_1450, a_uv) / PLANCK * (pow(nu_lo, -a_uv) - pow(nu_hi, -a_uv)) / a_uv;
-      n_line = (run_globals.params.physics.AGNBandLineEW * 1e-8) *
-               pow(nu_L / NU_1450, -a_uv) * nu_L / (SPEED_OF_LIGHT * PLANCK);
+      n_line = (run_globals.params.physics.AGNBandLineEW * 1e-8) * pow(nu_L / NU_1450, -a_uv) * nu_L /
+               (SPEED_OF_LIGHT * PLANCK);
       lya_band_boost = 1.0 + n_line / n_cont;
       mlog("AGN band-2 BLR line: EW = %.2f A at %.1f A, alpha = %.3f -> boost = %.6f",
-           MLOG_MESG, run_globals.params.physics.AGNBandLineEW, AGN_BAND_LINE_LAMBDA,
-           a_uv, lya_band_boost);
+           MLOG_MESG,
+           run_globals.params.physics.AGNBandLineEW,
+           AGN_BAND_LINE_LAMBDA,
+           a_uv,
+           lya_band_boost);
     }
 
     // Populate the initial ionisation/heating tables
@@ -1211,8 +1214,7 @@ void _ComputeTs(int snapshot)
         LW_emissivity_stellar[R_ct] = sum_gal / total_n_cells;
         LW_emissivity_III[R_ct] = sum_III / total_n_cells;
         // carry AGNLWEfficiency so 0 zeroes the AGN LW output, matching AGN_LW[] below
-        LW_emissivity_AGN[R_ct] =
-          run_globals.params.physics.AGNLWEfficiency * sum_agn / total_n_cells * 1e21;
+        LW_emissivity_AGN[R_ct] = run_globals.params.physics.AGNLWEfficiency * sum_agn / total_n_cells * 1e21;
       }
     }
 #endif
@@ -1247,9 +1249,8 @@ void _ComputeTs(int snapshot)
                              ? run_globals.params.physics.AGNLWEfficiency * SMOOTHED_AGN_UV[i_smoothed_heating] * 1e21
                              : 0.0;
 #endif
-            AGN_eps1450[R_ct] = run_globals.params.physics.Flag_IncludeAGNLyAlpha
-                                 ? SMOOTHED_AGN_UV[i_smoothed_heating] * 1e21
-                                 : 0.0;
+            AGN_eps1450[R_ct] =
+              run_globals.params.physics.Flag_IncludeAGNLyAlpha ? SMOOTHED_AGN_UV[i_smoothed_heating] * 1e21 : 0.0;
             xHII_call = x_e_box_prev[i_padded];
 
             // Check if ionized fraction is within boundaries; if not, adjust to be within

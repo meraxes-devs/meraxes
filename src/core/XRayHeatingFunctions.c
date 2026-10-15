@@ -1487,14 +1487,11 @@ void evolveInt(float zp,
 
     /* AGN broad Lya line: emitted at resonance, so the shell integral collapses
      * to one local term at zpp == zp. */
-    if (run_globals.params.physics.Flag_IncludeAGNLyAlpha &&
-        run_globals.params.physics.Flag_IncludeAGNLyaLine) {
+    if (run_globals.params.physics.Flag_IncludeAGNLyAlpha && run_globals.params.physics.Flag_IncludeAGNLyaLine) {
       lya_line_ew_cm = run_globals.params.physics.AGNLyaLineEW * 1e-8; /* Angstrom -> cm */
-      lya_line_nphot = lya_line_ew_cm *
-                       pow(NU_LA / NU_1450, -run_globals.params.physics.SpecIndexUVAGNSoft) *
-                       NU_LA / (SPEED_OF_LIGHT * PLANCK);
-      duvlya_dt_AGN += AGN_eps1450[0] * pow(1 + zp, 4) * lya_line_nphot *
-                         fabs(dtdz(zp)) / NU_LA;
+      lya_line_nphot = lya_line_ew_cm * pow(NU_LA / NU_1450, -run_globals.params.physics.SpecIndexUVAGNSoft) * NU_LA /
+                       (SPEED_OF_LIGHT * PLANCK);
+      duvlya_dt_AGN += AGN_eps1450[0] * pow(1 + zp, 4) * lya_line_nphot * fabs(dtdz(zp)) / NU_LA;
     }
 
     if (run_globals.params.physics.Flag_IncludeAGNLyAlpha)
@@ -1606,8 +1603,7 @@ void evolveInt(float zp,
     // is normalised to NU_1450 rather than NU_LA.
     deriv[8] = ((dstarlyLW_dt_GAL + dstarlyLW_dt_III) * NU_LA * PLANCK + duvlyLW_dt_AGN * NU_1450) /
                (NUIONIZATION - NU_LW) * 1e21;
-    deriv[13] = (dstarlyLW_dt_GAL * NU_LA * PLANCK + duvlyLW_dt_AGN * NU_1450) /
-                (NUIONIZATION - NU_LW) * 1e21;
+    deriv[13] = (dstarlyLW_dt_GAL * NU_LA * PLANCK + duvlyLW_dt_AGN * NU_1450) / (NUIONIZATION - NU_LW) * 1e21;
     deriv[7] = duvlyLW_dt_AGN * NU_1450 / (NUIONIZATION - NU_LW) * 1e21;
   }
 
