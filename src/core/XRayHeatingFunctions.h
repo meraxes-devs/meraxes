@@ -246,6 +246,7 @@ extern "C"
                  const double XAGN_hard[],
                  const double AGN_LW[],
                  const double AGN_eps1450[],
+                 const double AGN_UV[],
                  const double freq_int_heat_GAL[],
                  const double freq_int_ion_GAL[],
                  const double freq_int_lya_GAL[],

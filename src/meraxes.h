@@ -194,6 +194,9 @@ typedef struct physics_params_t
                                * 9.8 to also count FeII+FeIII 1122A). 0 = pure power law. The band-2
                                * multiplier is DERIVED from this and SpecIndexUVAGNSoft. */
   int Flag_IncludeStarLya;    /* 0=off, 1=direct stellar UV continuum Lya pumping (Wouthuysen-Field) */
+  double SpecIndexUVAGNSoft; /* lambda > 912A (redward of/at the break) - LW band amplitude/shape */
+  double SpecIndexUVAGNHard; /* lambda <= 912A (shortward of the break) - ionizing photon rate only */
+  double AGNLWEfficiency;    /* scale factor on the AGN LW amplitude */
 
   double ReionMaxHeatingRedshift;
 
@@ -556,6 +559,31 @@ typedef struct reion_grids_t
   double* SMOOTHED_AGN_soft; //!< per-cell AGN X-ray luminosity density per shell [erg/s/cm^3] (soft band)
 #if USE_MINI_HALOS
   double* SMOOTHED_SFR_III;
+  double* SMOOTHED_AGN_UV; //!< per-cell AGN UV luminosity density per shell [1e21 erg/s/Hz/cm^3]
+#endif
+
+  float* BHXrayEmissivity_hard; //!< Per-cell AGN X-ray emissivity grid (current snapshot, hard band) [slab_n_complex*2]
+  float* bh_xray_histories_hard; //!< Ring-buffer of NstoreSnapshots_Heating past BHXrayEmissivity_hard snapshots
+  float* BHXrayEmissivity_soft; //!< Per-cell AGN X-ray emissivity grid (current snapshot, soft band) [slab_n_complex*2]
+  float* bh_xray_histories_soft; //!< Ring-buffer of NstoreSnapshots_Heating past BHXrayEmissivity_soft snapshots
+#if USE_MINI_HALOS
+  float* BHUVEmissivity;  //!< Per-cell AGN UV emissivity grid (current snapshot) [slab_n_complex*2]
+  float* bh_uv_histories; //!< Ring-buffer of NstoreSnapshots_Heating past BHUVEmissivity snapshots
+#endif
+
+  fftwf_complex* BHXrayEmissivity_hard_unfiltered;
+  fftwf_complex* BHXrayEmissivity_hard_filtered;
+  fftwf_plan BHXrayEmissivity_hard_forward_plan;
+  fftwf_plan BHXrayEmissivity_hard_filtered_reverse_plan;
+  fftwf_complex* BHXrayEmissivity_soft_unfiltered;
+  fftwf_complex* BHXrayEmissivity_soft_filtered;
+  fftwf_plan BHXrayEmissivity_soft_forward_plan;
+  fftwf_plan BHXrayEmissivity_soft_filtered_reverse_plan;
+#if USE_MINI_HALOS
+  fftwf_complex* BHUVEmissivity_unfiltered;
+  fftwf_complex* BHUVEmissivity_filtered;
+  fftwf_plan BHUVEmissivity_forward_plan;
+  fftwf_plan BHUVEmissivity_filtered_reverse_plan;
 #endif
   double* SMOOTHED_AGN_UV; //!< per-cell AGN UV luminosity density per shell [1e21 erg/s/Hz/cm^3]
 

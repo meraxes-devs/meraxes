@@ -27,6 +27,8 @@ config.py
 bin
 testing/notebooks
 plots
+# ...except the regression-test reference figures
+!/src/tests/regression/reference/plots/
 bu
 data
 testing

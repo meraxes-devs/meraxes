@@ -1,7 +1,7 @@
 #------------------------------------------
 #----- Simulation input files  ------------
 #------------------------------------------
-SimName           : Genesis L35_N2650
+SimName           : Genesis L10_N2048
 SimulationDir     : /fred/oz113/balu/files_for_meraxes/L10_N2048 
 CatalogFilePrefix : VELOCIraptor.walkabletree.forestID.hdf5.0 
 TreesID           : 0  # 0 -> VELOCIraptor; 1 -> gbpTrees

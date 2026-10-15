@@ -2,23 +2,25 @@ name: Run clang-format Linter
 
 on: [push, pull_request]
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+permissions:
+  contents: read
 
+jobs:
+  # Fails on unformatted code, showing the diff to apply, instead of committing the fix:
+  # the bot's commits didn't trigger the tests, so a PR whose newest commit was the bot's
+  # never got the required "All tests passed" check. Run tools/format.sh before pushing
+  # (or enable the pre-commit hook: git config core.hooksPath .githooks).
+  clang-format:
+    runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v2
-    - uses: DoozyX/clang-format-lint-action@v0.14
-      with:
-        source: 'src'
-        exclude: './src/mlog'
-        extensions: 'h,hh,cpp,c,cu'
-        clangFormatVersion: 14
-        inplace: True
-    - uses: EndBug/add-and-commit@v4
-      with:
-        author_name: Clang Robot
-        author_email: smutch@unimelb.edu.au
-        message: 'Committing clang-format changes'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v5
+
+      # The runner's own clang-format is a newer version, which formats differently.
+      - name: Install clang-format 14
+        run: |
+          python3 -m venv "$RUNNER_TEMP/clang-format"
+          "$RUNNER_TEMP/clang-format/bin/pip" install -q clang-format==14.0.6
+          echo "CLANG_FORMAT=$RUNNER_TEMP/clang-format/bin/clang-format" >> "$GITHUB_ENV"
+
+      - name: Check formatting
+        run: tools/format.sh --check
