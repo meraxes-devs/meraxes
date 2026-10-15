@@ -4,7 +4,7 @@ Meraxes has been compiled and run successfully on the following operating system
 
 - Mac OS X >=10.10 (Yosemite) on x86_64
 - Mac OS X >=10.13 (Sierra) on aarch64
-- Linux (Ubuntu 16.04, 18.04) on x86_64
+- Linux (Ubuntu 16.04, 18.04, 20.04, 22.04) on x86_64
 - Linux (CentOS 7) on x86_64
 
 We expect things to work without any problem on any modern Linux or Mac system.  If you have any problems then please open an issue.
@@ -119,10 +119,13 @@ N_HISTORY_SNAPS
 : Number of snapshots to star formation history for. This is simulation dependent. If the value is too low then Meraxes will crash with an error telling you what the minimum value is for your simulation. Default is 17.
 
 USE_CUDA
-: Use CUDA accelerated reionization calculation. Default is OFF.
+: Use CUDA accelerated reionization calculation. Currently unsupported: the GPU path is out of date with the CPU reionization code (it lacks the black hole and Pop III ionizing sources, spin temperature coupling, and temperature-dependent recombination) and no longer compiles, so CMake stops with an error if this is ON. Default is OFF.
 
 USE_MINI_HALOS
-: Use mini-halos. Default is ON.
+: Use mini-halos. Default is OFF.
+
+USE_STOCHASTICITY
+: Compile the stochastic stellar-source prescriptions. Default is OFF.
 
 You can set these on the command line when running cmake, e.g.:
 

@@ -1,8 +1,8 @@
 #define _MAIN
+#include "meraxes.h"
 #include <criterion/criterion.h>
 #include <criterion/parameterized.h>
 #include <math.h>
-#include "meraxes.h"
 #include <mpi.h>
 #include <string.h>
 
@@ -20,9 +20,13 @@ void setup(void)
   run_globals.mpi_rank = 0;
   run_globals.mpi_size = 1;
 
-  // Set up the cooling functions directory path
-  // Use relative path from build directory or absolute path
-  strcpy(run_globals.params.CoolingFuncsDir, "../input/cooling_functions");
+  // Absolute source-tree path set by CMake, so the test works from ctest's build directory.
+  snprintf(run_globals.params.CoolingFuncsDir, sizeof(run_globals.params.CoolingFuncsDir), "%s", COOLING_FUNCS_DIR);
+
+  // Cosmology (Genesis simulations); Mcool_SV -> Tvir_to_Mvir needs E(z)
+  run_globals.params.OmegaM = 0.3121;
+  run_globals.params.OmegaK = 0.0;
+  run_globals.params.OmegaLambda = 0.6879;
 
   // Read the cooling function tables
   read_cooling_functions();
@@ -61,8 +65,7 @@ Test(cooling, interpolate_cooling_rate_temp_boundaries)
 
   // Below minimum temperature (MIN_TEMP = 4.0) should return 10^(-27)
   double rate_below_min = interpolate_cooling_rate(3.0, logZ_solar);
-  cr_expect_float_eq(rate_below_min, pow(10, -27.0), 1e-35,
-                     "Rate below MIN_TEMP should be 10^-27");
+  cr_expect_float_eq(rate_below_min, pow(10, -27.0), 1e-35, "Rate below MIN_TEMP should be 10^-27");
 
   // At minimum temperature
   double rate_at_min = interpolate_cooling_rate(MIN_TEMP, logZ_solar);
@@ -102,8 +105,7 @@ Test(cooling, cooling_rate_metallicity_trend)
 
   // Generally, cooling increases with metallicity due to metal line cooling
   // This may not be strictly monotonic at all temperatures, but overall trend
-  cr_expect_gt(rate_high_Z, rate_low_Z,
-               "High metallicity should have higher cooling rate than low Z");
+  cr_expect_gt(rate_high_Z, rate_low_Z, "High metallicity should have higher cooling rate than low Z");
 }
 
 // Test the static interpolation function directly
@@ -119,7 +121,8 @@ Test(cooling, interpolate_temp_dependant_cooling_rate_direct)
 }
 
 // Parameterized test for various temperature values
-struct temp_param {
+struct temp_param
+{
   double logTemp;
   bool expect_positive;
 };
@@ -127,18 +130,11 @@ struct temp_param {
 ParameterizedTestParameters(cooling, temperature_sweep)
 {
   static struct temp_param params[] = {
-    { 3.5, true },  // Below MIN_TEMP
-    { 4.0, true },  // At MIN_TEMP
-    { 4.5, true },
-    { 5.0, true },
-    { 5.5, true },
-    { 6.0, true },
-    { 6.5, true },
-    { 7.0, true },
-    { 7.5, true },
-    { 8.0, true },
-    { 8.5, true },  // At MAX_TEMP
-    { 9.0, true },  // Above MAX_TEMP
+    { 3.5, true }, // Below MIN_TEMP
+    { 4.0, true }, // At MIN_TEMP
+    { 4.5, true }, { 5.0, true }, { 5.5, true }, { 6.0, true }, { 6.5, true },
+    { 7.0, true }, { 7.5, true }, { 8.0, true }, { 8.5, true }, // At MAX_TEMP
+    { 9.0, true },                                              // Above MAX_TEMP
   };
   return cr_make_param_array(struct temp_param, params, sizeof(params) / sizeof(params[0]));
 }
@@ -149,11 +145,9 @@ ParameterizedTest(struct temp_param* param, cooling, temperature_sweep)
   double rate = interpolate_cooling_rate(param->logTemp, logZ_solar);
 
   if (param->expect_positive) {
-    cr_expect_gt(rate, 0.0, "Cooling rate should be positive at logT=%.1f",
-                 param->logTemp);
+    cr_expect_gt(rate, 0.0, "Cooling rate should be positive at logT=%.1f", param->logTemp);
   }
-  cr_expect(isfinite(rate), "Cooling rate should be finite at logT=%.1f",
-            param->logTemp);
+  cr_expect(isfinite(rate), "Cooling rate should be finite at logT=%.1f", param->logTemp);
 }
 
 #if USE_MINI_HALOS
@@ -162,8 +156,8 @@ ParameterizedTest(struct temp_param* param, cooling, temperature_sweep)
 Test(cooling, LTE_Mcool_basic)
 {
   // Test LTE molecular cooling at typical conditions
-  double Temp = 1000.0;  // 1000 K
-  double nH = 1.0;       // 1 cm^-3
+  double Temp = 1000.0; // 1000 K
+  double nH = 1.0;      // 1 cm^-3
 
   double LTE = LTE_Mcool(Temp, nH);
   cr_expect_gt(LTE, 0.0, "LTE cooling should be positive");
@@ -198,7 +192,7 @@ Test(cooling, Mcool_SV_basic)
 {
   // Test streaming velocity cooling mass at z=20
   double redshift = 20.0;
-  int n_sigma = 0;  // No streaming velocity
+  int n_sigma = 0; // No streaming velocity
 
   double Mcool = Mcool_SV(redshift, n_sigma);
   cr_expect_gt(Mcool, 0.0, "Mcool_SV should be positive");
@@ -214,9 +208,7 @@ Test(cooling, Mcool_SV_streaming_velocity_effect)
   double Mcool_2sigma = Mcool_SV(redshift, 2);
 
   // Higher streaming velocity should increase minimum cooling mass
-  cr_expect_gt(Mcool_1sigma, Mcool_0sigma,
-               "1-sigma SV should increase Mcool");
-  cr_expect_gt(Mcool_2sigma, Mcool_1sigma,
-               "2-sigma SV should further increase Mcool");
+  cr_expect_gt(Mcool_1sigma, Mcool_0sigma, "1-sigma SV should increase Mcool");
+  cr_expect_gt(Mcool_2sigma, Mcool_1sigma, "2-sigma SV should further increase Mcool");
 }
 #endif

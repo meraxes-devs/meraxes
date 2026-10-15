@@ -4,13 +4,14 @@
 #include <fftw3-mpi.h>
 #include <hdf5_hl.h>
 #include <math.h>
+#include <string.h>
 #include <sys/stat.h>
 
 #if USE_MINI_HALOS
 #include "meraxes.h"
 #include "metal_evo.h"
 #include "misc_tools.h"
-#include "reionization.c"
+#include "reionization.h"
 #include "virial_properties.h"
 
 void assign_slabs_metals()

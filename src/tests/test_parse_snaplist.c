@@ -11,6 +11,8 @@ void setup(void)
   char** argv = NULL;
 
   MPI_Init(&argc, &argv);
+  // parse_output_snaps logs via mlog in DEBUG builds
+  init_mlog(MPI_COMM_WORLD, stdout, stdout, stderr);
   run_globals.mpi_comm = MPI_COMM_WORLD;
   run_globals.mpi_rank = 0;
   run_globals.mpi_size = 1;

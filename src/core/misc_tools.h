@@ -4,8 +4,18 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#define CLAMP_NEGATIVE(x) do { if ((x) < 0) (x) = 0.0; } while(0)
-#define CLAMP_0_1(x) do { if ((x) < 0.0) (x) = 0.0; else if ((x) > 1.0) (x) = 1.0; } while(0)
+#define CLAMP_NEGATIVE(x)                                                                                              \
+  do {                                                                                                                 \
+    if ((x) < 0)                                                                                                       \
+      (x) = 0.0;                                                                                                       \
+  } while (0)
+#define CLAMP_0_1(x)                                                                                                   \
+  do {                                                                                                                 \
+    if ((x) < 0.0)                                                                                                     \
+      (x) = 0.0;                                                                                                       \
+    else if ((x) > 1.0)                                                                                                \
+      (x) = 1.0;                                                                                                       \
+  } while (0)
 
 typedef enum index_type
 {
@@ -51,6 +61,7 @@ extern "C"
   double interp(double xp, double* x, double* y, int nPts);
   double trapz_table(double* y, double* x, int nPts, double a, double b);
   bool check_for_flag(int flag, int tree_flags);
+  void log_memory_usage(const char* label, int snapshot, int ngal);
 
 #ifdef __cplusplus
 }

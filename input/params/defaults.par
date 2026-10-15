@@ -26,7 +26,7 @@ Flag_ConstructLightcone    : 0   # Construct reionization light cones
 Flag_IncludeLymanWerner    : 0   # if 1 Meraxes computes Lyman-Werner background (crucial for Minihalos)
 Flag_IncludeMetalEvo       : 0   # if 1 Meraxes computes the metal enrichment of the IGM.
 Flag_IncludeStreamVel      : 0   # if 1 Meraxes computes Streaming Velocities (relevant only for Minihalos)
-Flag_RemoveSHMRScatter     : 0
+Flag_RemoveSFRScatter     : 0
 
 
 #--------------------------------------------------------
@@ -201,7 +201,6 @@ MergerBurstScaling        : 0.7
 #--------------------------------
 
 Flag_BHFeedback           : 1
-Flag_BHARExponentialCut   : 0 # if 1, accretion starts at a random time and emissivity decays exponentially after accretion stops
 
 RadioModeEff              : 0.3
 QuasarModeEff             : 0.0005

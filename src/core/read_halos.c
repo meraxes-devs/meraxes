@@ -279,7 +279,7 @@ static void select_forests()
     assert(snap_counts != NULL);
 
     // Save old hdf5 error handler and turn off error handling
-    herr_t (*old_func)(long long, void*) = NULL;
+    H5E_auto_t old_func = NULL;
     void* old_client_data = NULL;
     hid_t estack_id = 0;
     H5Eget_auto(estack_id, &old_func, &old_client_data);

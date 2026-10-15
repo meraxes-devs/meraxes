@@ -1,0 +1,138 @@
+name: Build and test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch: # manual runs always test every configuration
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Pick the configurations to test. default always runs. The others run only
+  # if a changed C source/header mentions their compile flag, or the build
+  # system changed, or the changes can't be determined.
+  configs:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          all=false
+          if [ "$EVENT" = pull_request ]; then
+            # The checkout is the merge commit; its first parent is the base.
+            base=HEAD^1
+          elif [ "$EVENT" = push ] && [ -n "$BEFORE" ] && [ "${BEFORE//0/}" != "" ] \
+               && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            base=$BEFORE
+          else
+            all=true # manual run, new branch, or history we can't see
+          fi
+
+          mini=$all
+          mags=$all
+          stoch=$all
+          if [ "$all" = false ]; then
+            while IFS= read -r f; do
+              case "$f" in
+                CMakeLists.txt | */CMakeLists.txt | cmake/* | .github/workflows/tests.yml)
+                  mini=true; mags=true; stoch=true ;;
+                *.c | *.h | *.cu | *.in)
+                  # Check the new version, or the old one if the file was deleted.
+                  if [ -f "$f" ]; then show=(cat -- "$f"); else show=(git show "$base:$f"); fi
+                  "${show[@]}" | grep -qw USE_MINI_HALOS && mini=true
+                  "${show[@]}" | grep -qwE 'CALC_MAGS|USE_JWST|USE_HST' && mags=true
+                  "${show[@]}" | grep -qw USE_STOCHASTICITY && stoch=true ;;
+              esac
+            done < <(git diff --name-only "$base" HEAD)
+          fi
+
+          m='{"name":"default","cmake_args":""}'
+          if [ "$mini" = true ]; then m+=',{"name":"mini-halos","cmake_args":"-DUSE_MINI_HALOS=ON"}'; fi
+          if [ "$mags" = true ]; then m+=',{"name":"calc-mags","cmake_args":"-DCALC_MAGS=ON","needs_sector":true}'; fi
+          # Stochasticity has separate branches with and without mini-halos.
+          if [ "$stoch" = true ]; then
+            m+=',{"name":"stochasticity","cmake_args":"-DUSE_STOCHASTICITY=ON"}'
+            m+=',{"name":"stochasticity-mini-halos","cmake_args":"-DUSE_STOCHASTICITY=ON -DUSE_MINI_HALOS=ON"}'
+          fi
+          echo "matrix={\"include\":[$m]}" >> "$GITHUB_OUTPUT"
+          echo "Configurations: default, mini-halos=$mini, calc-mags=$mags, stochasticity=$stoch" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  test:
+    name: ${{ matrix.name }}
+    needs: configs
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.configs.outputs.matrix) }}
+
+    env:
+      # MPI and HDF5 keep allocations alive until exit; only report real memory errors.
+      ASAN_OPTIONS: detect_leaks=0
+      UBSAN_OPTIONS: print_stacktrace=1
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      # The magnitude code needs the sector library. This is the EMventura fork,
+      # which has init_filters; smutch/sector master does not.
+      - name: Check out sector
+        if: matrix.needs_sector
+        uses: actions/checkout@v5
+        with:
+          repository: EMventura/sector
+          ref: 2ed86faf9069300b96486037a31035a7fa6a85d3
+          path: sector
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake build-essential pkg-config \
+            libopenmpi-dev openmpi-bin \
+            libgsl-dev libhdf5-openmpi-dev \
+            libfftw3-dev libfftw3-mpi-dev \
+            libcriterion-dev
+
+      # GCC 13's AddressSanitizer crashes at startup with the runner kernel's
+      # default 32-bit mmap randomisation.
+      - name: Reduce ASLR entropy for AddressSanitizer
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      # Debug enables -Werror=implicit plus AddressSanitizer and UBSan.
+      - name: Configure
+        run: |
+          extra=""
+          if [ "${{ matrix.needs_sector }}" = "true" ]; then
+            extra="-DSECTOR_ROOT=${GITHUB_WORKSPACE}/sector/sector/clib"
+          fi
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_TESTS=ON \
+            -DHDF5_PREFER_PARALLEL=ON \
+            ${{ matrix.cmake_args }} $extra
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run standalone drivers
+        run: |
+          ./build/bin/main_cooling
+          ./build/bin/main_blackhole_feedback

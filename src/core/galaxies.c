@@ -81,8 +81,9 @@ galaxy_t* new_galaxy(int snapshot, unsigned long halo_ID)
   gal->BaryonFracModifier = 1.0;
   gal->FOFMvirModifier = 1.0;
   gal->MvirCrit = 0.0;
-  gal->MvirCrit_MC = 0.0;
   gal->tau_cgm = 0.0;
+  // No cutoff until a value is assigned from the t_resp grid.
+  gal->t_resp = 1e30;
   gal->cumulative_ionization = 0.0;
   gal->MergerBurstMass = 0.0;
   gal->MergerStartRadius = 0.0;
@@ -103,6 +104,7 @@ galaxy_t* new_galaxy(int snapshot, unsigned long halo_ID)
   gal->StochasticityTreatedFescIIIWeightedSfr = 0.0;
 #endif
   gal->Remnant_Mass = 0.;
+  gal->MvirCrit_MC = 0.0;
   gal->Metal_Probability = 0.0;
   gal->Metals_IGM = 0.0;
   gal->Gas_IGM = 0.0;
@@ -118,9 +120,6 @@ galaxy_t* new_galaxy(int snapshot, unsigned long halo_ID)
   if (run_globals.params.Flag_IncludeMetalEvo ==
       false) // If you don't have the external metal enrichment all galaxies will start as pristine (Pop.III forming)
     gal->Galaxy_Population = 3;
-#else // If you are not computing PopIII , all the galaxies are PopII. Again you need to initialize the variable
-      // otherwise star_formation.c will fail!
-  gal->Galaxy_Population = 2;
 #endif
 
   for (int ii = 0; ii < 3; ii++) {
@@ -203,7 +202,8 @@ void reset_galaxy_properties(galaxy_t* gal, int snapshot)
   gal->Mcool = 0.0;
   gal->Rcool = 0.0;
   gal->tau_cgm = 0.0;
-  gal->cumulative_ionization = 0.0;
+  // cumulative_ionization is not reset: CGM suppression mode 2 integrates it
+  // over the galaxy's history (initialised to 0 in new_galaxy).
   gal->BHemissivity = 0.0;
   gal->QuasarLuv = 0.0;
   gal->QuasarLX = 0.0;
@@ -216,16 +216,18 @@ void reset_galaxy_properties(galaxy_t* gal, int snapshot)
   gal->DutyCycleAGN = 0.0;
   gal->BlackHoleAccretedHotMass = 0.0;
   gal->BlackHoleAccretedColdMass = 0.0;
-  gal->t_resp = 1e30;
+  // t_resp is not reset here: ghosts run BH growth (passively_evolve_ghost)
+  // before this snapshot's grid value is assigned, so they keep the last one.
   // MvirCrit is assigned from the reionization grid before the physics step
   // and is consumed by gas_infall() through reionization_modifier(). Keep
   // that value while patchy UVB feedback is active; otherwise clear it so a
   // stale value cannot leak into a later branch or diagnostic.
-  if (!(run_globals.params.ReionUVBFlag &&
-        run_globals.params.Flag_PatchyReion &&
+  if (!(run_globals.params.ReionUVBFlag && run_globals.params.Flag_PatchyReion &&
         run_globals.params.physics.Flag_ReionizationModifier != 0)) {
     gal->MvirCrit = 0.0;
+#if USE_MINI_HALOS
     gal->MvirCrit_MC = 0.0;
+#endif
   }
 #if USE_MINI_HALOS
   gal->SfrIII = 0.0;

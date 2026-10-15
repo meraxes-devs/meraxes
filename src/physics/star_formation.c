@@ -67,8 +67,6 @@ void update_reservoirs_from_sf(galaxy_t* gal, double new_stars, int snapshot, SF
       new_stars; // If you are not distinguishing III/II you just have one variable which is the total one
 #endif
 
-	compute_LOIII(gal, snapshot);
-
     gal->ColdGas -= new_stars;
     gal->MetalsColdGas -= new_stars * metallicity;
     gal->StellarMass += new_stars;
@@ -203,7 +201,7 @@ void insitu_star_formation(galaxy_t* gal, int snapshot)
     }
     if (m_stars > gal->ColdGas)
       m_stars = gal->ColdGas;
-	
+
     // calculate the total supernova feedback which would occur if this star
     // formation happened continuously and evenly throughout the snapshot
     contemporaneous_supernova_feedback(

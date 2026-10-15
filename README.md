@@ -1,5 +1,5 @@
 # **Meraxes**
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit) [![All Contributors](https://img.shields.io/badge/all_contributors-2-orange.svg?style=flat-square)](https://github.com/meraxes-devs/meraxes/graphs/contributors)  
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit) [![All Contributors](https://img.shields.io/badge/all_contributors-11-orange.svg?style=flat-square)](https://github.com/meraxes-devs/meraxes/graphs/contributors)  
 
 ![Galaxy UV luminosity function](output/results/figs/glfs.jpg)
 ---
@@ -21,7 +21,8 @@ Please refer to [`BUILD.md`](./BUILD.md) for detailed installation and build ins
 
 
 ## **Documentation**
-Comprehensive documentation is currently under development. For inquiries or assistance, please contact the team.  
+Read the [Meraxes Guide](docs/index.md) for build instructions, model parameters,
+execution workflow, outputs, formulas and [post-processing tools](docs/post-processing.md).
 
 
 ## **Acknowledging**
@@ -47,15 +48,19 @@ If using specific features introduced in Meraxes, please cite the corresponding 
       <td align="center" valign="top" width="19.95%"><a href="https://smutch.github.io/"><img src="https://avatars.githubusercontent.com/u/782987?v=4?s=100" width="100px;" alt="Simon Mutch"/><br /><sub><b>Simon Mutch</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=smutch" title="Code">💻</a></td>
       <td align="center" valign="top" width="19.95%"><a href="https://researchportalplus.anu.edu.au/en/persons/yuxiang-qin"><img src="https://avatars.githubusercontent.com/u/15994713?v=4?s=100" width="100px;" alt="Yuxiang Qin"/><br /><sub><b>Yuxiang Qin</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=qyx268" title="Code">💻</a> <a href="https://github.com/meraxes-devs/meraxes/pulls?q=is%3Apr+reviewed-by%3Aqyx268" title="Reviewed Pull Requests">👀</a></td>
       <td align="center" valign="top" width="19.95%"><a href="https://github.com/EMventura"><img src="https://avatars.githubusercontent.com/u/98299102?v=4?s=100" width="100px;" alt="Emanuele Maria Ventura"/><br /><sub><b>Emanuele Maria Ventura</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=EMventura" title="Code">💻</a> <a href="https://github.com/meraxes-devs/meraxes/pulls?q=is%3Apr+reviewed-by%3AEMventura" title="Reviewed Pull Requests">👀</a></td>
+      <td align="center" valign="top" width="19.95%"><a href="https://github.com/ChangqIngovo"><img src="https://avatars.githubusercontent.com/u/229331369?v=4&amp;s=100" width="100" alt="Shihai Zhu"/><br /><sub><b>Shihai Zhu</b></sub></a><br /><a href="https://github.com/ChangqIngovo/meraxes-devs_qyxnew/commits/ReadDoc-main?author=ChangqIngovo" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="19.95%"><a href="http://s-balu.github.io"><img src="https://avatars.githubusercontent.com/u/14290533?v=4?s=100" width="100px;" alt="Balu Sreedhar"/><br /><sub><b>Balu Sreedhar</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=s-balu" title="Code">💻</a> <a href="https://github.com/meraxes-devs/meraxes/pulls?q=is%3Apr+reviewed-by%3As-balu" title="Reviewed Pull Requests">👀</a></td>
-      <td align="center" valign="top" width="19.95%"><a href="https://github.com/BradGreig"><img src="https://avatars.githubusercontent.com/u/16087482?v=4?s=100" width="100px;" alt="BradGreig"/><br /><sub><b>BradGreig</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=BradGreig" title="Code">💻</a></td>
     </tr>
     <tr>
+      <td align="center" valign="top" width="19.95%"><a href="https://github.com/BradGreig"><img src="https://avatars.githubusercontent.com/u/16087482?v=4?s=100" width="100px;" alt="BradGreig"/><br /><sub><b>BradGreig</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=BradGreig" title="Code">💻</a></td>
       <td align="center" valign="top" width="19.95%"><a href="http://www.astronomy.swin.edu.au/~gpoole/"><img src="https://avatars.githubusercontent.com/u/599836?v=4?s=100" width="100px;" alt="Gregory B. Poole"/><br /><sub><b>Gregory B. Poole</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=gbpoole" title="Code">💻</a></td>
       <td align="center" valign="top" width="19.95%"><a href="https://github.com/pgeil"><img src="https://avatars.githubusercontent.com/u/13758421?v=4?s=100" width="100px;" alt="pgeil"/><br /><sub><b>pgeil</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=pgeil" title="Code">💻</a></td>
       <td align="center" valign="top" width="19.95%"><a href="https://github.com/yqiuu"><img src="https://avatars.githubusercontent.com/u/26683739?v=4?s=100" width="100px;" alt="Yisheng Qiu"/><br /><sub><b>Yisheng Qiu</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=yqiuu" title="Code">💻</a></td>
       <td align="center" valign="top" width="19.95%"><a href="https://github.com/daviesje"><img src="https://avatars.githubusercontent.com/u/36873665?v=4?s=100" width="100px;" alt="daviesje"/><br /><sub><b>daviesje</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=daviesje" title="Code">💻</a></td>
+    </tr>
+    <tr>
       <td align="center" valign="top" width="19.95%"><img src="https://avatars.githubusercontent.com/u/1745990?v=4?s=100" width="100px;"/><br /><sub><b>Hansik Kim</b></sub></a><br />💻</td>
     </tr>
   </tbody>
 </table>
+

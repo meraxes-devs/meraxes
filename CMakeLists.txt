@@ -64,7 +64,7 @@ set(SECTOR_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src/sector" CACHE PATH "Base direct
 option(BUILD_TESTS "Build criterion tests" OFF)
 option(GDB "Drop into GDB with mpi_debug_here() calls" OFF)
 option(ENABLE_PROFILING "Enable profiling of executable with gperftools." OFF)
-option(USE_CUDA "Build with CUDA support for reionization calculations" OFF)
+option(USE_CUDA "Build with CUDA support for reionization calculations (currently unsupported, see BUILD.md)" OFF)
 
 
 # Build type
@@ -77,8 +77,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
     "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
-if(CMAKE_BUILD_TYPE EQUAL "Debug" AND NOT BUILD_SHARED_LIBS)
-    set(SANITIZE_FLAGS "-fsanitize=address,leak,undefined -fno-common -fno-omit-frame-pointer")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT BUILD_SHARED_LIBS)
+    set(SANITIZE_FLAGS -fsanitize=address,leak,undefined -fno-common -fno-omit-frame-pointer)
 else()
     set(SANITIZE_FLAGS "")
 endif()
@@ -117,9 +117,14 @@ target_compile_definitions(meraxes_lib PUBLIC
 )
 
 target_compile_options(meraxes_lib PRIVATE
-    $<$<CONFIG:Debug>:-Wall -Wextra -Werror=implicit ${SANITIZE_FLAGS}>
+    $<$<CONFIG:Debug>:-Wall -Wextra -Werror=implicit>
     $<$<CONFIG:Release>:-march=native -ffast-math>
     )
+
+# Anything linking an instrumented meraxes_lib also needs the sanitizer
+# runtimes at link time, so these propagate to consumers.
+target_compile_options(meraxes_lib PUBLIC ${SANITIZE_FLAGS})
+target_link_options(meraxes_lib PUBLIC ${SANITIZE_FLAGS})
 
 # Profiling
 if(ENABLE_PROFILING)
@@ -159,6 +164,13 @@ target_include_directories(meraxes BEFORE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/sr
 ##########
 
 if(USE_CUDA)
+    # The GPU path (src/core/*_gpu.cu) predates several CPU reionization
+    # features and no longer compiles. It and the setup below are kept so it
+    # can be ported, but building it is refused until then.
+    message(FATAL_ERROR
+        "USE_CUDA is currently unsupported: the GPU reionization path is out of date with the CPU implementation "
+        "(it lacks the black hole and Pop III ionizing sources, spin temperature coupling, and temperature-dependent "
+        "recombination) and no longer compiles. Reconfigure with -DUSE_CUDA=OFF. See BUILD.md.")
     enable_language(CUDA)
     set_target_properties(meraxes_lib meraxes PROPERTIES
         CUDA_ARCHITECTURES 60
@@ -182,15 +194,6 @@ if(USE_CUDA)
     target_compile_definitions(meraxes_lib PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:__INTEL_COMPILER>)
 endif()
 
-
-#########
-# TESTS #
-#########
-
-if(BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(src/tests)
-endif()
 
 
 ################
@@ -277,11 +280,27 @@ endif()
 target_include_directories(meraxes_lib PUBLIC ${HDF5_INCLUDE_DIRS})
 target_link_libraries(meraxes_lib PUBLIC ${HDF5_C_LIBRARIES} ${HDF5_C_HL_LIBRARIES})
 add_definitions(${HDF5_DEFINITIONS})
+if(CALC_MAGS)
+    # sector includes hdf5.h itself
+    target_include_directories(sector PRIVATE ${HDF5_INCLUDE_DIRS})
+endif()
 
 # FFTW
 find_package(FFTW REQUIRED)
 target_include_directories(meraxes_lib PUBLIC ${FFTW_INCLUDE_DIRS})
 target_link_libraries(meraxes_lib PUBLIC ${FFTW_LIBRARIES})
+
+#########
+# TESTS #
+#########
+
+# Must come after every add_definitions() above: a subdirectory only inherits
+# the definitions added before it, and the tests have to see the same
+# galaxy_t layout (USE_MINI_HALOS, CALC_MAGS, ...) as meraxes_lib.
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(src/tests)
+endif()
 
 # Exports for other codes to build against this version of Meraxes
 if(CALC_MAGS)

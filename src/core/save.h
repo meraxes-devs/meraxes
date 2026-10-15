@@ -61,19 +61,20 @@ typedef struct galaxy_output_t
   float FescBH;
   float BHemissivity;
   float QuasarMag;
-  float QuasarLX;        //!< Intrinsic hard X-ray luminosity [1e10 L_sun, 2-10 keV]; 0 if inactive
-  int   NHbin;           //!< Which of the 5 NH bins this snapshot's draw landed in (0-4), or -1 if no AGN activity — see meraxes.h galaxy_t.NHbin for detail.
+  float QuasarLX; //!< Intrinsic hard X-ray luminosity [1e10 L_sun, 2-10 keV]; 0 if inactive
+  int NHbin; //!< Which of the 5 NH bins this snapshot's draw landed in (0-4), or -1 if no AGN activity — see meraxes.h
+             //!< galaxy_t.NHbin for detail.
   float BHXrayEmissivity; //!< Observed hard X-ray emissivity [1e10 L_sun, 2-10 keV], obscuration-weighted
   float EffectiveBHM;
   float BlackHoleAccretedHotMass;
   float BlackHoleAccretedColdMass;
   float DutyCycleAGN;
-  int Galaxy_Population; // You need it also if you are not disentangling PopIII/PopII (when Mini_halos is off, this is = 2)
 #if USE_MINI_HALOS
   float GrossStellarMassIII;
   float FescIII;
   float FescIIIWeightedGSM;
   float FescIIIWeightedSfr;
+  float SfrIII; // Pop III SFR; with mini-halos, Sfr holds Pop II only
 
   float RmetalBubble;
   int Flag_ExtMetEnr;
@@ -82,6 +83,8 @@ typedef struct galaxy_output_t
   float StellarMass_II;
   float StellarMass_III;
   float Remnant_Mass;
+  int
+    Galaxy_Population; // Disentangles Pop III/Pop II; not needed when Mini_halos is off, since all galaxies are Pop II
   float MvirCrit_MC;
 #endif
 

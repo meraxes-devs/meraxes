@@ -19,10 +19,10 @@
 FileNameGalaxies     : meraxes
 DefaultsFile         : @INPUT_FILE_DIR@/params/defaults.par
 SimParamsFile        : @INPUT_FILE_DIR@/params/simulations/Genesis_L210_N4320.par
-OutputSnapshots      : :
+OutputSnapshots      : -1
 OutputDir            : output
 PhotometricTablesDir : @INPUT_FILE_DIR@/photometric_tables
 CoolingFuncsDir      : @INPUT_FILE_DIR@/cooling_functions
 StellarFeedbackDir   : @INPUT_FILE_DIR@/stellar_feedback_tables/Kroupa
 TablesForXHeatingDir : @INPUT_FILE_DIR@/21cmFAST-tables
-RecombinationDir     : @INPUT_FILE_DIR@/recombination_tables
+RecombinationDir     : @INPUT_FILE_DIR@/

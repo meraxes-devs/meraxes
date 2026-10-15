@@ -5,12 +5,12 @@
 #if USE_STOCHASTICITY
 #include "Stochasticity.h"
 #endif
+#include "XRayHeatingFunctions.h"
 #include "parse_paramfile.h"
 #include "read_grids.h"
 #include "read_halos.h"
 #include "recombinations.h"
 #include "reionization.h"
-#include "XRayHeatingFunctions.h"
 
 #if USE_MINI_HALOS
 #include "metal_evo.h"
@@ -42,7 +42,7 @@ void cleanup()
   }
 
 #if USE_STOCHASTICITY
-  no_shmr_sources_free();
+  no_sfr_sources_free();
 #endif
 
   if (run_globals.params.Flag_IncludeRecombinations) {

@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 690" role="img" aria-labelledby="title desc">
+<title id="title">Meraxes output hierarchy</title><desc id="desc">The master file links snapshot groups. Each snapshot links rank galaxy catalogues, grid products and distribution-function summaries.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker></defs>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#203344} .heading{font-weight:700;font-size:17px} .body{font-size:14px} .label{font-size:13px}</style>
+<rect width="1180" height="690" fill="white"/>
+<rect x="440" y="20" width="300" height="85" rx="8" fill="#FCF2F4" stroke="#BD5864" stroke-width="1.6"/>
+<text x="590.0" y="45" text-anchor="middle" class="heading">meraxes.hdf5</text>
+<text x="590.0" y="68" text-anchor="middle" class="body">Master assembled by rank 0</text>
+<text x="590.0" y="87" text-anchor="middle" class="body">After the snapshot loop</text>
+<rect x="20" y="20" width="320" height="105" rx="8" fill="#F1F6FC" stroke="#427CC0" stroke-width="1.6"/>
+<text x="180.0" y="45" text-anchor="middle" class="heading">Master metadata</text>
+<text x="180.0" y="68" text-anchor="middle" class="body">InputParams; Units</text>
+<text x="180.0" y="87" text-anchor="middle" class="body">HubbleConversions; gitdiff</text>
+<text x="180.0" y="106" text-anchor="middle" class="body">Attributes hold saved metadata</text>
+<rect x="845" y="20" width="315" height="85" rx="8" fill="#FCF2F4" stroke="#BD5864" stroke-width="1.6"/>
+<text x="1002.5" y="45" text-anchor="middle" class="heading">Snapshot groups</text>
+<text x="1002.5" y="68" text-anchor="middle" class="body">SnapNNN</text>
+<text x="1002.5" y="87" text-anchor="middle" class="body">Selected output snapshots</text>
+<rect x="430" y="205" width="320" height="95" rx="8" fill="#FCF2F4" stroke="#BD5864" stroke-width="1.6"/>
+<text x="590.0" y="230" text-anchor="middle" class="heading">Snap</text>
+<text x="590.0" y="253" text-anchor="middle" class="body">Redshift; LTTime; NGalaxies</text>
+<text x="590.0" y="272" text-anchor="middle" class="body">Links to the snapshot products</text>
+<rect x="20" y="395" width="320" height="90" rx="8" fill="#FCF2F4" stroke="#BD5864" stroke-width="1.6"/>
+<text x="180.0" y="420" text-anchor="middle" class="heading">Core&lt;rank&gt;</text>
+<text x="180.0" y="443" text-anchor="middle" class="body">One group per writing MPI rank</text>
+<text x="180.0" y="462" text-anchor="middle" class="body">External links into rank files</text>
+<rect x="430" y="395" width="320" height="90" rx="8" fill="#EFF8F5" stroke="#278470" stroke-width="1.6"/>
+<text x="590.0" y="420" text-anchor="middle" class="heading">Grids</text>
+<text x="590.0" y="443" text-anchor="middle" class="body">External link to the grid file</text>
+<text x="590.0" y="462" text-anchor="middle" class="body">Distributed spatial products</text>
+<rect x="840" y="375" width="320" height="120" rx="8" fill="#FCF2F4" stroke="#BD5864" stroke-width="1.6"/>
+<text x="1000.0" y="400" text-anchor="middle" class="heading">Distribution functions</text>
+<text x="1000.0" y="423" text-anchor="middle" class="body">HMF; SMF; OIIILF; QuasarLF</text>
+<text x="1000.0" y="442" text-anchor="middle" class="body">Optional UV and X-ray luminosity functions</text>
+<text x="1000.0" y="461" text-anchor="middle" class="body">Direct links to rank-0 summaries</text>
+<rect x="20" y="570" width="320" height="100" rx="8" fill="#FCF2F4" stroke="#BD5864" stroke-width="1.6"/>
+<text x="180.0" y="595" text-anchor="middle" class="heading">Rank datasets</text>
+<text x="180.0" y="618" text-anchor="middle" class="body">Galaxies: compound records</text>
+<text x="180.0" y="637" text-anchor="middle" class="body">Tree-index arrays when enabled</text>
+<text x="180.0" y="656" text-anchor="middle" class="body">Build-dependent fields</text>
+<rect x="430" y="570" width="320" height="100" rx="8" fill="#EFF8F5" stroke="#278470" stroke-width="1.6"/>
+<text x="590.0" y="595" text-anchor="middle" class="heading">Grid datasets and attributes</text>
+<text x="590.0" y="618" text-anchor="middle" class="body">Source, thermal and ionization cubes</text>
+<text x="590.0" y="637" text-anchor="middle" class="body">21-cm arrays and scalar summaries</text>
+<text x="590.0" y="656" text-anchor="middle" class="body">Runtime-dependent products</text>
+<path d="M 440 62.5 L 340 72.5" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 740 62.5 L 845 62.5" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 1002.5 105 L 1002.5 160 L 590 160 L 590 205" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 590 300 L 590 340 L 180 340 L 180 395" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 590 300 L 590 395" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 590 300 L 590 340 L 1000 340 L 1000 375" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 180 485 L 180 570" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M 590 485 L 590 570" fill="none" stroke="#536676" stroke-width="1.7" marker-end="url(#arrow)"/>
+</svg>

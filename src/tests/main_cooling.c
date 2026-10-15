@@ -9,7 +9,7 @@
  *   ./main_cooling [options]
  *
  * Options:
- *   -c, --cooling-dir DIR   Path to cooling functions directory (default: ../input/cooling_functions)
+ *   -c, --cooling-dir DIR   Path to cooling functions directory (default: <source>/input/cooling_functions)
  *   -T, --temperature LOGT  Log10 temperature in Kelvin (default: 6.0)
  *   -Z, --metallicity LOGZ  Log10 metallicity (default: -1.7, ~solar)
  *   -s, --sweep             Sweep through temperature and metallicity range
@@ -29,7 +29,7 @@
 #include <string.h>
 
 #include "meraxes.h"
-#include "cooling.h"
+#include "physics/cooling.h"
 
 // Forward declarations from cooling.c
 extern void read_cooling_functions(void);
@@ -46,7 +46,7 @@ static void print_usage(const char* progname)
   printf("\nStandalone driver for testing Meraxes cooling functions.\n");
   printf("\nOptions:\n");
   printf("  -c, --cooling-dir DIR   Path to cooling functions directory\n");
-  printf("                          (default: ../input/cooling_functions)\n");
+  printf("                          (default: %s)\n", COOLING_FUNCS_DIR);
   printf("  -T, --temperature LOGT  Log10 temperature in Kelvin (default: 6.0)\n");
   printf("  -Z, --metallicity LOGZ  Log10 metallicity (default: -1.7, ~solar)\n");
   printf("  -s, --sweep             Sweep through temperature and metallicity range\n");
@@ -141,9 +141,9 @@ static void test_mini_halo_cooling(void)
 int main(int argc, char* argv[])
 {
   // Default values
-  char cooling_dir[STRLEN] = "../input/cooling_functions";
+  char cooling_dir[STRLEN] = COOLING_FUNCS_DIR;
   double logT = 6.0;
-  double logZ = log10(0.02);  // Solar metallicity
+  double logZ = log10(0.02); // Solar metallicity
   int do_sweep = 0;
 #if USE_MINI_HALOS
   int do_mini_halos = 0;

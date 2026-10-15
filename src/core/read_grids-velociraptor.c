@@ -101,11 +101,7 @@ static int read_swift(const enum grid_prop property, const int snapshot, float* 
       H5T_class_t type_class;
       size_t type_size;
 
-      status = H5LTget_dataset_info(file_id,
-                                    "/PartType1/Grids/Density",
-                                    dims,
-                                    &type_class,
-                                    &type_size);
+      status = H5LTget_dataset_info(file_id, "/PartType1/Grids/Density", dims, &type_class, &type_size);
       assert(status >= 0);
       assert(dims[0] == dims[1] && dims[1] == dims[2]);
 
@@ -300,7 +296,7 @@ static int read_vr_multi(const enum grid_prop property, const int snapshot, floa
       if (ii == 0) {
 
         // save current error stack
-        herr_t (*old_func)(long long, void*);
+        H5E_auto_t old_func;
         void* old_client_data;
         hid_t error_stack = 0;
         H5Eget_auto(error_stack, &old_func, &old_client_data);
@@ -381,15 +377,14 @@ static int read_vr_multi(const enum grid_prop property, const int snapshot, floa
     }
     MPI_Allgatherv(
       &rank_nx[mpi_rank], sizeof(ptrdiff_t), MPI_BYTE, rank_nx, recvcounts, displs, MPI_BYTE, run_globals.mpi_comm);
-    MPI_Allgatherv(
-      &rank_ix_start[mpi_rank],
-      sizeof(ptrdiff_t),
-      MPI_BYTE,
-      rank_ix_start,
-      recvcounts,
-      displs,
-      MPI_BYTE,
-      run_globals.mpi_comm);
+    MPI_Allgatherv(&rank_ix_start[mpi_rank],
+                   sizeof(ptrdiff_t),
+                   MPI_BYTE,
+                   rank_ix_start,
+                   recvcounts,
+                   displs,
+                   MPI_BYTE,
+                   run_globals.mpi_comm);
     MPI_Allgatherv(
       &rank_nI[mpi_rank], sizeof(ptrdiff_t), MPI_BYTE, rank_nI, recvcounts, displs, MPI_BYTE, run_globals.mpi_comm);
   }
@@ -609,7 +604,6 @@ int read_grid__velociraptor(const enum grid_prop property, const int snapshot, f
   // Have we read this slab before?
   if ((params->FlagInteractive || params->FlagMCMC) && !load_cached_slab(slab, snapshot, property))
     return 0;
-
 
   if (params->TsVelocityComponent < 1 || params->TsVelocityComponent > 3) {
     mlog("Not a valid velocity direction: 1 - x, 2 - y, 3 - z", MLOG_MESG);

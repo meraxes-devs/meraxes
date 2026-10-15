@@ -78,6 +78,12 @@ extern "C"
   void save_reion_output_attributes(int snapshot);
   void save_reion_output_grids(int snapshot);
   bool check_if_reionization_ongoing(int snapshot);
+  void write_grid_float(const char* name,
+                        float* data,
+                        hid_t file_id,
+                        hid_t fspace_id,
+                        hid_t memspace_id,
+                        hid_t dcpl_id);
   void filter(fftwf_complex* box, int local_ix_start, int slab_nx, int grid_dim, float R, int filter_type);
   void velocity_gradient(fftwf_complex* box, int slab_nx, int grid_dim);
 #ifdef __cplusplus

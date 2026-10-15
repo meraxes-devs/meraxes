@@ -188,8 +188,7 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   parent->FescIIIWeightedSfr += gal->FescIIIWeightedSfr;
 #if USE_STOCHASTICITY
   parent->SfrIIINoScatter += gal->SfrIIINoScatter;
-  parent->GrossStellarMassIIINoScatter +=
-      gal->GrossStellarMassIIINoScatter;
+  parent->GrossStellarMassIIINoScatter += gal->GrossStellarMassIIINoScatter;
   parent->StochasticityTreatedFescIIIWeightedGSM += gal->StochasticityTreatedFescIIIWeightedGSM;
   parent->StochasticityTreatedFescIIIWeightedSfr += gal->StochasticityTreatedFescIIIWeightedSfr;
 #endif
@@ -206,15 +205,21 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   parent->MetalsStellarMass += gal->MetalsStellarMass;
   parent->Sfr += gal->Sfr;
   parent->FescWeightedSfr += gal->FescWeightedSfr;
+
+  // take the CGM tau, and the accumulated ionization CGM suppression mode 2
+  // derives it from, from the one with more CGM (compare before merging HotGas)
+  if (parent->HotGas < gal->HotGas) {
+    parent->tau_cgm = gal->tau_cgm;
+    parent->cumulative_ionization = gal->cumulative_ionization;
+  }
+
   parent->HotGas += gal->HotGas;
   parent->MetalsHotGas += gal->MetalsHotGas;
   parent->ColdGas += gal->ColdGas;
   parent->MetalsColdGas += gal->MetalsColdGas;
   parent->EjectedGas += gal->EjectedGas;
   parent->MetalsEjectedGas += gal->MetalsEjectedGas;
-  parent->LOIII += gal->LOIII;
-  parent->ionization_param += gal->ionization_param;
-  
+
   // parent has not prior accretion but sallite does
   if (parent->BHAccretionOnTime < 0 && gal->BHAccretionOnTime > 0)
     parent->BHAccretionOnTime = gal->BHAccretionOnTime;
@@ -224,13 +229,9 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
     parent->t_resp = gal->t_resp;
   }
   parent->QuasarLuv += gal->QuasarLuv;
-  parent->QuasarLX  += gal->QuasarLX;
+  parent->QuasarLX += gal->QuasarLX;
   parent->BHXrayEmissivity_hard += gal->BHXrayEmissivity_hard;
   parent->BHXrayEmissivity_soft += gal->BHXrayEmissivity_soft;
-
-  // take the CGM tau from the one with more CGM
-  if (parent->HotGas < gal->HotGas)
-    parent->tau_cgm = gal->tau_cgm;
 
   parent->BlackHoleAccretedHotMass += gal->BlackHoleAccretedHotMass;
   parent->BlackHoleAccretedColdMass += gal->BlackHoleAccretedColdMass;
@@ -239,11 +240,10 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   parent->BlackHoleMass += gal->BlackHoleMass;
   parent->EffectiveBHM += gal->EffectiveBHM;
   parent->EffectiveBHAR += gal->EffectiveBHAR;
-  
+
   parent->mwmsa_num += gal->mwmsa_num;
   parent->mwmsa_denom += gal->mwmsa_denom;
   parent->MergerBurstMass += gal->MergerBurstMass;
-
 
 #if USE_MINI_HALOS
   // If I have a Merger between Pop III and Pop II the result is a Pop. II. Actually I should compute metallicity

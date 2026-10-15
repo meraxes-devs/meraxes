@@ -170,7 +170,7 @@ void ComputeBrightnessTemperatureBox(int snapshot) //
       for (jj = 0; jj < ReionGridDim; jj++) {
         for (kk = 0; kk < ReionGridDim; kk++) {
           i_padded = grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED);
-          
+
           switch (run_globals.params.TreesID) {
             case GBPTREES_TREES:
               vel[i_padded] = (float)(sqrt(1. / (1. + redshift)) * vel[i_padded] / 1000.);
