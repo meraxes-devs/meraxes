@@ -170,14 +170,13 @@ typedef struct physics_params_t
   double LXrayGal;
   double XrayScatterDex; // Standard deviation of the Gaussian residual in log10 luminosity (dex).
 
-  // log10[L_X(calibration band)/SFR] = XrayLogLNorm + XrayMetallicitySlope * (O/H)/(O/H)_sun + epsilon.
+  // Fragos/Kaur metallicity shape with a free calibration-band normalization.
   int Flag_UseXrayMetallicity;
-  double XrayLogLNorm;
-  double XrayMetallicitySlope;
-  double XrayMetallicitySolar;
-  double XrayOxygenAbundanceFactor; // (O/H)/(O/H)_sun = this factor * Z_cold/Z_sun.
-  double XrayCalibrationBandMin;    // Calibration-band lower edge (eV).
-  double XrayCalibrationBandMax;    // Calibration-band upper edge (eV).
+  double XrayMetallicityNorm;     // Low-Z L_X/SFR, (erg/s)/(Msun/yr).
+  double XrayMetallicityExponent; // Kaur Eq. (2): alpha.
+  double XrayMetallicityTurnover; // Absolute metal mass fraction Z_turn.
+  double XrayCalibrationBandMin;  // Calibration-band lower edge (eV).
+  double XrayCalibrationBandMax;  // Calibration-band upper edge (eV).
 
   double NuXrayThreshold;
   double SpecIndexXrayGal;
