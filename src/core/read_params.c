@@ -57,14 +57,15 @@ static void check_problem_params(run_params_t* run_params)
                  "XrayCalibrationBandMax (eV).");
       ABORT(EXIT_FAILURE);
     }
-    if (!isfinite(run_params->physics.XrayLogLNorm) || !isfinite(run_params->physics.XrayMetallicitySlope) ||
-        !isfinite(run_params->physics.XrayMetallicitySolar) || run_params->physics.XrayMetallicitySolar <= 0.0 ||
-        !isfinite(run_params->physics.XrayOxygenAbundanceFactor) ||
-        run_params->physics.XrayOxygenAbundanceFactor < 0.0 || !isfinite(run_params->physics.SpecIndexXrayGal) ||
-        !isfinite(run_params->physics.NuXrayThreshold) || !isfinite(run_params->physics.NuXraySoftCut) ||
-        run_params->physics.NuXrayThreshold <= 0.0 ||
+    if (!isfinite(run_params->physics.XrayMetallicityNorm) || run_params->physics.XrayMetallicityNorm <= 0.0 ||
+        !isfinite(run_params->physics.XrayMetallicityExponent) || run_params->physics.XrayMetallicityExponent <= 0.0 ||
+        !isfinite(run_params->physics.XrayMetallicityTurnover) || run_params->physics.XrayMetallicityTurnover <= 0.0 ||
+        !isfinite(run_params->physics.SpecIndexXrayGal) || !isfinite(run_params->physics.NuXrayThreshold) ||
+        !isfinite(run_params->physics.NuXraySoftCut) || run_params->physics.NuXrayThreshold <= 0.0 ||
         run_params->physics.NuXraySoftCut <= run_params->physics.NuXrayThreshold) {
-      mlog_error("Invalid metallicity-dependent X-ray parameters or energy band.");
+      mlog_error("Invalid Fragos/Kaur X-ray parameters: require finite positive XrayMetallicityNorm, "
+                 "XrayMetallicityExponent and XrayMetallicityTurnover, a finite spectral index, "
+                 "and finite 0 < NuXrayThreshold < NuXraySoftCut.");
       ABORT(EXIT_FAILURE);
     }
   }
@@ -1257,29 +1258,23 @@ void read_parameter_file(char* fname, int mode)
       params_type[n_param++] = PARAM_TYPE_INT;
       run_params->physics.Flag_UseXrayMetallicity = 0;
 
-      strcpy(params_tag[n_param], "XrayLogLNorm");
-      params_addr[n_param] = &(run_params->physics).XrayLogLNorm;
+      strcpy(params_tag[n_param], "XrayMetallicityNorm");
+      params_addr[n_param] = &(run_params->physics).XrayMetallicityNorm;
       required_tag[n_param] = 0;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
-      run_params->physics.XrayLogLNorm = 40.68;
+      run_params->physics.XrayMetallicityNorm = 3.16e40;
 
-      strcpy(params_tag[n_param], "XrayMetallicitySlope");
-      params_addr[n_param] = &(run_params->physics).XrayMetallicitySlope;
+      strcpy(params_tag[n_param], "XrayMetallicityExponent");
+      params_addr[n_param] = &(run_params->physics).XrayMetallicityExponent;
       required_tag[n_param] = 0;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
-      run_params->physics.XrayMetallicitySlope = -1.22;
+      run_params->physics.XrayMetallicityExponent = 0.3;
 
-      strcpy(params_tag[n_param], "XrayMetallicitySolar");
-      params_addr[n_param] = &(run_params->physics).XrayMetallicitySolar;
+      strcpy(params_tag[n_param], "XrayMetallicityTurnover");
+      params_addr[n_param] = &(run_params->physics).XrayMetallicityTurnover;
       required_tag[n_param] = 0;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
-      run_params->physics.XrayMetallicitySolar = 0.0134;
-
-      strcpy(params_tag[n_param], "XrayOxygenAbundanceFactor");
-      params_addr[n_param] = &(run_params->physics).XrayOxygenAbundanceFactor;
-      required_tag[n_param] = 0;
-      params_type[n_param++] = PARAM_TYPE_DOUBLE;
-      run_params->physics.XrayOxygenAbundanceFactor = 1.0;
+      run_params->physics.XrayMetallicityTurnover = 0.008;
 
       strcpy(params_tag[n_param], "XrayCalibrationBandMin");
       params_addr[n_param] = &(run_params->physics).XrayCalibrationBandMin;
