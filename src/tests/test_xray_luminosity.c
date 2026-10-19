@@ -18,10 +18,9 @@ static void setup(void)
   physics_params_t* params = &run_globals.params.physics;
   params->Flag_UseXrayMetallicity = 1;
   params->LXrayGal = 3.16e40;
-  params->XrayLogLNorm = 40.68;
-  params->XrayMetallicitySlope = -1.22;
-  params->XrayMetallicitySolar = 0.0134;
-  params->XrayOxygenAbundanceFactor = 1.0;
+  params->XrayMetallicityNorm = 3.16e40;
+  params->XrayMetallicityExponent = 0.3;
+  params->XrayMetallicityTurnover = 0.008;
   params->XrayCalibrationBandMin = 500.0;
   params->XrayCalibrationBandMax = 2000.0;
   params->NuXrayThreshold = 500.0;
@@ -70,9 +69,9 @@ Test(xray_luminosity, flag_off_uses_legacy_relation)
   params->Flag_UseXrayMetallicity = 0;
 
   // Disabled metallicity parameters must not affect the original relation.
-  params->XrayLogLNorm = NAN;
-  params->XrayMetallicitySlope = NAN;
-  params->XrayMetallicitySolar = 0.0;
+  params->XrayMetallicityNorm = NAN;
+  params->XrayMetallicityExponent = NAN;
+  params->XrayMetallicityTurnover = 0.0;
   params->XrayCalibrationBandMin = NAN;
   params->XrayCalibrationBandMax = 0.0;
   gal.MetalsColdGas = 0.0;
@@ -83,17 +82,36 @@ Test(xray_luminosity, flag_off_uses_legacy_relation)
   expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), 3.16);
 }
 
-Test(xray_luminosity, metallicity_relation_uses_linear_relative_oxygen_abundance)
+Test(xray_luminosity, fragos_kaur_shape_uses_absolute_metal_mass_fraction)
 {
   galaxy_t gal = make_galaxy();
-  const double relative_abundances[] = { 0.0, 0.1, 1.0, 2.0 };
-  const double expected_log_lx_sfr[] = { 40.68, 40.558, 39.46, 38.24 };
+  const double metallicities[] = { 0.0, 0.0001, 0.001, 0.002, 0.008, 0.0134, 0.02, 0.04 };
+  // Independently evaluated with 50-digit decimal arithmetic, normalized at the low-Z plateau.
+  const double expected_log_lx_sfr[] = {
+    40.499687082618404, 40.499687082618404, 40.499687082618404, 40.464885759984931,
+    39.895503757383320, 39.287708200795179, 38.514885759984931, 36.105194758684125
+  };
+  double previous = INFINITY;
 
-  for (int i = 0; i < 4; i++) {
-    gal.MetalsColdGas = gal.ColdGas * 0.0134 * relative_abundances[i];
+  for (int i = 0; i < 8; i++) {
+    gal.MetalsColdGas = gal.ColdGas * metallicities[i];
     double luminosity = calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0);
     cr_assert_gt(luminosity, 0.0);
     cr_expect_float_eq(log10(luminosity * XRAY_LUMINOSITY_UNIT), expected_log_lx_sfr[i], 1e-11);
+    cr_expect_leq(luminosity, previous);
+    previous = luminosity;
+  }
+}
+
+Test(xray_luminosity, low_metallicity_plateau_is_continuous)
+{
+  galaxy_t gal = make_galaxy();
+  const double plateau_edge = 0.0010423067565678044;
+  const double offsets[] = { -1e-6, 0.0, 1e-6 };
+
+  for (int i = 0; i < 3; i++) {
+    gal.MetalsColdGas = gal.ColdGas * plateau_edge * (1.0 + offsets[i]);
+    expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), 3.16);
   }
 }
 
@@ -105,7 +123,7 @@ Test(xray_luminosity, source_units_and_sfr_scaling)
 
   for (int flag = 0; flag <= 1; flag++) {
     run_globals.params.physics.Flag_UseXrayMetallicity = flag;
-    double lx_per_sfr = flag ? pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT : 3.16;
+    double lx_per_sfr = flag ? pow(10.0, 39.287708200795179) / XRAY_LUMINOSITY_UNIT : 3.16;
     gal.Sfr = 0.4; // 2 Msun/yr with the units above.
     expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), 2.0 * lx_per_sfr);
     gal.Sfr = 1.2;
@@ -121,7 +139,7 @@ Test(xray_luminosity, time_averaged_sfr_uses_gross_stellar_mass)
 
   for (int flag = 0; flag <= 1; flag++) {
     run_globals.params.physics.Flag_UseXrayMetallicity = flag;
-    double lx_per_sfr = flag ? pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT : 3.16;
+    double lx_per_sfr = flag ? pow(10.0, 39.287708200795179) / XRAY_LUMINOSITY_UNIT : 3.16;
     expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 4.0, 0.0), 2.0 * lx_per_sfr);
   }
 }
@@ -151,7 +169,7 @@ Test(xray_luminosity, configurable_calibration_band)
   const double calibration_max[] = { 2000.0, 2000.0, 4000.0, 4000.0 };
   const double spectral_indices[] = { 1.0, 2.0, 1.0, 2.0 };
   const double expected_fractions[] = { 2.0, 3.0, 2.0 / 3.0, 6.0 / 7.0 };
-  double reference = pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT;
+  double reference = pow(10.0, 39.287708200795179) / XRAY_LUMINOSITY_UNIT;
 
   for (int i = 0; i < 4; i++) {
     params->XrayCalibrationBandMin = calibration_min[i];
@@ -173,7 +191,8 @@ Test(xray_luminosity, matching_calibration_and_heating_bands)
 
   for (int i = 0; i < 4; i++) {
     params->SpecIndexXrayGal = spectral_indices[i];
-    expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT);
+    expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0),
+                      pow(10.0, 39.287708200795179) / XRAY_LUMINOSITY_UNIT);
   }
 }
 
@@ -187,7 +206,7 @@ Test(xray_luminosity, energy_band_conversion_with_non_default_threshold)
   // Only raise the lower edge: integrals over 1000-2000 eV relative to 500-2000 eV.
   const double spectral_indices[] = { 0.5, 1.5, 2.0 };
   const double expected_fractions[] = { 2.0 - sqrt(2.0), sqrt(2.0) - 1.0, 1.0 / 3.0 };
-  double reference = pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT;
+  double reference = pow(10.0, 39.287708200795179) / XRAY_LUMINOSITY_UNIT;
 
   for (int i = 0; i < 3; i++) {
     params->SpecIndexXrayGal = spectral_indices[i];
@@ -215,15 +234,37 @@ Test(xray_luminosity, energy_band_conversion_near_unit_spectral_index)
   }
 }
 
-Test(xray_luminosity, oxygen_conversion_and_solar_metallicity)
+Test(xray_luminosity, calibration_band_amplitude_scales_luminosity)
 {
   galaxy_t gal = make_galaxy();
   physics_params_t* params = &run_globals.params.physics;
-  params->XrayOxygenAbundanceFactor = 2.0;
-  expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), pow(10.0, 38.24) / XRAY_LUMINOSITY_UNIT);
-  params->XrayOxygenAbundanceFactor = 1.0;
-  params->XrayMetallicitySolar = 0.0268;
-  expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), pow(10.0, 40.07) / XRAY_LUMINOSITY_UNIT);
+  double reference = calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0);
+  params->XrayMetallicityNorm *= 2.0;
+  params->LXrayGal = 1e42; // The flag-on amplitude is independent of the fallback normalization.
+  expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), 2.0 * reference);
+  gal.MetalsColdGas = 0.0;
+  expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), 6.32);
+}
+
+Test(xray_luminosity, turnover_rescales_the_metallicity_axis)
+{
+  galaxy_t gal = make_galaxy();
+  double reference = calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0);
+  run_globals.params.physics.XrayMetallicityTurnover *= 2.0;
+  gal.MetalsColdGas *= 2.0;
+  expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), reference);
+}
+
+Test(xray_luminosity, exponent_sets_the_plateau_edge)
+{
+  galaxy_t gal = make_galaxy();
+  run_globals.params.physics.XrayMetallicityExponent = 0.6;
+  // The plateau now extends to Z = 0.0020846135131356088.
+  gal.MetalsColdGas = gal.ColdGas * 0.002;
+  expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), 3.16);
+  gal.MetalsColdGas = gal.ColdGas * 0.008;
+  expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0),
+                    pow(10.0, 40.110702434749847) / XRAY_LUMINOSITY_UNIT);
 }
 
 Test(xray_luminosity, cold_gas_abundance_takes_priority)
@@ -237,7 +278,8 @@ Test(xray_luminosity, cold_gas_abundance_takes_priority)
 #endif
   gal.NewMetals[0] = 0.0;
   gal.MetalsStellarMass = 0.0;
-  expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT);
+  expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0),
+                    pow(10.0, 39.287708200795179) / XRAY_LUMINOSITY_UNIT);
 }
 
 Test(xray_luminosity, exhausted_gas_uses_new_stars)
@@ -254,7 +296,8 @@ Test(xray_luminosity, exhausted_gas_uses_new_stars)
   gal.NewStars[0] = 20.0; // The abundance estimate must use the Pop II component.
   gal.StellarMass_II = 10.0;
 #endif
-  expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT);
+  expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0),
+                    pow(10.0, 39.287708200795179) / XRAY_LUMINOSITY_UNIT);
 }
 
 Test(xray_luminosity, exhausted_gas_uses_stellar_mass_if_no_new_stars)
@@ -268,7 +311,8 @@ Test(xray_luminosity, exhausted_gas_uses_stellar_mass_if_no_new_stars)
   gal.StellarMass_II = 2.0;
   gal.StellarMass = 20.0;
 #endif
-  expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT);
+  expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0),
+                    pow(10.0, 39.287708200795179) / XRAY_LUMINOSITY_UNIT);
 }
 
 Test(xray_luminosity, unavailable_abundance_uses_legacy_relation)
@@ -320,7 +364,7 @@ Test(xray_luminosity, metallicity_scatter_is_a_gaussian_residual_in_dex)
     double residual = 0.3 * gsl_cdf_ugaussian_Pinv(gsl_rng_uniform(reference_rng));
     double luminosity = calculate_galaxy_xray_luminosity(&gal, 1.0, 0.3);
     cr_assert_gt(luminosity, 0.0);
-    cr_expect_float_eq(log10(luminosity * XRAY_LUMINOSITY_UNIT) - 39.46, residual, 1e-11);
+    cr_expect_float_eq(log10(luminosity * XRAY_LUMINOSITY_UNIT) - 39.287708200795179, residual, 1e-11);
   }
   cr_expect_eq(gsl_rng_get(run_globals.random_generator), gsl_rng_get(reference_rng));
   gsl_rng_free(reference_rng);
@@ -335,7 +379,7 @@ Test(xray_luminosity, zero_scatter_and_zero_sfr_do_not_consume_rng)
   for (int flag = 0; flag <= 1; flag++) {
     run_globals.params.physics.Flag_UseXrayMetallicity = flag;
     gal.Sfr = 1.0;
-    double expected = flag ? pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT : 3.16;
+    double expected = flag ? pow(10.0, 39.287708200795179) / XRAY_LUMINOSITY_UNIT : 3.16;
     expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), expected);
     gal.Sfr = 0.0;
     cr_expect_float_eq(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.3), 0.0, 0.0);
@@ -349,7 +393,7 @@ Test(xray_luminosity, scatter_is_ignored_without_stochasticity)
   galaxy_t gal = make_galaxy();
   for (int flag = 0; flag <= 1; flag++) {
     run_globals.params.physics.Flag_UseXrayMetallicity = flag;
-    double expected = flag ? pow(10.0, 39.46) / XRAY_LUMINOSITY_UNIT : 3.16;
+    double expected = flag ? pow(10.0, 39.287708200795179) / XRAY_LUMINOSITY_UNIT : 3.16;
     expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.3), expected);
   }
 }

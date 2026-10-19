@@ -2047,13 +2047,14 @@ static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, doub
   if (source_sfr <= 0.0)
     return 0.0;
 
-  double z_solar = metallicity / run_globals.params.physics.XrayMetallicitySolar;
-  double oxygen_abundance = run_globals.params.physics.XrayOxygenAbundanceFactor * z_solar;
-
-  // log10[L_X(calibration band)/SFR] = B + A * (O/H)/(O/H)_sun + epsilon.
-  // Defaults follow Kyritsis et al. (2025), Eq. (8), calibrated over 0.5-2 keV.
+  // Fragos model 265: use the shape and low-Z plateau of Kaur et al. (2022), Eq. (2).
+  // Z is the absolute metal mass fraction.
+  // The calibration-band normalization specifies the low-Z plateau.
+  double exponent = run_globals.params.physics.XrayMetallicityExponent;
+  double q_peak = exponent / log(10.0);
+  double q = fmax(metallicity / run_globals.params.physics.XrayMetallicityTurnover, q_peak);
   double log_lx_sfr =
-    run_globals.params.physics.XrayLogLNorm + run_globals.params.physics.XrayMetallicitySlope * oxygen_abundance;
+    log10(run_globals.params.physics.XrayMetallicityNorm) + exponent * log10(q / q_peak) - (q - q_peak);
   double band_fraction = galaxy_xray_band_fraction();
 
 #if USE_STOCHASTICITY
