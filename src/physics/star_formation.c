@@ -48,6 +48,17 @@ void update_reservoirs_from_sf(galaxy_t* gal, double new_stars, int snapshot, SF
     // update the galaxy's SFR value
     double sfr = new_stars / gal->dt;
 
+    // Retain the birth abundance before feedback alters or exhausts the gas.
+    // Use the same weights as the instantaneous and cumulative source models.
+#if USE_MINI_HALOS
+    if (gal->Galaxy_Population == 2)
+#endif
+    {
+      gal->StarFormingGasMetallicity =
+        (gal->Sfr * gal->StarFormingGasMetallicity + sfr * metallicity) / (gal->Sfr + sfr);
+      gal->GrossStellarMetals += new_stars * metallicity;
+    }
+
 #if USE_MINI_HALOS
     if (gal->Galaxy_Population == 2) {
       gal->StellarMass_II += new_stars;

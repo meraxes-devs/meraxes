@@ -17,13 +17,13 @@ static void check_problem_params(run_params_t* run_params)
                "Please choose one or the other.");
     ABORT(EXIT_FAILURE);
   }
-  if (run_params->physics.XrayScatterDex > 0.0 && run_params->physics.Flag_RemoveSFRScatter != 0) {
+  if (run_params->physics.XrayScatterDex > ABS_TOL && run_params->physics.Flag_RemoveSFRScatter != 0) {
     mlog("<WARNING> Both XrayScatterDex and Flag_RemoveSFRScatter are set. "
          "This combination is allowed, but should only be used when a "
          "no-SFR source model with X-ray luminosity scatter is intended.",
          MLOG_MESG);
   }
-  if (run_params->physics.EscapeFracScatterDex <= ABS_TOL && run_params->physics.XrayScatterDex <= 0.0 &&
+  if (run_params->physics.EscapeFracScatterDex <= ABS_TOL && run_params->physics.XrayScatterDex <= ABS_TOL &&
       run_params->physics.Flag_RemoveSFRScatter == 0 && run_params->physics.Flag_SourceRecalibration != 0) {
     mlog_error("Flag_SourceRecalibration is set, but none of EscapeFracScatterDex, "
                "XrayScatterDex or Flag_RemoveSFRScatter are set. "
@@ -31,43 +31,40 @@ static void check_problem_params(run_params_t* run_params)
     ABORT(EXIT_FAILURE);
   }
 #else
-  if (run_params->physics.XrayScatterDex > 0.0) {
-    mlog("<WARNING> XrayScatterDex > 0 was requested, but Meraxes was compiled "
-         "with USE_STOCHASTICITY=OFF. X-ray luminosity scatter will be ignored. "
-         "Recompile with USE_STOCHASTICITY=ON to enable it.",
-         MLOG_MESG);
-  }
-  if (run_params->physics.EscapeFracScatterDex > ABS_TOL || run_params->physics.Flag_RemoveSFRScatter != 0 ||
-      run_params->physics.Flag_SourceRecalibration != 0) {
+  if (run_params->physics.EscapeFracScatterDex > ABS_TOL || run_params->physics.XrayScatterDex > ABS_TOL ||
+      run_params->physics.Flag_RemoveSFRScatter != 0 || run_params->physics.Flag_SourceRecalibration != 0) {
     mlog_error("A scatter prescription was requested, but Meraxes was compiled "
                "with USE_STOCHASTICITY=OFF.");
     ABORT(EXIT_FAILURE);
   }
 #endif
 
+  if (!isfinite(run_params->physics.LXrayGal) || run_params->physics.LXrayGal < 0.0) {
+    mlog_error("LXrayGal must be finite and nonnegative.");
+    ABORT(EXIT_FAILURE);
+  }
   if (run_params->physics.Flag_UseXrayMetallicity != 0 && run_params->physics.Flag_UseXrayMetallicity != 1) {
     mlog_error("Flag_UseXrayMetallicity must be 0 or 1.");
     ABORT(EXIT_FAILURE);
   }
   if (run_params->physics.Flag_UseXrayMetallicity) {
-    if (!isfinite(run_params->physics.XrayCalibrationBandMin) ||
-        !isfinite(run_params->physics.XrayCalibrationBandMax) || run_params->physics.XrayCalibrationBandMin <= 0.0 ||
-        run_params->physics.XrayCalibrationBandMax <= run_params->physics.XrayCalibrationBandMin) {
-      mlog_error("Invalid X-ray calibration band: require finite 0 < XrayCalibrationBandMin < "
-                 "XrayCalibrationBandMax (eV).");
-      ABORT(EXIT_FAILURE);
-    }
-    if (!isfinite(run_params->physics.XrayMetallicityNorm) || run_params->physics.XrayMetallicityNorm <= 0.0 ||
-        !isfinite(run_params->physics.XrayMetallicityExponent) || run_params->physics.XrayMetallicityExponent <= 0.0 ||
+    if (!isfinite(run_params->physics.XrayMetallicityExponent) || run_params->physics.XrayMetallicityExponent <= 0.0 ||
         !isfinite(run_params->physics.XrayMetallicityTurnover) || run_params->physics.XrayMetallicityTurnover <= 0.0 ||
         !isfinite(run_params->physics.SpecIndexXrayGal) || !isfinite(run_params->physics.NuXrayThreshold) ||
         !isfinite(run_params->physics.NuXraySoftCut) || run_params->physics.NuXrayThreshold <= 0.0 ||
         run_params->physics.NuXraySoftCut <= run_params->physics.NuXrayThreshold) {
-      mlog_error("Invalid Fragos/Kaur X-ray parameters: require finite positive XrayMetallicityNorm, "
+      mlog_error("Invalid Fragos/Kaur X-ray parameters: require finite positive "
                  "XrayMetallicityExponent and XrayMetallicityTurnover, a finite spectral index, "
                  "and finite 0 < NuXrayThreshold < NuXraySoftCut.");
       ABORT(EXIT_FAILURE);
     }
+    mlog("<WARNING> Metallicity-dependent X-rays use LXrayGal=%g (erg/s)/(Msun/yr) as the low-Z plateau "
+         "integrated over NuXrayThreshold=%g to NuXraySoftCut=%g eV. No energy-band conversion is applied; "
+         "supply the normalization appropriate to this band and the adopted spectrum.",
+         MLOG_MESG,
+         run_params->physics.LXrayGal,
+         run_params->physics.NuXrayThreshold,
+         run_params->physics.NuXraySoftCut);
   }
 
   if (strlen(run_globals.params.ForestIDFile) != 0) {
@@ -1258,12 +1255,6 @@ void read_parameter_file(char* fname, int mode)
       params_type[n_param++] = PARAM_TYPE_INT;
       run_params->physics.Flag_UseXrayMetallicity = 0;
 
-      strcpy(params_tag[n_param], "XrayMetallicityNorm");
-      params_addr[n_param] = &(run_params->physics).XrayMetallicityNorm;
-      required_tag[n_param] = 0;
-      params_type[n_param++] = PARAM_TYPE_DOUBLE;
-      run_params->physics.XrayMetallicityNorm = 3.16e40;
-
       strcpy(params_tag[n_param], "XrayMetallicityExponent");
       params_addr[n_param] = &(run_params->physics).XrayMetallicityExponent;
       required_tag[n_param] = 0;
@@ -1275,18 +1266,6 @@ void read_parameter_file(char* fname, int mode)
       required_tag[n_param] = 0;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
       run_params->physics.XrayMetallicityTurnover = 0.008;
-
-      strcpy(params_tag[n_param], "XrayCalibrationBandMin");
-      params_addr[n_param] = &(run_params->physics).XrayCalibrationBandMin;
-      required_tag[n_param] = 0;
-      params_type[n_param++] = PARAM_TYPE_DOUBLE;
-      run_params->physics.XrayCalibrationBandMin = 500.0;
-
-      strcpy(params_tag[n_param], "XrayCalibrationBandMax");
-      params_addr[n_param] = &(run_params->physics).XrayCalibrationBandMax;
-      required_tag[n_param] = 0;
-      params_type[n_param++] = PARAM_TYPE_DOUBLE;
-      run_params->physics.XrayCalibrationBandMax = 2000.0;
 
       strcpy(params_tag[n_param], "NuXrayThreshold");
       params_addr[n_param] = &(run_params->physics).NuXrayThreshold;

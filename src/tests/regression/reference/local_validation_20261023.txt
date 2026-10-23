@@ -1,0 +1,255 @@
+Local validation of the PR #37 review changes
+Date: 2026-10-23
+
+Source
+------
+Base commit: f81101401e69110801efb13fa6c2ad9dccd77b07
+Branch: Metallicity,-X-ray-fix
+The source includes uncommitted review changes. This is not a clean-commit
+reference regeneration.
+
+The changes reuse LXrayGal for the low-metallicity plateau, remove automatic
+calibration-band conversion, retain the original heating prefactor by
+converting its source input, and use recorded star-forming gas metallicity.
+The instantaneous source uses SFR-weighted birth metallicity; the cumulative
+source uses GrossStellarMetals / GrossStellarMass.
+
+Build and inputs
+----------------
+Ubuntu 24.04.3; GCC 13.3.0; CMake 3.28.3; Open MPI 4.1.6;
+parallel HDF5 1.10.10; GSL 2.7.1; FFTW 3.3.10; Criterion 2.4.1.
+All four builds are Debug builds with AddressSanitizer and UBSan, no fast-math.
+The default and stochasticity builds use -O2 -g for the full MPI runs; the
+mini-halo and mini-halo-plus-stochasticity builds retain -g for unit checks.
+ASAN_OPTIONS=detect_leaks=0 for validation.
+
+Four build combinations:
+  USE_STOCHASTICITY=OFF, USE_MINI_HALOS=OFF
+  USE_STOCHASTICITY=ON,  USE_MINI_HALOS=OFF
+  USE_STOCHASTICITY=OFF, USE_MINI_HALOS=ON
+  USE_STOCHASTICITY=ON,  USE_MINI_HALOS=ON
+
+Regression data: official L10_N512.zip, Zenodo record 23281409.
+Archive MD5: afe3719ce9144869c9f0b8629c62e9d5
+MPI ranks: 2; RandomSeed: 1809; output snapshots: 48, 63, 75.
+Comparison mode: strict, with unchanged comparison code and tolerances.
+
+Completed source-level checks
+-----------------------------
+test_xray_luminosity and test_star_forming_metallicity were exercised in all
+four build combinations: 98 cases, 1,022 assertions, all passed.
+
+Criterion's IPC runner cannot operate in this environment. A temporary
+in-process runner executed the test sources and assertions against the native
+model library. These results are not native CTest/Criterion unit-test passes.
+
+Four native executable validation cases passed by rejecting invalid input:
+  scatter requested without USE_STOCHASTICITY
+  negative LXrayGal
+  non-finite LXrayGal
+  invalid X-ray normalization band
+
+Completed unchanged controls
+----------------------------
+The actual Meraxes executables completed native two-rank MPI runs for xray
+and stochasticity. The checked-in control HDF5 references were not replaced.
+Comparison output for each control:
+
+  xray:
+    vs reference from 72800527: all quantities agree (strict mode)
+  stochasticity:
+    vs reference from 72800527: all quantities agree (strict mode)
+
+Metallicity-enabled reference update
+-----------------------------------
+Both xray_metallicity and xray_metallicity_scatter completed native two-rank
+MPI runs. The new summaries intentionally differ from the previous references;
+they did not pass a strict comparison against those previous metallicity
+references. The numerical differences, source trends and IGM comparison plots
+were inspected, and only these two references were replaced by the run
+summaries. Six reference-only plot PNGs were generated for the updated files.
+
+Current parameters:
+  LXrayGal=3.16e40
+  XrayMetallicityExponent=0.3
+  XrayMetallicityTurnover=0.008
+  NuXrayThreshold=500 eV; NuXraySoftCut=2000 eV
+  scatter setup: XrayScatterDex=0.3, Flag_SourceRecalibration=1
+
+Summary audit against the previous references:
+  xray_metallicity: 230 datasets; 63 quantities exceed strict tolerance
+    55 grid, 7 galaxy-total, 1 global HMXB emissivity
+  xray_metallicity_scatter: 230 datasets; 77 quantities exceed strict tolerance
+    58 grid, 15 galaxy, 1 global HMXB emissivity, 3 luminosity functions
+
+Both retain identical keys, shapes, NaN masks, positive-infinity masks and
+negative-infinity masks. Galaxy counts are unchanged. At snapshot 75 the
+volume-mean Tk_box (K) changes as follows:
+  xray_metallicity:         403.9478  -> 429.51494
+  xray_metallicity_scatter: 405.40097 -> 431.09932
+
+The two updated references are byte-for-byte copies of their run summary.h5
+files. Both record gitref=f81101401e69110801efb13fa6c2ad9dccd77b07,
+git_dirty=1, ncores=2 and summary_version=1. The two flag-off references
+remain byte-for-byte equal to the files at the base commit. Comparison code,
+tolerances and CMake test registrations were not relaxed. Both completed
+outputs pass the standard strict check against their new references. These
+checks reuse the generating runs; independent repeat-run reproducibility was
+not tested.
+
+SHA256 of references after this update:
+  xray.h5
+    76b7fd18e8820a4a1746d92f0be823ac4d9d46f1169c765a81753291f01ed9df
+  stochasticity.h5
+    13e217097720d16511ff7955104ee581e916b1423f90114da772f3b660aa316a
+  xray_metallicity.h5
+    6f7ba5d4775fc9dff795f2e96199194b01a5c2006e8e37ecdf50aa9da286bedc
+  xray_metallicity_scatter.h5
+    fe941866bfb9d7e13f79c4a6028ef7ce9aea8f34a959119b9ce89aadcb91adda
+
+Old-to-new differences under the unchanged strict comparison
+-----------------------------------------------------------
+
+xray_metallicity
+  Snap048/grids/PS_data: 15.9 -> 15.802408 (rel 6.14e-03)
+  Snap048/grids/PS_error: 4.5899348 -> 4.5617623 (rel 6.14e-03)
+  Snap048/grids/mass_mean/Tk_box: 23.407733 -> 23.436235 (rel 1.22e-03)
+  Snap048/grids/mass_mean/temp_kinetic_all_gas: 519.25463 -> 519.28253 (rel 5.37e-05)
+  Snap048/grids/mass_mean/x_e_box: 0.00065239422 -> 0.00065307239 (rel 1.04e-03)
+  Snap048/grids/std/TS_box: 3.5669396 -> 3.5693186 (rel 6.67e-04)
+  Snap048/grids/std/Tk_box: 3.9205841 -> 3.9232972 (rel 6.92e-04)
+  Snap048/grids/std/delta_T: 8.0297722 -> 8.0102942 (rel 2.43e-03)
+  Snap048/grids/std/x_e_box: 7.3405249e-05 -> 7.345548e-05 (rel 6.84e-04)
+  Snap048/grids/volume_mean/TS_box: 23.660653 -> 23.68818 (rel 1.16e-03)
+  Snap048/grids/volume_mean/Tk_box: 22.629221 -> 22.657097 (rel 1.23e-03)
+  Snap048/grids/volume_mean/delta_T: -27.94495 -> -27.873747 (rel 2.55e-03)
+  Snap048/grids/volume_mean/temp_kinetic_all_gas: 231.33017 -> 231.35776 (rel 1.19e-04)
+  Snap048/grids/volume_mean/x_e_box: 0.00064144581 -> 0.00064211409 (rel 1.04e-03)
+  Snap063/grids/PS_data: 23.757847 -> 24.04134 (rel 1.18e-02)
+  Snap063/grids/PS_error: 1.3951088 -> 1.411756 (rel 1.18e-02)
+  Snap063/grids/mass_mean/Tk_box: 126.26414 -> 128.27753 (rel 1.57e-02)
+  Snap063/grids/mass_mean/temp_kinetic_all_gas: 3092.6376 -> 3094.4688 (rel 5.92e-04)
+  Snap063/grids/mass_mean/xH: 0.91367591 -> 0.91364659 (rel 3.21e-05)
+  Snap063/grids/mass_mean/x_e_box: 0.0027556068 -> 0.0027874839 (rel 1.14e-02)
+  Snap063/grids/std/TS_box: 11.137078 -> 11.391651 (rel 2.23e-02)
+  Snap063/grids/std/Tk_box: 13.29415 -> 13.635088 (rel 2.50e-02)
+  Snap063/grids/std/delta_T: 8.6323392 -> 8.6810903 (rel 5.62e-03)
+  Snap063/grids/std/temp_kinetic_all_gas: 8068.5246 -> 8068.2372 (rel 3.56e-05)
+  Snap063/grids/std/xH: 0.1768174 -> 0.17681343 (rel 2.25e-05)
+  Snap063/grids/std/x_e_box: 0.0001826576 -> 0.00018648518 (rel 2.05e-02)
+  Snap063/grids/volume_mean/TS_box: 114.82094 -> 116.47765 (rel 1.42e-02)
+  Snap063/grids/volume_mean/Tk_box: 122.30545 -> 124.23294 (rel 1.55e-02)
+  Snap063/grids/volume_mean/delta_T: 19.373234 -> 19.495496 (rel 6.27e-03)
+  Snap063/grids/volume_mean/temp_kinetic_all_gas: 1376.9837 -> 1378.8313 (rel 1.34e-03)
+  Snap063/grids/volume_mean/xH: 0.95729419 -> 0.95726444 (rel 3.11e-05)
+  Snap063/grids/volume_mean/x_e_box: 0.0027135998 -> 0.0027445063 (rel 1.13e-02)
+  Snap075/galaxies/total/ColdGas: 3.31937 -> 3.3193542 (rel 4.77e-06)
+  Snap075/galaxies/total/EjectedGas: 12.811899 -> 12.811847 (rel 4.01e-06)
+  Snap075/galaxies/total/FescWeightedSfr: 8.4624838 -> 8.4624677 (rel 1.90e-06)
+  Snap075/galaxies/total/HotGas: 11.949963 -> 11.949249 (rel 5.97e-05)
+  Snap075/galaxies/total/LOIII: 1322.1928 -> 1322.1904 (rel 1.79e-06)
+  Snap075/galaxies/total/MetalsEjectedGas: 0.0060731609 -> 0.0060731508 (rel 1.66e-06)
+  Snap075/galaxies/total/Sfr: 101.8379 -> 101.83771 (rel 1.92e-06)
+  Snap075/grids/PS_data: 6.3652811 -> 6.4505234 (rel 1.32e-02)
+  Snap075/grids/PS_error: 2.8466403 -> 2.8847618 (rel 1.32e-02)
+  Snap075/grids/mass_mean/Tk_box: 416.75851 -> 443.26136 (rel 5.98e-02)
+  Snap075/grids/mass_mean/temp_kinetic_all_gas: 10425.748 -> 10446.342 (rel 1.97e-03)
+  Snap075/grids/mass_mean/xH: 0.74021711 -> 0.73995122 (rel 3.59e-04)
+  Snap075/grids/mass_mean/x_e_box: 0.006980353 -> 0.0072840527 (rel 4.17e-02)
+  Snap075/grids/std/J_21_at_ionization: 0.042870519 -> 0.042871786 (rel 2.95e-05)
+  Snap075/grids/std/Mvir_crit: 0.0023200475 -> 0.0023200912 (rel 1.88e-05)
+  Snap075/grids/std/TS_box: 24.592808 -> 26.055525 (rel 5.61e-02)
+  Snap075/grids/std/Tk_box: 33.616119 -> 36.174113 (rel 7.07e-02)
+  Snap075/grids/std/delta_T: 11.148072 -> 11.198679 (rel 4.52e-03)
+  Snap075/grids/std/temp_kinetic_all_gas: 13307.975 -> 13300.907 (rel 5.31e-04)
+  Snap075/grids/std/xH: 0.34045152 -> 0.34041851 (rel 9.69e-05)
+  Snap075/grids/std/x_e_box: 0.00030870499 -> 0.00032685379 (rel 5.55e-02)
+  Snap075/grids/volume_mean/J_21_at_ionization: 0.014801243 -> 0.014805558 (rel 2.91e-04)
+  Snap075/grids/volume_mean/Mvir_crit: 0.00036618897 -> 0.0003662576 (rel 1.87e-04)
+  Snap075/grids/volume_mean/TS_box: 343.05072 -> 361.10834 (rel 5.00e-02)
+  Snap075/grids/volume_mean/Tk_box: 403.9478 -> 429.51494 (rel 5.95e-02)
+  Snap075/grids/volume_mean/delta_T: 19.064182 -> 19.150135 (rel 4.49e-03)
+  Snap075/grids/volume_mean/temp_kinetic_all_gas: 5278.5617 -> 5301.7781 (rel 4.38e-03)
+  Snap075/grids/volume_mean/weighted_sfr: 0.00025825451 -> 0.00025825402 (rel 1.90e-06)
+  Snap075/grids/volume_mean/xH: 0.84722939 -> 0.84692291 (rel 3.62e-04)
+  Snap075/grids/volume_mean/x_e_box: 0.0069156744 -> 0.0072137068 (rel 4.13e-02)
+  global/XrayEmissivity_HMXB: 2.3975746e-35 -> 2.9291132e-35 (rel 1.81e-01)
+
+xray_metallicity_scatter
+  Snap048/grids/PS_data: 13.750243 -> 13.661858 (rel 6.43e-03)
+  Snap048/grids/PS_error: 3.9693532 -> 3.9438386 (rel 6.43e-03)
+  Snap048/grids/mass_mean/Tk_box: 22.729038 -> 22.757391 (rel 1.25e-03)
+  Snap048/grids/mass_mean/temp_kinetic_all_gas: 521.54936 -> 521.57719 (rel 5.34e-05)
+  Snap048/grids/mass_mean/x_e_box: 0.00063668432 -> 0.00063736212 (rel 1.06e-03)
+  Snap048/grids/std/TS_box: 3.3654329 -> 3.3674641 (rel 6.03e-04)
+  Snap048/grids/std/Tk_box: 3.6133922 -> 3.6157317 (rel 6.47e-04)
+  Snap048/grids/std/delta_T: 8.4107643 -> 8.3899012 (rel 2.48e-03)
+  Snap048/grids/std/x_e_box: 6.9281589e-05 -> 6.9320065e-05 (rel 5.55e-04)
+  Snap048/grids/volume_mean/TS_box: 23.033797 -> 23.061285 (rel 1.19e-03)
+  Snap048/grids/volume_mean/Tk_box: 22.005351 -> 22.03311 (rel 1.26e-03)
+  Snap048/grids/volume_mean/delta_T: -29.581038 -> -29.506051 (rel 2.53e-03)
+  Snap048/grids/volume_mean/temp_kinetic_all_gas: 232.37884 -> 232.40634 (rel 1.18e-04)
+  Snap048/grids/volume_mean/x_e_box: 0.00062669518 -> 0.00062736351 (rel 1.07e-03)
+  Snap063/galaxies/total/ColdGas: 1.3678572 -> 1.3678556 (rel 1.21e-06)
+  Snap063/galaxies/total/HotGas: 6.7299013 -> 6.7298287 (rel 1.08e-05)
+  Snap063/grids/PS_data: 32.323978 -> 32.707542 (rel 1.17e-02)
+  Snap063/grids/PS_error: 0.77962703 -> 0.7888782 (rel 1.17e-02)
+  Snap063/grids/mass_mean/Tk_box: 127.97395 -> 130.04011 (rel 1.59e-02)
+  Snap063/grids/mass_mean/temp_kinetic_all_gas: 3094.9835 -> 3096.8601 (rel 6.06e-04)
+  Snap063/grids/mass_mean/xH: 0.91363923 -> 0.91360928 (rel 3.28e-05)
+  Snap063/grids/mass_mean/x_e_box: 0.0027804331 -> 0.0028130721 (rel 1.16e-02)
+  Snap063/grids/std/J_21_at_ionization: 0.02849971 -> 0.02850045 (rel 2.60e-05)
+  Snap063/grids/std/TS_box: 11.328522 -> 11.583513 (rel 2.20e-02)
+  Snap063/grids/std/Tk_box: 13.741318 -> 14.048679 (rel 2.19e-02)
+  Snap063/grids/std/delta_T: 8.6844356 -> 8.733072 (rel 5.57e-03)
+  Snap063/grids/std/temp_kinetic_all_gas: 8072.7806 -> 8072.4855 (rel 3.66e-05)
+  Snap063/grids/std/xH: 0.17705477 -> 0.17705068 (rel 2.31e-05)
+  Snap063/grids/std/x_e_box: 0.00018629985 -> 0.00019004838 (rel 1.97e-02)
+  Snap063/grids/volume_mean/J_21_at_ionization: 0.0042312104 -> 0.0042313347 (rel 2.94e-05)
+  Snap063/grids/volume_mean/Mvir_crit: 5.250355e-05 -> 5.2507149e-05 (rel 6.85e-05)
+  Snap063/grids/volume_mean/TS_box: 116.26176 -> 117.95676 (rel 1.44e-02)
+  Snap063/grids/volume_mean/Tk_box: 123.97166 -> 125.94723 (rel 1.57e-02)
+  Snap063/grids/volume_mean/delta_T: 19.482144 -> 19.603979 (rel 6.21e-03)
+  Snap063/grids/volume_mean/temp_kinetic_all_gas: 1382.1791 -> 1384.0719 (rel 1.37e-03)
+  Snap063/grids/volume_mean/xH: 0.95718217 -> 0.95715179 (rel 3.17e-05)
+  Snap063/grids/volume_mean/x_e_box: 0.0027378645 -> 0.0027694516 (rel 1.14e-02)
+  Snap063/lf/QuasarLF: 0.0036377313 -> 0.0036377396 (rel 2.28e-06)
+  Snap063/lf/XrayLF: 0.052566135 -> 0.052566223 (rel 1.68e-06)
+  Snap063/lf/XrayLF_obs: 0.0012790408 -> 0.0012790503 (rel 7.42e-06)
+  Snap075/galaxies/log10_quantiles/ColdGas: -4.7487526 -> -4.7525312 (rel 7.95e-04)
+  Snap075/galaxies/log10_quantiles/LOIII: -0.095187674 -> -0.095187577 (rel 1.02e-06)
+  Snap075/galaxies/log10_quantiles/StellarMass: -5.4323076 -> -5.4331831 (rel 1.61e-04)
+  Snap075/galaxies/total/BlackHoleAccretedHotMass: 4.4416075e-09 -> 4.4415996e-09 (rel 1.77e-06)
+  Snap075/galaxies/total/ColdGas: 3.3194593 -> 3.3192631 (rel 5.91e-05)
+  Snap075/galaxies/total/EjectedGas: 12.801949 -> 12.801656 (rel 2.28e-05)
+  Snap075/galaxies/total/FescWeightedSfr: 8.4190224 -> 8.4190426 (rel 2.39e-06)
+  Snap075/galaxies/total/GrossStellarMass: 1.042041 -> 1.0420568 (rel 1.51e-05)
+  Snap075/galaxies/total/HotGas: 11.951483 -> 11.951243 (rel 2.01e-05)
+  Snap075/galaxies/total/MetalsColdGas: 0.0016223566 -> 0.0016222854 (rel 4.38e-05)
+  Snap075/galaxies/total/MetalsEjectedGas: 0.0060746618 -> 0.0060747057 (rel 7.23e-06)
+  Snap075/galaxies/total/Sfr: 101.30058 -> 101.30083 (rel 2.44e-06)
+  Snap075/galaxies/total/StellarMass: 0.92275477 -> 0.92277015 (rel 1.67e-05)
+  Snap075/grids/PS_data: 6.4710469 -> 6.5514536 (rel 1.23e-02)
+  Snap075/grids/PS_error: 2.8939402 -> 2.929899 (rel 1.23e-02)
+  Snap075/grids/mass_mean/Tk_box: 417.92174 -> 444.50079 (rel 5.98e-02)
+  Snap075/grids/mass_mean/temp_kinetic_all_gas: 10447.022 -> 10467.028 (rel 1.91e-03)
+  Snap075/grids/mass_mean/xH: 0.73999889 -> 0.73975081 (rel 3.35e-04)
+  Snap075/grids/mass_mean/x_e_box: 0.0070013377 -> 0.0073058479 (rel 4.17e-02)
+  Snap075/grids/std/J_21_at_ionization: 0.042924936 -> 0.042928798 (rel 9.00e-05)
+  Snap075/grids/std/Mvir_crit: 0.002319154 -> 0.0023192789 (rel 5.38e-05)
+  Snap075/grids/std/TS_box: 23.91921 -> 25.214682 (rel 5.14e-02)
+  Snap075/grids/std/Tk_box: 31.855191 -> 34.243283 (rel 6.97e-02)
+  Snap075/grids/std/delta_T: 11.157114 -> 11.207011 (rel 4.45e-03)
+  Snap075/grids/std/temp_kinetic_all_gas: 13319.807 -> 13312.151 (rel 5.75e-04)
+  Snap075/grids/std/xH: 0.34069388 -> 0.34062905 (rel 1.90e-04)
+  Snap075/grids/std/x_e_box: 0.00029404669 -> 0.00031037841 (rel 5.26e-02)
+  Snap075/grids/volume_mean/J_21_at_ionization: 0.014855376 -> 0.014858388 (rel 2.03e-04)
+  Snap075/grids/volume_mean/Mvir_crit: 0.0003663816 -> 0.00036644202 (rel 1.65e-04)
+  Snap075/grids/volume_mean/TS_box: 344.08318 -> 362.21122 (rel 5.00e-02)
+  Snap075/grids/volume_mean/Tk_box: 405.40097 -> 431.09932 (rel 5.96e-02)
+  Snap075/grids/volume_mean/delta_T: 19.065562 -> 19.151726 (rel 4.50e-03)
+  Snap075/grids/volume_mean/temp_kinetic_all_gas: 5291.7833 -> 5314.3083 (rel 4.24e-03)
+  Snap075/grids/volume_mean/weighted_sfr: 0.00025692817 -> 0.00025692879 (rel 2.39e-06)
+  Snap075/grids/volume_mean/xH: 0.84703508 -> 0.84674861 (rel 3.38e-04)
+  Snap075/grids/volume_mean/x_e_box: 0.0069397355 -> 0.0072389751 (rel 4.13e-02)
+  global/XrayEmissivity_HMXB: 2.4262772e-35 -> 2.957182e-35 (rel 1.80e-01)

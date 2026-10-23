@@ -46,6 +46,8 @@ galaxy_t* new_galaxy(int snapshot, unsigned long halo_ID)
   gal->Rcool = 0.0;
   gal->StellarMass = 0.0;
   gal->GrossStellarMass = 0.0;
+  gal->GrossStellarMetals = 0.0;
+  gal->StarFormingGasMetallicity = 0.0;
 #if USE_STOCHASTICITY
   gal->GrossStellarMassNoScatter = 0.0;
   gal->SfrNoScatter = 0.0;
@@ -192,6 +194,7 @@ void reset_galaxy_properties(galaxy_t* gal, int snapshot)
   // Here we reset any galaxy properties which are calculated on a snapshot by
   // snapshot basis.
   gal->Sfr = 0.0;
+  gal->StarFormingGasMetallicity = 0.0;
   gal->LOIII = 0.0;
   gal->ionization_param = 0.0;
   gal->FescWeightedSfr = 0.0;

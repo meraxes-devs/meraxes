@@ -349,7 +349,7 @@ N_{\rm rec}^{i+1}=N_{\rm rec}^{i}
 
 ## X-ray propagation and deposition
 
-Galaxy X-ray luminosity scales with the stellar thermal source. Each emitting component has band luminosity $L_{[a,b]}$ and spectral index $\alpha_X$.
+Galaxy X-ray luminosity scales with the stellar thermal source. The optional [metallicity-dependent relation](../inputs.md#xray-luminosity-parameters) uses the recorded star-forming gas abundance to set $L_X/\mathrm{SFR}$. Each emitting component has band luminosity $L_{[a,b]}$ and spectral index $\alpha_X$.
 
 ```{math}
 :label: igm-hmxb-luminosity
