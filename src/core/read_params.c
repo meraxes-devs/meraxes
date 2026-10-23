@@ -58,6 +58,27 @@ static void check_problem_params(run_params_t* run_params)
     mlog_error("SnMetalRetentionFraction must be between 0 and 1.");
     ABORT(EXIT_FAILURE);
   }
+
+  /* The AGN UV grids (BHUVEmissivity, bh_uv_histories and their FFT plans) are
+   * only allocated inside the Flag_IncludeSpinTemp branch of
+   * malloc_reionization_grids(). construct_baryon_grids() writes to them
+   * whenever LymanWerner or AGNLyAlpha is on, so running with AGNLyAlpha set
+   * but SpinTemp off would dereference NULL. Reject that combination here
+   * rather than crash later. */
+  if (run_params->physics.Flag_IncludeAGNLyAlpha && !run_params->Flag_IncludeSpinTemp) {
+    mlog_error("Flag_IncludeAGNLyAlpha = 1 requires Flag_IncludeSpinTemp = 1: "
+               "the AGN UV grids it writes to are only allocated in the spin-temperature path.");
+    ABORT(EXIT_FAILURE);
+  }
+
+  /* The broad Lya line is added on top of the AGN UV continuum pumping, so it
+   * has no meaning on its own. defaults.par says "Needs Flag_IncludeAGNLyAlpha
+   * = 1"; enforce it instead of silently ignoring the flag. */
+  if (run_params->physics.Flag_IncludeAGNLyaLine && !run_params->physics.Flag_IncludeAGNLyAlpha) {
+    mlog_error("Flag_IncludeAGNLyaLine = 1 requires Flag_IncludeAGNLyAlpha = 1: "
+               "the broad Lya line is added to the AGN UV Lya pumping, which is switched off.");
+    ABORT(EXIT_FAILURE);
+  }
 }
 
 static void store_params(entry_t entry[123],
