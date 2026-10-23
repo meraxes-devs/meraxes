@@ -1981,46 +1981,31 @@ void assign_Mvir_crit_to_galaxies(int ngals_in_slabs, int flag_feed)
   mlog("...done.", MLOG_CLOSE);
 }
 
-static double galaxy_xray_band_fraction(void)
-{
-  // Convert calibration-band luminosity to the band normalised by ComputeTs.
-  // The adopted energy spectrum is L_E proportional to E^(-alpha).
-  double e_min = run_globals.params.physics.NuXrayThreshold;
-  double e_max = run_globals.params.physics.NuXraySoftCut;
-  double e_cal_min = run_globals.params.physics.XrayCalibrationBandMin;
-  double e_cal_max = run_globals.params.physics.XrayCalibrationBandMax;
-  double alpha = run_globals.params.physics.SpecIndexXrayGal;
-
-  // Use the logarithmic limit near alpha = 1 to avoid cancellation.
-  if (fabs(alpha - 1.0) < REL_TOL)
-    return log(e_max / e_min) / log(e_cal_max / e_cal_min);
-
-  double exponent = 1.0 - alpha;
-  return (pow(e_max, exponent) - pow(e_min, exponent)) / (pow(e_cal_max, exponent) - pow(e_cal_min, exponent));
-}
-
 static double galaxy_xray_metallicity(const galaxy_t* source_view)
 {
-  if (source_view->ColdGas > 0.0) {
-    return calc_metallicity(source_view->ColdGas, source_view->MetalsColdGas);
-  }
+  // Use the birth abundance of the same population that supplies the source SFR.
+  if (run_globals.params.Flag_InstantaneousSFR && source_view->Sfr > 0.0)
+    return source_view->StarFormingGasMetallicity;
+  if (source_view->GrossStellarMass > 0.0 && source_view->GrossStellarMetals >= 0.0)
+    return calc_metallicity(source_view->GrossStellarMass, source_view->GrossStellarMetals);
 
-  // Gas can be exhausted after star formation; use the recorded stellar metallicity in that case.
-#if USE_MINI_HALOS
-  double new_stars = source_view->NewStars_II[0];
-  double stellar_mass = source_view->StellarMass_II;
-#else
-  double new_stars = source_view->NewStars[0];
-  double stellar_mass = source_view->StellarMass;
-#endif
-  if (new_stars > 0.0)
-    return calc_metallicity(new_stars, source_view->NewMetals[0]);
-  if (stellar_mass > 0.0)
-    return calc_metallicity(stellar_mass, source_view->MetalsStellarMass);
-
-  // No abundance estimate is available; retain the original Lx-SFR relation.
+  // A no-SFR prescription can assign luminosity to a galaxy with no recorded births.
   return -1.0;
 }
+
+#if USE_STOCHASTICITY
+static galaxy_t xray_no_sfr_source_view(const galaxy_t* gal)
+{
+  galaxy_t source_view = *gal;
+  double metallicity = galaxy_xray_metallicity(gal);
+  source_view.Sfr = gal->SfrNoScatter;
+  source_view.GrossStellarMass = gal->GrossStellarMassNoScatter;
+  // Removing SFR scatter must change the source strength without changing its abundance.
+  source_view.StarFormingGasMetallicity = metallicity;
+  source_view.GrossStellarMetals = metallicity * source_view.GrossStellarMass;
+  return source_view;
+}
+#endif
 
 static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, double sfr_timescale, double scatter_dex)
 {
@@ -2031,6 +2016,9 @@ static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, doub
 
   source_sfr *= run_globals.units.UnitMass_in_g / SOLAR_MASS;
   source_sfr *= SEC_PER_YEAR / run_globals.units.UnitTime_in_s;
+
+  if (run_globals.params.physics.LXrayGal == 0.0)
+    return 0.0;
 
   double metallicity = run_globals.params.physics.Flag_UseXrayMetallicity ? galaxy_xray_metallicity(source_view) : -1.0;
   if (metallicity < 0.0) {
@@ -2049,13 +2037,11 @@ static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, doub
 
   // Fragos model 265: use the shape and low-Z plateau of Kaur et al. (2022), Eq. (2).
   // Z is the absolute metal mass fraction.
-  // The calibration-band normalization specifies the low-Z plateau.
+  // LXrayGal specifies the low-Z plateau in the selected heating normalization band.
   double exponent = run_globals.params.physics.XrayMetallicityExponent;
   double q_peak = exponent / log(10.0);
-  double q = fmax(metallicity / run_globals.params.physics.XrayMetallicityTurnover, q_peak);
-  double log_lx_sfr =
-    log10(run_globals.params.physics.XrayMetallicityNorm) + exponent * log10(q / q_peak) - (q - q_peak);
-  double band_fraction = galaxy_xray_band_fraction();
+  double q = fmax(metallicity / (run_globals.params.physics.XrayMetallicityTurnover * q_peak), 1.0);
+  double log_lx_sfr = log10(run_globals.params.physics.LXrayGal) + exponent * log10(q) - q_peak * (q - 1.0);
 
 #if USE_STOCHASTICITY
   // A zero-mean Gaussian residual in dex.
@@ -2067,7 +2053,7 @@ static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, doub
   (void)scatter_dex;
 #endif
 
-  return pow(10.0, log_lx_sfr) * band_fraction * source_sfr / XRAY_LUMINOSITY_UNIT;
+  return pow(10.0, log_lx_sfr) * source_sfr / XRAY_LUMINOSITY_UNIT;
 }
 
 void construct_baryon_grids(int snapshot, int local_ngals)
@@ -2391,9 +2377,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
               double xray_raw = xray_target;
 #if USE_STOCHASTICITY
               if (run_globals.params.physics.Flag_RemoveSFRScatter == 1) {
-                galaxy_t source_view = *gal;
-                source_view.GrossStellarMass = source_view.GrossStellarMassNoScatter;
-                source_view.Sfr = source_view.SfrNoScatter;
+                galaxy_t source_view = xray_no_sfr_source_view(gal);
 
                 xray_raw = calculate_galaxy_xray_luminosity(
                   &source_view, sfr_timescale, run_globals.params.physics.XrayScatterDex);

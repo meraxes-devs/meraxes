@@ -167,16 +167,13 @@ typedef struct physics_params_t
   double ZCrit;
 
   // Parameters to describe the X-ray properties of the sources
-  double LXrayGal;
+  double LXrayGal;       // Heating-band L_X/SFR; low-Z plateau when metallicity dependence is enabled.
   double XrayScatterDex; // Standard deviation of the Gaussian residual in log10 luminosity (dex).
 
-  // Fragos/Kaur metallicity shape with a free calibration-band normalization.
+  // Fragos/Kaur metallicity shape, normalized by LXrayGal.
   int Flag_UseXrayMetallicity;
-  double XrayMetallicityNorm;     // Low-Z L_X/SFR, (erg/s)/(Msun/yr).
   double XrayMetallicityExponent; // Kaur Eq. (2): alpha.
   double XrayMetallicityTurnover; // Absolute metal mass fraction Z_turn.
-  double XrayCalibrationBandMin;  // Calibration-band lower edge (eV).
-  double XrayCalibrationBandMax;  // Calibration-band upper edge (eV).
 
   double NuXrayThreshold;
   double SpecIndexXrayGal;
@@ -730,13 +727,15 @@ typedef struct galaxy_t
   double Mcool;
   double StellarMass;
   double GrossStellarMass;
+  double GrossStellarMetals; //!< Cumulative birth metal mass, unrecycled; Pop II only with mini-halos.
   double Fesc;
   double FescWeightedGSM;
   double FescWeightedSfr;
   double MetalsStellarMass;
   double DiskScaleLength;
   double Sfr;
-  double LOIII; //!< [O III] luminosity [1e40 erg/s]
+  double StarFormingGasMetallicity; //!< Birth gas Z weighted by this snapshot's Sfr contributions; 0 if Sfr is 0.
+  double LOIII;                     //!< [O III] luminosity [1e40 erg/s]
   double ionization_param;
   double EjectedGas;
   double MetalsEjectedGas;

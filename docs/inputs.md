@@ -115,7 +115,7 @@ are given in parentheses. Omit the parentheses in parameter files.
 | `Flag_Compute21cmBrightTemp` | `0` | Compute coeval 21-cm brightness temperature. |
 | `Flag_ComputePS` | `0` | Calculate the 21-cm power spectrum; requires brightness output. |
 | `Flag_IncludeSpinTemp` | `0` | Calculate thermal and spin temperatures; 0 assumes saturated spin temperature. |
-| `Flag_InstantaneousSFR` | `1` | Use instantaneous rather than smoothed SFR for X-rays. |
+| `Flag_InstantaneousSFR` | `1` | Use instantaneous SFR for X-rays; 0 uses `GrossStellarMass / (ReionSfrTimescale * hubble_time)`. |
 | `Flag_IncludePecVelsFor21cm` | `0` | 0: off; 1: capped gradient; 2: uncapped gradient; 3: uncapped gradient + RSD. Requires spin-temperature calculations. |
 | `Flag_ConstructLightcone` | `0` | Construct a brightness lightcone from the coupled snapshot history. |
 | `Flag_IncludeLymanWerner` | `0` | Minihalo Lyman–Werner radiation feedback. |
@@ -138,12 +138,19 @@ are given in parentheses. Omit the parentheses in parameter files.
 
 </details>
 
+(xray-luminosity-parameters)=
+
 <details>
 <summary>X-ray luminosity and AGN spectral controls</summary>
 
 | Parameter | Default | Meaning / units |
 |---|---|---|
-| `LXrayGal(III)` | `3.16e40` | Galaxy soft-band luminosity per SFR, (erg s⁻¹)/(M☉ yr⁻¹). |
+| `LXrayGal` | `3.16e40` | Galaxy luminosity per SFR in `NuXrayThreshold`–`NuXraySoftCut`, (erg s⁻¹)/(M☉ yr⁻¹). Constant when the metallicity flag is off; low-metallicity plateau when it is on. |
+| `LXrayGalIII` | `3.16e40` | Pop. III luminosity per SFR in the same band, (erg s⁻¹)/(M☉ yr⁻¹); unaffected by the galaxy metallicity flag. |
+| `Flag_UseXrayMetallicity` | `0` | 0: constant galaxy Lx/SFR; 1: the Fragos/Kaur metallicity shape with a low-metallicity plateau. |
+| `XrayMetallicityExponent` | `0.3` | Positive metallicity-shape exponent, distinct from the spectral index. |
+| `XrayMetallicityTurnover` | `0.008` | Positive metallicity scale in absolute metal mass fraction, not solar units. |
+| `XrayScatterDex` | `0.0` | Gaussian scatter in log10 galaxy luminosity, dex; requires `USE_STOCHASTICITY=ON`. |
 | `SpecIndexXrayGal` / `SpecIndexXrayIII` | `1.` | Pop. II / optional Pop. III X-ray spectral index. |
 | `NuXrayThreshold` | `500.` | Lower escaping X-ray photon energy, eV. |
 | `NuXraySoftCut` | `2000.` | Soft/hard X-ray break or upper soft-band energy, eV. |
@@ -159,6 +166,54 @@ are given in parentheses. Omit the parentheses in parameter files.
 | `XrayLF_MinLogL` | `38.0` | Lower log10 X-ray luminosity bound, luminosity in erg s⁻¹. |
 | `XrayLF_MaxLogL` | `46.0` | Upper log10 X-ray luminosity bound, luminosity in erg s⁻¹. |
 | `XrayLF_BinsPerDex` | `5` | X-ray histogram bins per luminosity dex. |
+
+With `Flag_UseXrayMetallicity=1`, the galaxy relation is
+
+```{math}
+q_{\rm peak}=\frac{\alpha_Z}{\ln 10},\qquad
+q=\max\!\left(\frac{Z}{Z_{\rm turn}q_{\rm peak}},1\right),\qquad
+\frac{L_X}{\mathrm{SFR}}
+=\texttt{LXrayGal}\,q^{\alpha_Z}10^{-q_{\rm peak}(q-1)},
+```
+
+where $\alpha_Z$ is `XrayMetallicityExponent` and $Z_{\rm turn}$ is
+`XrayMetallicityTurnover`. The plateau has $q=1$, including at zero
+metallicity. `LXrayGal` specifies its amplitude in the selected escaping
+soft band; it does not independently fix the amplitude at solar metallicity.
+The normalization must be finite and nonnegative; setting `LXrayGal=0`
+disables the galaxy X-ray source.
+
+The normalization band is `NuXrayThreshold`–`NuXraySoftCut` (500–2000 eV by
+default). `NuXrayMax` sets the upper limit of the subsequent X-ray frequency
+integration. Meraxes does not convert a calibration from another energy band:
+supply `LXrayGal` for the configured normalization band and adopted spectrum.
+Enabling the metallicity option prints a reminder of this requirement and the
+selected band. When migrating older parameter files, replace
+`XrayMetallicityNorm` with the appropriate `LXrayGal` and remove
+`XrayCalibrationBandMin/Max`.
+
+The metallicity is recorded from the gas that forms the stars, before the
+associated stellar feedback changes the gas reservoirs. Instantaneous-SFR
+sources use `StarFormingGasMetallicity`, the SFR-weighted birth metallicity of
+the current star-formation events. Sources based on `GrossStellarMass` use
+`GrossStellarMetals / GrossStellarMass`, the cumulative formed-mass-weighted
+birth metallicity. These histories retain the abundance when cold gas is
+exhausted and are combined during mergers. The model applies the relation to
+one representative metallicity per galaxy; it does not resolve the age
+dependence of individual X-ray binaries.
+In mini-halo builds, the galaxy relation tracks Pop. II star formation; Pop. III
+retains its separate `LXrayGalIII` prescription.
+
+The no-SFR-scatter option changes source strengths while preserving the
+recorded birth abundance. If it assigns an instantaneous source to a galaxy
+with no current star formation, the cumulative birth abundance is used when
+available; without a recorded abundance, the source uses the constant
+`LXrayGal` relation.
+
+Scatter adds a zero-mean Gaussian residual in log10 luminosity. Without
+source recalibration, it increases the arithmetic mean by
+$\exp[(\ln 10)^2\texttt{XrayScatterDex}^2/2]$. A requested scatter larger than
+`ABS_TOL` in a build with `USE_STOCHASTICITY=OFF` is an error.
 
 </details>
 
@@ -310,7 +365,7 @@ Enable `USE_STOCHASTICITY` at compilation to modify stellar radiation sources.
 |---|---|---|
 | `EscapeFracScatterDex` | `0.0` | Scatter in log10 stellar escape fraction, dex. |
 | `Flag_RemoveSFRScatter` | `0` | Remove SFR scatter from radiation sources at fixed halo mass. |
-| `XrayScatterDex` | `0.0` | Scatter in log10 galaxy X-ray luminosity at fixed SFR, dex. |
+| `XrayScatterDex` | `0.0` | Gaussian scatter in log10 galaxy X-ray luminosity, dex; requires `USE_STOCHASTICITY=ON`. |
 | `Flag_SourceRecalibration` | `0` | Match modified source budgets to the untreated galaxy population in the same run. |
 
 Escape-fraction scatter and median-SFR sources are mutually exclusive.

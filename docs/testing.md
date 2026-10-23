@@ -37,7 +37,8 @@ Without Criterion, only the two standalone drivers are built. Without Python, th
 | `test_cooling` | Cooling tables, cooling rates and the streaming-velocity cooling mass. |
 | `test_blackhole_feedback` | Black-hole emissivity, accretion time and luminosities. |
 | `test_emission_lines` | [O III] coefficients and luminosities. |
-| `test_xray_luminosity` | The original and metallicity-dependent Lx-SFR relations, units, energy bands, abundance fallbacks and scatter. |
+| `test_xray_luminosity` | The original and metallicity-dependent Lx-SFR relations, normalization, source units, recorded birth abundances and scatter. |
+| `test_star_forming_metallicity` | Birth-metallicity recording through star formation, feedback, mergers and snapshot reset. |
 | `main_cooling`, `main_blackhole_feedback` | Standalone drivers that print the same quantities for given inputs. |
 
 ## Metallicity-dependent X-ray luminosity tests
@@ -46,14 +47,20 @@ Without Criterion, only the two standalone drivers are built. Without Python, th
 cooling test, so it exercises the actual static source functions without
 changing their visibility. It runs in every Criterion build; the conditional
 cases test the RNG sequence and Gaussian residual when `USE_STOCHASTICITY` is
-on, and the absence of scatter when it is off. The abundance fallback also
-checks the Pop II stellar mass fields in mini-halo builds.
+on, and the source function's absence of scatter when it is off. Parameter
+validation rejects requested scatter in a non-stochastic executable.
 
 The metallicity cases cover the Fragos/Kaur shape in absolute metal mass
 fraction, its finite zero-metallicity plateau, continuity at the plateau edge,
-the independent calibration-band normalization, and variations of the exponent
-and turnover. Numerical benchmarks were evaluated independently. The regression scatter value of 0.3 dex is a test setting,
-not a measured dispersion of this relation.
+the shared `LXrayGal` normalization, and variations of the exponent and
+turnover. The source luminosity is already normalized in the selected
+`NuXrayThreshold`–`NuXraySoftCut` band; changing the band does not automatically
+rescale the input normalization. Birth-abundance tests distinguish the current
+SFR-weighted metallicity from the cumulative formed-mass-weighted metallicity.
+`test_star_forming_metallicity` checks the underlying recording and lifecycle,
+including exhausted gas and the separate Pop. II tracking in mini-halo builds.
+The regression scatter value of 0.3 dex is a test setting, not a measured
+dispersion of this relation.
 
 Build and run the unit test in both stochasticity configurations:
 
@@ -63,14 +70,15 @@ for stoch in OFF ON; do
     -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON \
     -DUSE_STOCHASTICITY="$stoch" -DUSE_MINI_HALOS=OFF \
     -DHDF5_PREFER_PARALLEL=ON
-  cmake --build "build_xray_test_${stoch}" --target test_xray_luminosity --parallel 4
+  cmake --build "build_xray_test_${stoch}" \
+    --target test_xray_luminosity test_star_forming_metallicity --parallel 4
   ASAN_OPTIONS=detect_leaks=0 ctest --test-dir "build_xray_test_${stoch}" \
-    --output-on-failure --no-tests=error -R '^test_xray_luminosity$'
+    --output-on-failure --no-tests=error -R '^test_(xray_luminosity|star_forming_metallicity)$'
 done
 ```
 
 Repeat with `-DUSE_MINI_HALOS=ON` in separate build directories to cover the
-Pop II fallback branches. CI already builds these configurations. Criterion
+Pop. II birth-metallicity tracking. CI already builds these configurations. Criterion
 is required; if it is installed under a custom prefix, pass
 `-DCRITERION_INCLUDE_DIR=/path/to/criterion/include` and
 `-DCRITERION_LIBRARY=/path/to/criterion/lib/libcriterion.so` to CMake.
@@ -80,19 +88,32 @@ For the end-to-end tests, configure with
 
 ```bash
 ASAN_OPTIONS=detect_leaks=0 ctest --test-dir build_xray_test_OFF \
-  --output-on-failure --no-tests=error -R '^regression_xray(_|$)'
+  --output-on-failure --no-tests=error -R '^regression_xray(_metallicity)?(_|$)'
 ASAN_OPTIONS=detect_leaks=0 ctest --test-dir build_xray_test_ON \
   --output-on-failure --no-tests=error -R '^regression_(stochasticity|xray_metallicity_scatter)(_|$)'
 ```
 
 The checked-in `reference/xray_metallicity.h5` and
-`reference/xray_metallicity_scatter.h5` use the Fragos/Kaur model. They were
-regenerated locally after the original `xray` and `stochasticity` setups passed
-strict comparisons against their unchanged references. Their numerical diffs
-and plots were inspected before replacement. See the
-[reference README](../src/tests/regression/reference/README.md) for the source
-state, toolchain and validation details. Keep the comparisons and tolerances
-unchanged when updating references; retain the flag-off references as controls.
+`reference/xray_metallicity_scatter.h5` were regenerated locally on 2026-10-23
+using recorded birth metallicities. All four native two-rank MPI model runs
+completed. The flag-off `xray` and `stochasticity` outputs agree with their
+unchanged references in strict mode. The metallicity-enabled outputs differ
+from their previous references, as expected from the changed abundance
+prescription: 63 and 77 quantities exceed the strict tolerance, respectively.
+The differences and comparison plots were inspected before replacing only
+these two references and adding their reference-only plots. Both summaries
+retain all 230 dataset keys, shapes and non-finite-value masks; galaxy counts
+are unchanged. No comparison tolerances were relaxed. See the
+[reference README](../src/tests/regression/reference/README.md) for provenance.
+Both completed outputs also pass the standard strict check against the new
+references; this check reused the same runs and is not an independent rerun.
+
+The two X-ray unit-test sources were also exercised in all four stochasticity/mini-halo
+build combinations: 98 cases and 1,022 assertions passed using a temporary
+in-process runner. Criterion's IPC runner is blocked in this environment, so
+these are not native CTest unit-test results. Build settings and completed
+checks are recorded in the
+[local validation record](../src/tests/regression/reference/local_validation_20261023.txt).
 
 ## Regression tests
 

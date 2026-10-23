@@ -1,16 +1,21 @@
 find_package(Git REQUIRED)
 
 execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     OUTPUT_VARIABLE GITREF
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND ${GIT_EXECUTABLE} --no-pager diff --no-color
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     OUTPUT_VARIABLE GITDIFF
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 if (NOT GITDIFF STREQUAL "")
-    string(REPLACE "\\\"" "\\\\\"" GITDIFF ${GITDIFF})
-    string(REPLACE "\n" "\\n" GITDIFF ${GITDIFF})
-    string(REPLACE "\\n\\ " "\\n" GITDIFF ${GITDIFF})
+    # configure_file(... ESCAPE_QUOTES) handles quotes; escape the other C-string
+    # characters here so dirty-tree provenance retains literal backslashes.
+    string(REPLACE "\\" "\\\\" GITDIFF "${GITDIFF}")
+    string(REPLACE "\r" "\\r" GITDIFF "${GITDIFF}")
+    string(REPLACE "\n" "\\n" GITDIFF "${GITDIFF}")
+    string(REPLACE "\t" "\\t" GITDIFF "${GITDIFF}")
 endif()
 
 # Make a plain `make`/`ninja` re-run this configure step (and so pick up a new
