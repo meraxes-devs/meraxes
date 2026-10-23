@@ -172,7 +172,7 @@ void _ComputeTs(int snapshot)
 #endif
   double xHII_call;
   double SFR_GAL[TsNumFilterSteps];
-  double XRAY_LUMINOSITY_GAL[TsNumFilterSteps];
+  double XRAY_SFR_GAL[TsNumFilterSteps];
   double XAGN_soft[TsNumFilterSteps];
   double XAGN_hard[TsNumFilterSteps];
 #if USE_MINI_HALOS
@@ -1124,22 +1124,9 @@ void _ComputeTs(int snapshot)
     //        const_zp_prefactor_GAL = (1.0/0.59)*( run_globals.params.physics.LXrayGal *
     //        Luminosity_converstion_factor_GAL ) / (run_globals.params.physics.NuXrayThreshold*NU_over_EV) *
     //        SPEED_OF_LIGHT * pow(1+zp, run_globals.params.physics.SpecIndexXrayGal+3);
-#if USE_STOCHASTICITY
-    const_zp_prefactor_GAL = Luminosity_converstion_factor_GAL /
+    const_zp_prefactor_GAL = (run_globals.params.physics.LXrayGal * SEC_PER_YEAR * Luminosity_converstion_factor_GAL) /
                              (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
                              pow(1 + zp, run_globals.params.physics.SpecIndexXrayGal + 3);
-#else
-    if (run_globals.params.physics.Flag_UseXrayMetallicity) {
-      const_zp_prefactor_GAL = Luminosity_converstion_factor_GAL /
-                               (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
-                               pow(1 + zp, run_globals.params.physics.SpecIndexXrayGal + 3);
-    } else {
-      const_zp_prefactor_GAL =
-        (run_globals.params.physics.LXrayGal * SEC_PER_YEAR * Luminosity_converstion_factor_GAL) /
-        (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
-        pow(1 + zp, run_globals.params.physics.SpecIndexXrayGal + 3);
-    }
-#endif
 #if USE_MINI_HALOS
     const_zp_prefactor_III = (run_globals.params.physics.LXrayGalIII * Luminosity_converstion_factor_III) /
                              (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
@@ -1217,7 +1204,12 @@ void _ComputeTs(int snapshot)
             i_smoothed_heating = grid_index_smoothedSFR(R_ct, ix, iy, iz, TsNumFilterSteps, ReionGridDim);
 
             SFR_GAL[R_ct] = SMOOTHED_SFR_GAL[i_smoothed_heating];
-            XRAY_LUMINOSITY_GAL[R_ct] = xray_luminosity_needed ? SMOOTHED_XRAY_LUMINOSITY_GAL[i_smoothed_heating] : 0.0;
+            // Convert only the X-ray source supplied to evolveInt. Keep the stored luminosity density
+            // in erg/s/cm^3 and the actual SFR density for stellar Lyman-alpha emission.
+            XRAY_SFR_GAL[R_ct] = xray_luminosity_needed
+                                   ? xray_luminosity_to_sfr_density(SMOOTHED_XRAY_LUMINOSITY_GAL[i_smoothed_heating],
+                                                                    run_globals.params.physics.LXrayGal)
+                                   : SFR_GAL[R_ct];
             {
               XAGN_soft[R_ct] = agn_soft_needed ? SMOOTHED_AGN_soft[i_smoothed_heating] : 0.0;
               XAGN_hard[R_ct] = agn_hard_needed ? SMOOTHED_AGN_hard[i_smoothed_heating] : 0.0;
@@ -1337,7 +1329,7 @@ void _ComputeTs(int snapshot)
           evolveInt((float)zp,
                     run_globals.reion_grids.deltax[i_padded],
                     SFR_GAL,
-                    XRAY_LUMINOSITY_GAL,
+                    XRAY_SFR_GAL,
                     SFR_III,
                     XAGN_soft,
                     XAGN_hard,
@@ -1361,7 +1353,7 @@ void _ComputeTs(int snapshot)
           evolveInt((float)zp,
                     run_globals.reion_grids.deltax[i_padded],
                     SFR_GAL,
-                    XRAY_LUMINOSITY_GAL,
+                    XRAY_SFR_GAL,
                     XAGN_soft,
                     XAGN_hard,
                     freq_int_heat_GAL,

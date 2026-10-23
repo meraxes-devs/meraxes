@@ -25,12 +25,10 @@ Flag_OutputXrayLF          : 1
 Flag_BHARExponentialCut    : 1
 
 # Fragos/Kaur HMXB metallicity shape; free 0.5-2 keV low-Z normalization
-Flag_UseXrayMetallicity   : 1
-XrayMetallicityNorm       : 3.16e40
+Flag_UseXrayMetallicity    : 1
+LXrayGal                  : 3.16e40
 XrayMetallicityExponent   : 0.3
 XrayMetallicityTurnover   : 0.008
-XrayCalibrationBandMin    : 500.0
-XrayCalibrationBandMax    : 2000.0
 EscapeFracScatterDex      : 0.0
 Flag_RemoveSFRScatter     : 0
 XrayScatterDex            : 0.0
