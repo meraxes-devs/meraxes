@@ -1485,6 +1485,10 @@ void evolveInt(float zp,
     }
 #endif
 
+    /* AGNLyaLineEW = 74.0 A is Lusso et al. (2015) Table 2 (Lya at 1216.1 A), measured against the
+     * continuum AT the line; the pow(NU_LA/NU_1450, ...) factor below re-references it to 1450 A.
+     * Freezing the continuum at line centre, as any published EW does, overestimates W by +0.48%,
+     * from integrating the exact and frozen forms over Lusso Table 1 in 1170-1240 A. */
     /* AGN broad Lya line: emitted at resonance, so the shell integral collapses
      * to one local term at zpp == zp. */
     if (run_globals.params.physics.Flag_IncludeAGNLyAlpha && run_globals.params.physics.Flag_IncludeAGNLyaLine) {
