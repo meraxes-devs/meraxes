@@ -1,7 +1,7 @@
 # Build and run
 
-The flags and outputs described in this guide use the
-[forests implementation](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/tree/faa8aafd49e03a870f3e1ba83c22bdacea58257f).
+The flags and outputs described in this guide are those of the
+[`master` branch](https://github.com/meraxes-devs/meraxes/tree/master).
 
 ## Dependencies
 
