@@ -30,7 +30,7 @@ M_{\star}^{\rm gross}/t_{\rm sfr},&\text{mass-averaged source},
 \qquad t_{\rm sfr}=f_{\rm sfr}\,t_H(z).
 ```
 
-*References:* {ref}`Balu et al. (2023) <ref-balu2023>`; [Meraxes src/core/reionization.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/reionization.c).
+*References:* {ref}`Balu et al. (2023) <ref-balu2023>`; [Meraxes src/core/reionization.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/reionization.c).
 
 ### Median source relation
 
@@ -42,7 +42,7 @@ x=\log_{10}\!\left(\frac{M_{\rm vir}}{10^{10}h^{-1}M_\odot}\right),\qquad
 x_i=-3.50+0.02i,\qquad i=0,\ldots,375.
 ```
 
-*References:* [Meraxes src/core/Stochasticity.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/Stochasticity.c).
+*References:* [Meraxes src/core/Stochasticity.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/Stochasticity.c).
 
 Galaxies enter the lower enclosing mass bin, with out-of-range masses assigned to the nearest endpoint. Each occupied bin uses the median of positive, finite log SFRs across all galaxies in that population and type. For an even sample, the two central logarithms are averaged. Empty interior bins are interpolated in log SFR; empty exterior bins receive a floor of $-30$ in internal log SFR.
 
@@ -55,7 +55,7 @@ w=\frac{x-x_i}{0.02},\qquad
 y_i=\log_{10}\!\left(\frac{\dot M_{\star,i}}{U_{\dot M}}\right).
 ```
 
-*References:* [Meraxes src/core/Stochasticity.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/Stochasticity.c).
+*References:* [Meraxes src/core/Stochasticity.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/Stochasticity.c).
 
 $U_{\dot M}$ is the internal mass-rate unit. Endpoint masses use the endpoint value. A floored left node returns the floor; a floored right node holds the valid left value constant. Galaxies with non-positive original SFR retain zero source SFR.
 
@@ -67,7 +67,7 @@ The cumulative source mass advances by
 M_{\star,g}^{\rm src}\leftarrow M_{\star,g}^{\rm src}+\Delta M_{\star,g}^{\rm src}.
 ```
 
-*References:* [Meraxes src/core/Stochasticity.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/Stochasticity.c).
+*References:* [Meraxes src/core/Stochasticity.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/Stochasticity.c).
 
 $\Delta t_g$ is the galaxy evolution interval. Escape-fraction relations involving stellar mass or SFR use these treated quantities; halo and gas properties retain their evolved galaxy values. Cumulative source histories survive population transitions and are added during mergers.
 
@@ -80,7 +80,7 @@ Let $T_Q$ and $R_Q$ be the ordinary and treated budgets for source quantity $Q$.
 C_Q=\frac{T_Q}{R_Q},\qquad Q^{\rm grid}=C_QQ^{\rm treated}.
 ```
 
-*References:* [Meraxes src/core/Stochasticity.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/Stochasticity.c).
+*References:* [Meraxes src/core/Stochasticity.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/Stochasticity.c).
 
 The target is the untreated budget in the same evolving galaxy population. Escaped cumulative mass and escaped SFR have independent factors. Escape-fraction scatter uses global population-specific factors; median-SFR sources use factors within each galaxy-type and halo-mass cell. Pop. II X-ray and unweighted Ly-alpha source rates use separate global factors.
 
@@ -96,7 +96,7 @@ q_{ijk}=\sum_{g\in\mathcal C_{ijk}}q_g,
 \qquad \delta=\rho/\bar\rho-1.
 ```
 
-*References:* {ref}`Mutch et al. (2016) <ref-mutch2016>`; [Meraxes src/core/reionization.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/reionization.c).
+*References:* {ref}`Mutch et al. (2016) <ref-mutch2016>`; [Meraxes src/core/reionization.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/reionization.c).
 
 Present-day number densities count hydrogen and helium nuclei; $Y_{\rm He}$ is the helium mass fraction. Number densities use $\mathrm{cm^{-3}}$.
 
@@ -109,7 +109,7 @@ Present-day number densities count hydrogen and helium nuclei; $Y_{\rm He}$ is t
 \quad f_{\rm He}=\frac{\bar n_{{\rm He},0}}{\bar n_{b,0}}.
 ```
 
-*References:* [Meraxes src/core/reionization.h](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/reionization.h).
+*References:* [Meraxes src/core/reionization.h](https://github.com/meraxes-devs/meraxes/blob/master/src/core/reionization.h).
 
 Fourier filtering smooths sources and density on radius $R$, using the top-hat, sharp-$k$ or Gaussian windows in Equation {eq}`num-filter-windows`.
 
@@ -123,7 +123,7 @@ M_R=\begin{cases}
 \end{cases}
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/find_HII_bubbles.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/find_HII_bubbles.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/find_HII_bubbles.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/find_HII_bubbles.c).
 
 Filtering decreases radii by $f_R$ until the cell scale. $\rho_{\rm crit}$ is the present-day critical density. The evolving maximum-radius prescription is:
 
@@ -133,7 +133,7 @@ R_0=\min(R_{\max},0.620350491L),\qquad
 R_{n+1}=R_n/f_R.
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/find_HII_bubbles.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/find_HII_bubbles.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/find_HII_bubbles.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/find_HII_bubbles.c).
 
 ```{math}
 :label: igm-radius-evolution
@@ -143,7 +143,7 @@ R_{\max}(z)=\begin{cases}
 \end{cases}
 ```
 
-*References:* [Meraxes src/core/find_HII_bubbles.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/find_HII_bubbles.c).
+*References:* [Meraxes src/core/find_HII_bubbles.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/find_HII_bubbles.c).
 
 ## Ionization and photoheating feedback
 
@@ -155,7 +155,7 @@ $N_{\gamma,\star}$ counts photons per stellar baryon; escape fractions already e
 {f_b(1-3Y_{\rm He}/4)},\qquad f_b=\Omega_b/\Omega_m.
 ```
 
-*References:* {ref}`Mutch et al. (2016) <ref-mutch2016>`; {ref}`Sobacchi & Mesinger (2013, UVB feedback) <ref-sobacchi2013feedback>`; [Meraxes src/core/reionization.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/reionization.c).
+*References:* {ref}`Mutch et al. (2016) <ref-mutch2016>`; {ref}`Sobacchi & Mesinger (2013, UVB feedback) <ref-sobacchi2013feedback>`; [Meraxes src/core/reionization.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/reionization.c).
 
 Filtered cell masses $s_R$, $s_{R,\rm III}$ and $b_R$ represent escaped Pop II, Pop III and stellar-equivalent black-hole sources. $\mathcal B_R$ is the photon budget per atom.
 
@@ -167,7 +167,7 @@ Filtered cell masses $s_R$, $s_{R,\rm III}$ and $b_R$ represent escaped Pop II, 
 {1+\delta_R}.
 ```
 
-*References:* {ref}`Mutch et al. (2016) <ref-mutch2016>`; {ref}`Qin et al. (2017b) <ref-qin2017x>`; {ref}`Ventura et al. (2025) <ref-ventura2025>`; [Meraxes src/core/find_HII_bubbles.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/find_HII_bubbles.c).
+*References:* {ref}`Mutch et al. (2016) <ref-mutch2016>`; {ref}`Qin et al. (2017b) <ref-qin2017x>`; {ref}`Ventura et al. (2025) <ref-ventura2025>`; [Meraxes src/core/find_HII_bubbles.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/find_HII_bubbles.c).
 
 A cell becomes ionized when its photon budget exceeds neutral atoms plus recombinations. $x_{e,R}$ is the partial electron fraction; $N_{{\rm rec},R}$ is the cumulative recombination sink. Remaining cells receive the partial-ionization solution.
 
@@ -185,7 +185,7 @@ x_{\rm HI}=\operatorname{clip}_{[0,1]}
 \left(1-x_{e,\rm cell}-\mathcal B_{\rm cell}\right).
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/find_HII_bubbles.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/find_HII_bubbles.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/find_HII_bubbles.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/find_HII_bubbles.c).
 
 The UV photoionization rate uses escaped SFR density; the feedback intensity uses accumulated source density. $R$ is comoving, all lengths are in cm, $h_P$ is Planck's constant, $\alpha$ the UV spectral slope, and $b_\Gamma$ the halo radiation bias.
 
@@ -292,7 +292,7 @@ P_V(\Delta)=A\exp\!\left[
 1+z_{\rm eff}=(1+z)(1+\delta)^{1/3}.
 ```
 
-*References:* {ref}`Sobacchi & Mesinger (2014) <ref-sobacchi2014>`; [Meraxes src/core/find_HII_bubbles.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/find_HII_bubbles.c).
+*References:* {ref}`Sobacchi & Mesinger (2014) <ref-sobacchi2014>`; [Meraxes src/core/find_HII_bubbles.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/find_HII_bubbles.c).
 
 [Rahmati et al. (2013)](https://arxiv.org/abs/1210.7808) describe attenuation within dense gas; $T_4=T/(10^4\,\mathrm K)$ and $\Gamma_{12}=\Gamma_{\rm bg}/(10^{-12}\,\mathrm{s^{-1}})$.
 
@@ -307,7 +307,7 @@ P_V(\Delta)=A\exp\!\left[
 +0.02\left[1+\frac\Delta{\Delta_{\rm ss}}\right]^{-0.84}.
 ```
 
-*References:* {ref}`Rahmati et al. (2013) <ref-rahmati2013>`; {ref}`Sobacchi & Mesinger (2014), equations 8–9 <ref-sobacchi2014>`; [Meraxes src/core/recombinations.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/recombinations.c).
+*References:* {ref}`Rahmati et al. (2013) <ref-rahmati2013>`; {ref}`Sobacchi & Mesinger (2014), equations 8–9 <ref-sobacchi2014>`; [Meraxes src/core/recombinations.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/recombinations.c).
 
 ```{math}
 :label: igm-equilibrium-neutral
@@ -318,7 +318,7 @@ P_V(\Delta)=A\exp\!\left[
 \alpha_B(T)=\alpha_{B,10^4}\left(\frac T{10^4\,\mathrm K}\right)^{-0.75}.
 ```
 
-*References:* {ref}`Sobacchi & Mesinger (2014), equation 7 <ref-sobacchi2014>`; [Meraxes src/core/recombinations.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/recombinations.c).
+*References:* {ref}`Sobacchi & Mesinger (2014), equation 7 <ref-sobacchi2014>`; [Meraxes src/core/recombinations.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/recombinations.c).
 
 $\chi$ is the subgrid neutral fraction and $\alpha_{B,10^4}=2.59\times10^{-13}\,\mathrm{cm^3\,s^{-1}}$. Density integration gives recombinations $\mathcal R$ ($\mathrm{s^{-1}}$), clumping $C_{\rm HII}$ and residual neutrality.
 
@@ -335,7 +335,7 @@ x_{\rm HI,res}^{\rm phys}&=
 \end{aligned}
 ```
 
-*References:* {ref}`Sobacchi & Mesinger (2014) <ref-sobacchi2014>`; [Meraxes src/core/recombinations.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/recombinations.c); [Meraxes src/core/find_HII_bubbles.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/find_HII_bubbles.c).
+*References:* {ref}`Sobacchi & Mesinger (2014) <ref-sobacchi2014>`; [Meraxes src/core/recombinations.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/recombinations.c); [Meraxes src/core/find_HII_bubbles.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/find_HII_bubbles.c).
 
 ```{math}
 :label: igm-recombination-update
@@ -345,7 +345,7 @@ N_{\rm rec}^{i+1}=N_{\rm rec}^{i}
 \qquad t_{\rm resp}=\frac1{\Gamma_{\rm HI}+\mathcal R}.
 ```
 
-*References:* {ref}`Sobacchi & Mesinger (2014) <ref-sobacchi2014>`; [Meraxes src/core/recombinations.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/recombinations.c); [Meraxes src/core/find_HII_bubbles.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/find_HII_bubbles.c).
+*References:* {ref}`Sobacchi & Mesinger (2014) <ref-sobacchi2014>`; [Meraxes src/core/recombinations.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/recombinations.c); [Meraxes src/core/find_HII_bubbles.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/find_HII_bubbles.c).
 
 ## X-ray propagation and deposition
 
@@ -357,7 +357,7 @@ L_{X,\rm gal}=(L_X/\mathrm{SFR})\dot M_{\star,X},
 \qquad L_\nu\propto\nu^{-\alpha_X}.
 ```
 
-*References:* {ref}`Balu et al. (2023) <ref-balu2023>`; [Meraxes src/core/ComputeTs.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/ComputeTs.c).
+*References:* {ref}`Balu et al. (2023) <ref-balu2023>`; [Meraxes src/core/ComputeTs.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/ComputeTs.c).
 
 The heating-source SFR follows Equation {eq}`igm-thermal-sfr`; median-source models substitute their source SFR or cumulative source mass. For the ordinary luminosity $L_X^0$ in Equation {eq}`igm-hmxb-luminosity`, Pop. II scatter gives
 
@@ -366,7 +366,7 @@ The heating-source SFR follows Equation {eq}`igm-thermal-sfr`; median-source mod
 L_X^{\rm draw}=L_X^0\,10^{\sigma_Xg},\qquad g\sim\mathcal N(0,1).
 ```
 
-*References:* [Meraxes src/core/reionization.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/reionization.c).
+*References:* [Meraxes src/core/reionization.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/reionization.c).
 
 $L_X$ has units of $\mathrm{erg\,s^{-1}}$ and $\sigma_X$ is measured in dex. The draw is unbounded above, with its mean given by Equation {eq}`stoch-lognormal`. Pop. III and AGN luminosities follow their separate prescriptions. Historical heating fields retain the draws made when each field was created.
 
@@ -380,7 +380,7 @@ I_\alpha=\begin{cases}
 \end{cases}
 ```
 
-*References:* {ref}`Balu et al. (2023) <ref-balu2023>`; [Meraxes src/core/ComputeTs.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/ComputeTs.c).
+*References:* {ref}`Balu et al. (2023) <ref-balu2023>`; [Meraxes src/core/ComputeTs.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/ComputeTs.c).
 
 Retarded radiation integrates comoving emissivity $\epsilon_\nu^{\rm com}$ over emitting shells. Meraxes approximates attenuation using the frequency at which $\tau_X=1$.
 
@@ -393,7 +393,7 @@ e^{-\tau_X(\nu,z,z')}dz',
 \qquad\nu'=\nu\frac{1+z'}{1+z}.
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; {ref}`Balu et al. (2023) <ref-balu2023>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; {ref}`Balu et al. (2023) <ref-balu2023>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 Absorption combines H I, He I and He II. Hydrogenic thresholds $h_P\nu_Z$ are 13.60 and 54.40 eV; He I has threshold 24.59 eV. Cross sections vanish below threshold.
 
@@ -405,7 +405,7 @@ f_H(1-x_e)\sigma_{\rm HI}(\nu)
 +f_{\rm He}x_e\sigma_{\rm HeII}(\nu).
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; {ref}`Balu et al. (2023) <ref-balu2023>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; {ref}`Balu et al. (2023) <ref-balu2023>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 ```{math}
 :label: igm-hydrogenic-crosssection
@@ -416,7 +416,7 @@ f_H(1-x_e)\sigma_{\rm HI}(\nu)
 \qquad \epsilon=\sqrt{\nu/\nu_Z-1},\quad Z=1,2.
 ```
 
-*References:* {ref}`Osterbrock (1989), p. 14 <ref-osterbrock1989>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Osterbrock (1989), p. 14 <ref-osterbrock1989>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 ```{math}
 :label: igm-helium-crosssection
@@ -427,7 +427,7 @@ x=\frac{h_P\nu}{13.61\,\mathrm{eV}}-0.4434,
 \left(1+\sqrt{y/1.469}\right)^{-3.188}\ \mathrm{cm^2}.
 ```
 
-*References:* {ref}`Verner et al. (1996) <ref-verner1996>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Verner et al. (1996) <ref-verner1996>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 ```{math}
 :label: igm-xray-optical-depth
@@ -437,7 +437,7 @@ x=\frac{h_P\nu}{13.61\,\mathrm{eV}}-0.4434,
 \widetilde\sigma_X\!\left(\nu\frac{1+z''}{1+z},\bar x_e\right)dz''.
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; {ref}`Balu et al. (2023) <ref-balu2023>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; {ref}`Balu et al. (2023) <ref-balu2023>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 $Q_{\rm HI}$ is the neutral filling fraction. Species $s$ has weight $a_s$, threshold $\nu_s$ and photoelectron energy $E_s=h_P(\nu-\nu_s)$. Tabulated deposition fractions and secondary counts set the heating, ionization and Ly$\alpha$ kernels.
 
@@ -458,7 +458,7 @@ K_{\alpha}&=\frac{c}{4\pi\nu_\alpha H(z)}
 \end{aligned}
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; {ref}`Furlanetto & Stoever (2010) <ref-furlanetto2010>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; {ref}`Furlanetto & Stoever (2010) <ref-furlanetto2010>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 For component $b$, $S_{b,j}$ is shell-averaged luminosity density ($\mathrm{erg\,s^{-1}\,cm^{-3}}$); $\nu_0$ is the escape-threshold frequency. Negative $dt/dz'$ and shell increments give positive time weights.
 
@@ -475,7 +475,7 @@ K_{q,b,j}(x_e),
 \quad g_\alpha=n_b.
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; {ref}`Balu et al. (2023) <ref-balu2023>`; [Meraxes src/core/ComputeTs.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/ComputeTs.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; {ref}`Balu et al. (2023) <ref-balu2023>`; [Meraxes src/core/ComputeTs.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/ComputeTs.c).
 
 ## Gas temperature and partial ionization
 
@@ -488,7 +488,7 @@ T_K(\boldsymbol x,z)=\bar T_{K,\rm RECFAST}(z)[1+c_T(z)\delta(\boldsymbol x,z)],
 \qquad c_T(z)=0.58-0.006(z-10).
 ```
 
-*References:* {ref}`Seager et al. (1999) <ref-seager1999>`; {ref}`Muñoz (2023), equation 48 <ref-munoz2023>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Seager et al. (1999) <ref-seager1999>`; {ref}`Muñoz (2023), equation 48 <ref-munoz2023>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 ```{math}
 :label: igm-expansion-helpers
@@ -499,7 +499,7 @@ H_X(z)=H_0\sqrt{\Omega_m(1+z)^3+\Omega_r(1+z)^4+\Omega_\Lambda},
 {H_0(1+z)\sqrt{\Omega_m(1+z)^3+\Omega_\Lambda}}.
 ```
 
-*References:* {ref}`Peebles (1980) <ref-peebles1980>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Peebles (1980) <ref-peebles1980>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 ```{math}
 :label: igm-growth-flat
@@ -511,7 +511,7 @@ D(z)=\frac{g[\Omega_m(z)]}{g(\Omega_m)(1+z)},
 g(u)=\frac{2.5u}{1/70+u(209-u)/140+u^{4/7}}.
 ```
 
-*References:* {ref}`Liddle et al. (1996), equations 6–8 <ref-liddle1996>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Liddle et al. (1996), equations 6–8 <ref-liddle1996>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 $H_0=100h\,\mathrm{km\,s^{-1}\,Mpc^{-1}}$; the time derivative neglects radiation and curvature. Einstein–de Sitter gives $D=(1+z)^{-1}$; the open, zero-$\Lambda$ growth solution is:
 
@@ -525,7 +525,7 @@ F(x)=1+\frac3x+
 \ln[\sqrt{1+x}-\sqrt x].
 ```
 
-*References:* {ref}`Peebles (1980), equation 11.16 <ref-peebles1980>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Peebles (1980), equation 11.16 <ref-peebles1980>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 X-rays supply ionization $\mathcal I_{X,b}$ ($\mathrm{s^{-1}}$ per nucleus) and heat $\epsilon_{X,b}$ ($\mathrm{erg\,s^{-1}}$ per nucleus). Temperature also responds to particle creation, adiabatic expansion and Compton exchange.
 
@@ -537,7 +537,7 @@ X-rays supply ionization $\mathcal I_{X,b}$ ($\mathrm{s^{-1}}$ per nucleus) and 
 \quad n_b=\bar n_{b,0}(1+z)^3(1+\delta).
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 ```{math}
 :label: igm-temperature-evolution
@@ -549,7 +549,7 @@ X-rays supply ionization $\mathcal I_{X,b}$ ($\mathrm{s^{-1}}$ per nucleus) and 
 +\left.\frac{dT_K}{dz}\right|_{\rm C}.
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 ```{math}
 :label: igm-compton
@@ -558,7 +558,7 @@ X-rays supply ionization $\mathcal I_{X,b}$ ($\mathrm{s^{-1}}$ per nucleus) and 
 \frac{x_e}{1+x_e+f_{\rm He}}(T_{\rm CMB}-T_K),
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 ```{math}
 :label: igm-compton-fit
@@ -570,7 +570,7 @@ X-rays supply ionization $\mathcal I_{X,b}$ ($\mathrm{s^{-1}}$ per nucleus) and 
 \quad T_{\rm CMB}=T_{\rm CMB,0}(1+z).
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 Temperatures use K. $\sigma_T$, $a_R$, $m_e$ and $k_B$ are the Thomson cross section, radiation constant, electron mass and Boltzmann constant. Case-A recombination uses $u=\ln[T/(1.1604505\times10^4\,\mathrm K)]$.
 
@@ -580,7 +580,7 @@ Temperatures use K. $\sigma_T$, $a_R$, $m_e$ and $k_B$ are the Thomson cross sec
 \quad[\mathrm{cm^3\,s^{-1}}],
 ```
 
-*References:* {ref}`Abel et al. (1997) <ref-abel1997>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Abel et al. (1997) <ref-abel1997>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 | $j$ | $a_j$ | $j$ | $a_j$ |
 |---|---:|---|---:|
@@ -599,7 +599,7 @@ x_e^{\rm new}=x_e^{\rm old}+\left(\frac{dx_e}{dz}\right)_i\Delta z,
 \qquad\Delta z=z_i-z_{i-1}<0.
 ```
 
-*References:* [Meraxes src/core/ComputeTs.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/ComputeTs.c).
+*References:* [Meraxes src/core/ComputeTs.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/ComputeTs.c).
 
 ## Ly$\alpha$ coupling and spin temperature
 
@@ -612,7 +612,7 @@ T_S^{-1}=\frac{T_{\rm CMB}^{-1}
 +x_cT_K^{-1}}{1+\widetilde x_\alpha+x_c}.
 ```
 
-*References:* {ref}`Hirata (2006) <ref-hirata2006>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Hirata (2006) <ref-hirata2006>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 ```{math}
 :label: igm-collision-coupling
@@ -624,7 +624,7 @@ x_c=\frac{T_\star}{A_{10}T_{\rm CMB}}
 \quad A_{10}=2.85\times10^{-15}\,\mathrm{s}^{-1}.
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; {ref}`Hirata (2006) <ref-hirata2006>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; {ref}`Hirata (2006) <ref-hirata2006>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 ```{math}
 :label: igm-alpha-coupling
@@ -633,7 +633,7 @@ x_c=\frac{T_\star}{A_{10}T_{\rm CMB}}
 \qquad J_\alpha=J_{\alpha,\star}+J_{\alpha,X},
 ```
 
-*References:* {ref}`Hirata (2006) <ref-hirata2006>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Hirata (2006) <ref-hirata2006>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 $J_\alpha$ uses $\mathrm{photons\,cm^{-2}\,s^{-1}\,Hz^{-1}\,sr^{-1}}$. Stellar photons redshift into Lyman resonances; $f_{\rm rec}(n)$ is their Ly$\alpha$ cascade probability.
 
@@ -648,7 +648,7 @@ J_{\alpha,\star}(\boldsymbol x,z)=
 \nu'_n=\nu_n\frac{1+z'}{1+z}.
 ```
 
-*References:* {ref}`Pritchard & Furlanetto (2006) <ref-pritchard2006>`; {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Pritchard & Furlanetto (2006) <ref-pritchard2006>`; {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 ```{math}
 :label: igm-lyman-horizon
@@ -656,7 +656,7 @@ J_{\alpha,\star}(\boldsymbol x,z)=
 \qquad \frac{\nu_n}{\nu_\alpha}=\frac{1-n^{-2}}{3/4}.
 ```
 
-*References:* {ref}`Pritchard & Furlanetto (2006) <ref-pritchard2006>`; {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Pritchard & Furlanetto (2006) <ref-pritchard2006>`; {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 Spectral distortion and effective color temperature depend on $T_S$ and are solved iteratively. $\tau_{\rm GP}$ is the Gunn–Peterson optical depth.
 
@@ -675,7 +675,7 @@ T_{c,\rm eff}^{-1}&=T_K^{-1}
 \end{aligned}
 ```
 
-*References:* {ref}`Hirata (2006) <ref-hirata2006>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c).
+*References:* {ref}`Hirata (2006) <ref-hirata2006>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c).
 
 ## Photoionized gas and molecular-cooling feedback
 
@@ -696,14 +696,14 @@ T_{\rm re}^{1.7}
 \end{aligned}
 ```
 
-*References:* {ref}`McQuinn & Upton Sanderbeck (2016) <ref-mcquinn2016>`; [Meraxes src/core/find_HII_bubbles.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/find_HII_bubbles.c).
+*References:* {ref}`McQuinn & Upton Sanderbeck (2016) <ref-mcquinn2016>`; [Meraxes src/core/find_HII_bubbles.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/find_HII_bubbles.c).
 
 ```{math}
 :label: igm-partial-temperature
 T_{\rm mix}=x_{\rm HI}T_{\rm HI}+(1-x_{\rm HI})T_{\rm re}.
 ```
 
-*References:* [Meraxes src/core/find_HII_bubbles.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/find_HII_bubbles.c).
+*References:* [Meraxes src/core/find_HII_bubbles.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/find_HII_bubbles.c).
 
 Lyman–Werner photons span 11.2–13.6 eV. Their band integral weights stellar photon spectra by energy; $u_n=\nu_n/\nu_\alpha$.
 
@@ -717,7 +717,7 @@ u_{\rm lo}=\max[u_n(1+z')/(1+z),\nu_{\rm LW}/\nu_\alpha],
 \qquad z'\leq z_{\max}(n),
 ```
 
-*References:* {ref}`Ventura et al. (2025) <ref-ventura2025>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c); [Meraxes src/core/ComputeTs.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/ComputeTs.c).
+*References:* {ref}`Ventura et al. (2025) <ref-ventura2025>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c); [Meraxes src/core/ComputeTs.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/ComputeTs.c).
 
 ```{math}
 :label: igm-lw-shell
@@ -727,7 +727,7 @@ F_{{\rm LW},\star}=\frac{c}{4\pi m_p}
 \Phi_{{\rm LW},\star,j}.
 ```
 
-*References:* {ref}`Ventura et al. (2025) <ref-ventura2025>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/XRayHeatingFunctions.c); [Meraxes src/core/ComputeTs.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/ComputeTs.c).
+*References:* {ref}`Ventura et al. (2025) <ref-ventura2025>`; [Meraxes src/core/XRayHeatingFunctions.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/XRayHeatingFunctions.c); [Meraxes src/core/ComputeTs.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/ComputeTs.c).
 
 Multiplying $F_{{\rm LW},\star}$ by $h_P\nu_\alpha/(\nu_{\rm ion}-\nu_{\rm LW})$ gives band-averaged intensity. $J_{\rm LW}$ uses $10^{-21}$ cgs intensity units. LW radiation and streaming velocity raise the molecular-cooling threshold.
 
@@ -760,7 +760,7 @@ g_v=\operatorname{clip}_{[-0.2H,0.2H]}
 \left(\frac{\partial v_{\parallel,\rm com}}{\partial r_{\parallel,\rm com}}\right).
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/BrightnessTemperature.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/BrightnessTemperature.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/BrightnessTemperature.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/BrightnessTemperature.c).
 
 ```{math}
 :label: igm-velocity-thick
@@ -770,7 +770,7 @@ g_v=\operatorname{clip}_{[-0.2H,0.2H]}
 \left(1-e^{-\tau_{21}}\right)\ \mathrm{mK}.
 ```
 
-*References:* {ref}`Greig & Mesinger (2018), section 2 <ref-greig2018>`; [Meraxes src/core/BrightnessTemperature.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/BrightnessTemperature.c).
+*References:* {ref}`Greig & Mesinger (2018), section 2 <ref-greig2018>`; [Meraxes src/core/BrightnessTemperature.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/BrightnessTemperature.c).
 
 Peculiar velocities displace comoving line-of-sight positions into redshift space.
 
@@ -780,7 +780,7 @@ s_\parallel=r_\parallel+
 \frac{v_{\parallel,\rm pec}}{aH(z)}.
 ```
 
-*References:* {ref}`Greig & Mesinger (2018), section 2 <ref-greig2018>`; [Meraxes src/core/BrightnessTemperature.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/BrightnessTemperature.c).
+*References:* {ref}`Greig & Mesinger (2018), section 2 <ref-greig2018>`; [Meraxes src/core/BrightnessTemperature.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/BrightnessTemperature.c).
 
 ## Global quantities, power spectra and lightcones
 
@@ -794,7 +794,7 @@ Volume and mass averages define the global brightness and ionized fraction. The 
 \frac{\sum_iq_i(1+\delta_i)}{\sum_i(1+\delta_i)}.
 ```
 
-*References:* [Meraxes src/core/find_HII_bubbles.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/find_HII_bubbles.c); [Meraxes src/core/BrightnessTemperature.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/BrightnessTemperature.c).
+*References:* [Meraxes src/core/find_HII_bubbles.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/find_HII_bubbles.c); [Meraxes src/core/BrightnessTemperature.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/BrightnessTemperature.c).
 
 ```{math}
 :label: igm-thomson-depth
@@ -804,7 +804,7 @@ Volume and mass averages define the global brightness and ionized fraction. The 
 \qquad \langle x_{\rm HII}\rangle_M=1-\langle x_{\rm HI}\rangle_M.
 ```
 
-*References:* {ref}`Mutch et al. (2016) <ref-mutch2016>`; [Meraxes src/core/reionization.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/reionization.c).
+*References:* {ref}`Mutch et al. (2016) <ref-mutch2016>`; [Meraxes src/core/reionization.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/reionization.c).
 
 ```{math}
 :label: igm-thomson-step
@@ -815,7 +815,7 @@ F_i=\frac{c\sigma_T\bar n_{b,0}(1+z_i)^2}{H(z_i)}
 \langle x_{\rm HII}\rangle_{M,i}.
 ```
 
-*References:* [Meraxes src/core/reionization.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/reionization.c).
+*References:* [Meraxes src/core/reionization.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/reionization.c).
 
 Below the final redshift $z_{\rm end}$, hydrogen is fully ionized; helium becomes doubly ionized at $z=4$.
 
@@ -830,7 +830,7 @@ Below the final redshift $z_{\rm end}$, hydrogen is fully ionized; helium become
 \qquad \tau_{e,\rm total}=\tau_{e,\rm sim}+\tau_{e,\rm post}.
 ```
 
-*References:* [Meraxes src/core/reionization.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/reionization.c).
+*References:* [Meraxes src/core/reionization.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/reionization.c).
 
 For $V=(L/h)^3$ in $\mathrm{cMpc^3}$ and $T'=\delta T_b-\langle\delta T_b\rangle$, $P_{21}$ has units $\mathrm{mK^2\,cMpc^3}$ and $\Delta_{21}^2$ has units $\mathrm{mK^2}$.
 
@@ -845,7 +845,7 @@ P_{21}(\boldsymbol k)=\frac{|\widetilde T(\boldsymbol k)|^2}{V},
 \Delta_{21}^2(k)=\frac{k^3P_{21}(k)}{2\pi^2}.
 ```
 
-*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/ComputePowerSpectrum.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/ComputePowerSpectrum.c).
+*References:* {ref}`Mesinger et al. (2011) <ref-mesinger2011>`; [Meraxes src/core/ComputePowerSpectrum.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/ComputePowerSpectrum.c).
 
 ```{math}
 :label: igm-ps-bins
@@ -858,7 +858,7 @@ k_b=\frac1{N_b}\sum_{\boldsymbol k\in b}|\boldsymbol k|,
 \sigma_{\Delta^2,b}=\frac{\Delta^2_{21,b}}{\sqrt{N_b}}.
 ```
 
-*References:* [Meraxes src/core/ComputePowerSpectrum.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/ComputePowerSpectrum.c).
+*References:* [Meraxes src/core/ComputePowerSpectrum.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/ComputePowerSpectrum.c).
 
 $N_b$ counts sampled Fourier half-grid modes. $\sigma_{\Delta^2,b}$ estimates mode-counting uncertainty. Lightcones interpolate consecutive coeval temperatures in time, with slice width $\Delta\chi=L/(hD)$.
 
@@ -870,5 +870,5 @@ T_{\rm LC}(z_s)=T_1+
 \chi(z_{s+1})-\chi(z_s)\simeq\Delta\chi.
 ```
 
-*References:* {ref}`Greig & Mesinger (2018), section 2 <ref-greig2018>`; [Meraxes src/core/ConstructLightcone.c](https://github.com/ChangqIngovo/meraxes-devs_qyxnew/blob/faa8aafd49e03a870f3e1ba83c22bdacea58257f/src/core/ConstructLightcone.c).
+*References:* {ref}`Greig & Mesinger (2018), section 2 <ref-greig2018>`; [Meraxes src/core/ConstructLightcone.c](https://github.com/meraxes-devs/meraxes/blob/master/src/core/ConstructLightcone.c).
 
