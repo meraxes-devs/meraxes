@@ -95,3 +95,55 @@ qsub submit.pbs
 
 See NCI's [PBS guide](https://opus.nci.org.au/spaces/Help/pages/90308829/PBS+Directives+Explained)
 for scheduler options and [Post-processing tools](post-processing.md) for analysing results.
+
+## Example: a small test volume
+
+The quickest way to try Meraxes is the
+[L10_N512 test set](https://doi.org/10.5281/zenodo.23281409): a 10 $h^{-1}$ Mpc box with
+$512^3$ particles from the Genesis simulations, with merger trees and density grids down
+to $z \approx 10$, 47 MB in all. The regression tests use the same data, and this example
+runs the same model as their `default` setup.
+
+Download and unpack it:
+
+```sh
+curl -L -o L10_N512.zip "https://zenodo.org/records/23281409/files/L10_N512.zip?download=1"
+md5sum L10_N512.zip  # afe3719ce9144869c9f0b8629c62e9d5
+unzip L10_N512.zip   # creates L10_N512/ with a_list.txt, grids/ and trees/
+```
+
+In the build directory, edit the generated `input.par`. Change the file name in
+`SimParamsFile` and the value of `OutputSnapshots`, and add `SimulationDir`:
+
+```text
+SimParamsFile   : /path/to/meraxes/input/params/simulations/Genesis_L10_N512.par
+SimulationDir   : /path/to/L10_N512
+OutputSnapshots : 48, 63, 75  # z = 15, 12, 10
+```
+
+Then run it on two MPI ranks, which takes a minute or two:
+
+```sh
+mpirun -np 2 ./bin/meraxes input.par
+```
+
+The results are in `output/`: the master file `meraxes.hdf5`, one galaxy file per rank
+and one grid file per saved snapshot (see [Outputs](outputs.md)). Read them with `h5py`:
+
+```python
+import h5py
+
+with h5py.File("output/meraxes.hdf5", "r") as f:
+    snap = f["Snap075"]
+    print("z =", snap.attrs["Redshift"][0], "with", snap.attrs["NGalaxies"][0], "galaxies")
+    print("neutral fraction:", snap["Grids/xH"].attrs["volume_weighted_global_xH"][0])
+    smf = snap["SMF"][:]  # columns: log10(M*/Msun), number density (cMpc^-3 dex^-1), uncertainty
+```
+
+or with [DRAGONS](post-processing.md):
+
+```python
+from dragons import meraxes
+
+gals = meraxes.read_gals("output/meraxes.hdf5", snapshot=75, props=["StellarMass", "Sfr"])
+```
