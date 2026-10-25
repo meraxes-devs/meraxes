@@ -272,7 +272,7 @@ static double p_dependent_SFR(double lower_limit,
 double pressure_dependent_star_formation(galaxy_t* gal, int snapshot)
 {
   /*
-   * Credit: Hansik Kim
+   * Credit: Han-Seek Kim
    * Based on the SF prescription of Blitz & Rosolowski (2006).
    */
 

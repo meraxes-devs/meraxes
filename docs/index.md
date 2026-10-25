@@ -61,7 +61,7 @@ If using specific features introduced in Meraxes, please cite the corresponding 
       <td align="center" valign="top" width="19.95%"><a href="https://github.com/daviesje"><img src="https://avatars.githubusercontent.com/u/36873665?v=4?s=100" width="100" alt="daviesje"/><br /><sub><b>daviesje</b></sub></a><br /><a href="https://github.com/meraxes-devs/meraxes/commits?author=daviesje" title="Code">💻</a></td>
     </tr>
     <tr>
-      <td align="center" valign="top" width="19.95%"><img src="https://avatars.githubusercontent.com/u/1745990?v=4?s=100" width="100" alt="Hansik Kim"/><br /><sub><b>Hansik Kim</b></sub><br />💻</td>
+      <td align="center" valign="top" width="19.95%"><img src="https://avatars.githubusercontent.com/u/1745990?v=4?s=100" width="100" alt="Han-Seek Kim"/><br /><sub><b>Han-Seek Kim</b></sub><br />💻</td>
     </tr>
   </tbody>
 </table>
