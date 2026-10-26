@@ -29,6 +29,35 @@
  * III)
  */
 
+static double agn_xray_heating_prefactor(bool hard_band, double zp)
+{
+  const physics_params_t* params = &run_globals.params.physics;
+  bool needed = params->Flag_IncludeAGNXray == 1 || params->Flag_IncludeAGNXray == (hard_band ? 2 : 3);
+  if (!needed)
+    return 0.0;
+
+  double energy_lo = hard_band ? params->NuXraySoftCut : params->NuXrayThreshold;
+  double energy_hi = hard_band ? params->NuXrayMax : params->NuXraySoftCut;
+  double alpha = hard_band ? params->SpecIndexXrayAGNHard : params->SpecIndexXrayAGNSoft;
+  if (!isfinite(energy_lo) || !isfinite(energy_hi) || !isfinite(params->NuXrayThreshold) || !isfinite(alpha) ||
+      energy_lo <= 0.0 || energy_hi <= energy_lo || params->NuXrayThreshold <= 0.0)
+    return NAN;
+
+  // Normalize L_nu proportional to (nu/nu_th)^(-alpha) only for an enabled band.
+  double luminosity_conversion;
+  if (fabs(alpha - 1.0) < REL_TOL) {
+    luminosity_conversion = (params->NuXrayThreshold * NU_over_EV) * log(energy_hi / energy_lo);
+    luminosity_conversion = 1.0 / luminosity_conversion;
+  } else {
+    luminosity_conversion = pow(energy_hi * NU_over_EV, 1.0 - alpha) - pow(energy_lo * NU_over_EV, 1.0 - alpha);
+    luminosity_conversion = 1.0 / luminosity_conversion;
+    luminosity_conversion *= pow(params->NuXrayThreshold * NU_over_EV, -alpha) * (1.0 - alpha);
+  }
+  luminosity_conversion /= PLANCK;
+
+  return luminosity_conversion / (params->NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT * pow(1.0 + zp, alpha + 3.0);
+}
+
 int set_sfr_history()
 {
   double box_size = run_globals.params.BoxSize / run_globals.params.Hubble_h; // Mpc
@@ -117,8 +146,6 @@ void _ComputeTs(int snapshot)
   double upper_int_limit_AGN_soft;
   double upper_int_limit_AGN_hard;
   double nu_tau_one_zpp;
-  double Luminosity_converstion_factor_AGN_soft; /* soft band: nu_thresh -> nu_break   */
-  double Luminosity_converstion_factor_AGN_hard; /* hard band: nu_break  -> nu_hard_cut */
   float bh, bh_soft; /* per-cell BHXrayEmissivity(_soft), read while building SMOOTHED_AGN_hard(_soft) */
 #if USE_MINI_HALOS
   float bh_uv; /* per-cell BHUVEmissivity, read while building SMOOTHED_AGN_UV */
@@ -1066,40 +1093,6 @@ void _ComputeTs(int snapshot)
     Luminosity_converstion_factor_GAL *= 1.0 / PLANCK;
     // Finally, convert to the correct units. NU_over_EV*hplank as only want to divide by eV -> erg (owing to the
     // definition of Luminosity)
-    if (fabs(run_globals.params.physics.SpecIndexXrayAGNSoft - 1.0) < REL_TOL) {
-      Luminosity_converstion_factor_AGN_soft =
-        (run_globals.params.physics.NuXrayThreshold * NU_over_EV) *
-        log(run_globals.params.physics.NuXraySoftCut / run_globals.params.physics.NuXrayThreshold);
-      Luminosity_converstion_factor_AGN_soft = 1.0 / Luminosity_converstion_factor_AGN_soft;
-    } else {
-      Luminosity_converstion_factor_AGN_soft = pow(run_globals.params.physics.NuXraySoftCut * NU_over_EV,
-                                                   1.0 - run_globals.params.physics.SpecIndexXrayAGNSoft) -
-                                               pow(run_globals.params.physics.NuXrayThreshold * NU_over_EV,
-                                                   1.0 - run_globals.params.physics.SpecIndexXrayAGNSoft);
-      Luminosity_converstion_factor_AGN_soft = 1.0 / Luminosity_converstion_factor_AGN_soft;
-      Luminosity_converstion_factor_AGN_soft *=
-        pow(run_globals.params.physics.NuXrayThreshold * NU_over_EV, -run_globals.params.physics.SpecIndexXrayAGNSoft) *
-        (1.0 - run_globals.params.physics.SpecIndexXrayAGNSoft);
-    }
-    Luminosity_converstion_factor_AGN_soft /= (PLANCK);
-
-    if (fabs(run_globals.params.physics.SpecIndexXrayAGNHard - 1.0) < REL_TOL) {
-      Luminosity_converstion_factor_AGN_hard =
-        (run_globals.params.physics.NuXrayThreshold * NU_over_EV) *
-        log(run_globals.params.physics.NuXrayMax / run_globals.params.physics.NuXraySoftCut);
-      Luminosity_converstion_factor_AGN_hard = 1.0 / Luminosity_converstion_factor_AGN_hard;
-    } else {
-      Luminosity_converstion_factor_AGN_hard =
-        pow(run_globals.params.physics.NuXrayMax * NU_over_EV, 1.0 - run_globals.params.physics.SpecIndexXrayAGNHard) -
-        pow(run_globals.params.physics.NuXraySoftCut * NU_over_EV,
-            1.0 - run_globals.params.physics.SpecIndexXrayAGNHard);
-      Luminosity_converstion_factor_AGN_hard = 1.0 / Luminosity_converstion_factor_AGN_hard;
-      Luminosity_converstion_factor_AGN_hard *=
-        pow(run_globals.params.physics.NuXrayThreshold * NU_over_EV, -run_globals.params.physics.SpecIndexXrayAGNHard) *
-        (1.0 - run_globals.params.physics.SpecIndexXrayAGNHard);
-    }
-    Luminosity_converstion_factor_AGN_hard /= (PLANCK);
-
     // Do the same for Pop III.
 
 #if USE_MINI_HALOS
@@ -1134,18 +1127,14 @@ void _ComputeTs(int snapshot)
 #endif
 
     /* A_b(zp) = (C_b / nu_th) * c * (1+zp)^(alpha_b + 3) */
-    const_zp_prefactor_AGN_soft = Luminosity_converstion_factor_AGN_soft /
-                                  (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
-                                  pow(1.0 + zp, run_globals.params.physics.SpecIndexXrayAGNSoft + 3.0);
+    const_zp_prefactor_AGN_soft = agn_xray_heating_prefactor(false, zp);
     if (!isfinite(const_zp_prefactor_AGN_soft)) {
       mlog_error(
         "const_zp_prefactor_AGN_soft is not finite — check NuXrayThreshold/NuXraySoftCut/SpecIndexXrayAGNSoft.");
       ABORT(EXIT_FAILURE);
     }
 
-    const_zp_prefactor_AGN_hard = Luminosity_converstion_factor_AGN_hard /
-                                  (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
-                                  pow(1.0 + zp, run_globals.params.physics.SpecIndexXrayAGNHard + 3.0);
+    const_zp_prefactor_AGN_hard = agn_xray_heating_prefactor(true, zp);
     if (!isfinite(const_zp_prefactor_AGN_hard)) {
       mlog_error("const_zp_prefactor_AGN_hard is not finite — check NuXrayThreshold/NuXrayMax/SpecIndexXrayAGNHard.");
       ABORT(EXIT_FAILURE);
