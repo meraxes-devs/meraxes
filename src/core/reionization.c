@@ -11,6 +11,8 @@
 
 #include "ComputeTs.h"
 #include "XRayHeatingFunctions.h"
+#include "cpu_grids.h"
+#include "cpu_utils.h"
 #include "find_HII_bubbles.h"
 #include "meraxes.h"
 #include "misc_tools.h"
@@ -502,6 +504,7 @@ void call_ComputeTs(int snapshot, int nout_gals, timer_info* timer)
 
 void init_reion_grids()
 {
+  run_globals.reion_grids.heating_history_head = 0;
 
   reion_grids_t* grids = &(run_globals.reion_grids);
   int ReionGridDim = run_globals.params.ReionGridDim;
@@ -693,6 +696,15 @@ void init_reion_grids()
 #endif
       for (int jj = 0; jj < run_globals.NstoreSnapshots_Heating; jj++) {
         grids->sfr_histories[jj * slab_n_complex * 2 + ii] = 0;
+        size_t history_index = (size_t)jj * slab_n_complex * 2 + ii;
+        if (grids->bh_xray_histories_hard)
+          grids->bh_xray_histories_hard[history_index] = 0;
+        if (grids->bh_xray_histories_soft)
+          grids->bh_xray_histories_soft[history_index] = 0;
+#if USE_MINI_HALOS
+        if (grids->bh_uv_histories)
+          grids->bh_uv_histories[history_index] = 0;
+#endif
 #if USE_STOCHASTICITY
         grids->xray_luminosity_histories[jj * slab_n_complex * 2 + ii] = 0;
 #endif
@@ -1379,6 +1391,7 @@ void malloc_reionization_grids()
 void free_reionization_grids()
 {
   mlog("Freeing reionization grids...", MLOG_OPEN);
+  free_filter_window_cache();
 
   reion_grids_t* grids = &(run_globals.reion_grids);
 
@@ -1648,338 +1661,94 @@ int map_galaxies_to_slabs(int ngals)
 }
 
 void assign_Mvir_crit_to_galaxies(int ngals_in_slabs, int flag_feed)
-// flag = 1 Reio feedback, flag = 2 LW feedback, flag = 3 t_resp assignment, flag = 4 tau_cgm computation
 {
-  // N.B. We are assuming here that the galaxy_to_slab mapping has been sorted
-  // by slab index...
-  gal_to_slab_t* galaxy_to_slab_map = run_globals.reion_grids.galaxy_to_slab_map;
-  // float* Mvir_crit = run_globals.reion_grids.Mvir_crit;
-  float* buffer = run_globals.reion_grids.buffer;
-  ptrdiff_t* slab_nix = run_globals.reion_grids.slab_nix;
-  ptrdiff_t* slab_ix_start = run_globals.reion_grids.slab_ix_start;
-  int ReionGridDim = run_globals.params.ReionGridDim;
-  double box_size = run_globals.params.BoxSize;
-  float* Mvir_crit = run_globals.reion_grids.Mvir_crit;
-  float* t_resp_grid = run_globals.reion_grids.t_resp;
-  float* Gamma12_grid = run_globals.reion_grids.Gamma12;
-  float* clumping_factor_grid = run_globals.reion_grids.clumping_factor;
+  reion_grids_t* grids = &run_globals.reion_grids;
+  gal_to_slab_t* map = grids->galaxy_to_slab_map;
   int cgm_mode = run_globals.params.physics.Flag_FescCGMSuppression;
+  const float* source = NULL;
+  switch (flag_feed) {
+    case 1:
+      source = grids->Mvir_crit;
+      break;
 #if USE_MINI_HALOS
-  float* Mvir_crit_MC = run_globals.reion_grids.Mvir_crit_MC;
+    case 2:
+      source = grids->Mvir_crit_MC;
+      break;
 #endif
-  int total_assigned = 0;
-  double gamma12_local;
-
-  if (flag_feed == 1) {
-    // float* Mvir_crit = run_globals.reion_grids.Mvir_crit;
-    mlog("Assigning Mvir_crit to galaxies...", MLOG_OPEN);
-  }
-
-  if (flag_feed == 2) {
-#if USE_MINI_HALOS
-    mlog("Assigning Mvir_crit_MC to galaxies...", MLOG_OPEN);
-#else
-    mlog_error("Cannot assign Mvir_crit_MC to galaxies when not USE_MINI_HALOS...");
-#endif
-  }
-
-  if (flag_feed == 3) {
-    if (t_resp_grid != NULL)
-      mlog("Assigning t_resp to galaxies...", MLOG_OPEN);
-    else {
-      mlog_error("Cannot assign t_resp to galaxies when t_resp grid is not available...");
+    case 3:
+      source = grids->t_resp;
+      break;
+    case 4:
+      if (cgm_mode <= 0)
+        return;
+      source = cgm_mode == 3 ? grids->clumping_factor : grids->Gamma12;
+      break;
+    default:
+      mlog_error("Unknown galaxy feedback grid %d.", flag_feed);
       ABORT(EXIT_FAILURE);
-    }
   }
-
-  if (flag_feed == 4) {
-    if (cgm_mode > 0)
-      mlog("Computing tau_cgm for galaxies (mode %d)...", MLOG_OPEN, cgm_mode);
-    else {
-      mlog("Skipping tau_cgm computation (flag disabled)...", MLOG_MESG);
-      return;
-    }
-  }
-
-  // Work out the index of the galaxy_to_slab_map where each slab begins.
-  // TODO: This needs checked...
-  int slab_map_offsets[run_globals.mpi_size];
-  for (int ii = 0, i_gal = 0; ii < run_globals.mpi_size; ii++) {
-    if (galaxy_to_slab_map != NULL) {
-      while ((i_gal < (ngals_in_slabs - 1)) && (galaxy_to_slab_map[i_gal].slab_ind < ii))
-        i_gal++;
-
-      if (galaxy_to_slab_map[i_gal].slab_ind == ii)
-        slab_map_offsets[ii] = i_gal;
-      else
-        slab_map_offsets[ii] = -1;
-    } else
-      // if this core has no galaxies then the offsets are -1 everywhere
-      slab_map_offsets[ii] = -1;
-  }
-
-  // do a ring exchange of slabs between all cores
-  for (int i_skip = 0; i_skip < run_globals.mpi_size; i_skip++) {
-    int recv_from_rank = (run_globals.mpi_rank + i_skip) % run_globals.mpi_size;
-    int send_to_rank = (run_globals.mpi_rank - i_skip + run_globals.mpi_size) % run_globals.mpi_size;
-
-    bool send_flag = false;
-    bool recv_flag = (slab_map_offsets[recv_from_rank] > -1);
-
-    if (flag_feed == 1) {
-
-      if (i_skip > 0) {
-        MPI_Sendrecv(&recv_flag,
-                     sizeof(bool),
-                     MPI_BYTE,
-                     recv_from_rank,
-                     6393762,
-                     &send_flag,
-                     sizeof(bool),
-                     MPI_BYTE,
-                     send_to_rank,
-                     6393762,
-                     run_globals.mpi_comm,
-                     MPI_STATUS_IGNORE);
-
-        // need to ensure sends and receives do not clash!
-        if (send_to_rank > run_globals.mpi_rank) {
-          if (send_flag) {
-            int n_cells = (int)(slab_nix[run_globals.mpi_rank] * ReionGridDim * ReionGridDim);
-            MPI_Send(Mvir_crit, n_cells, MPI_FLOAT, send_to_rank, 793710, run_globals.mpi_comm);
-          }
-          if (recv_flag) {
-            int n_cells = (int)(slab_nix[recv_from_rank] * ReionGridDim * ReionGridDim);
-            MPI_Recv(buffer, n_cells, MPI_FLOAT, recv_from_rank, 793710, run_globals.mpi_comm, MPI_STATUS_IGNORE);
-          }
-        } else {
-          if (recv_flag) {
-            int n_cells = (int)(slab_nix[recv_from_rank] * ReionGridDim * ReionGridDim);
-            MPI_Recv(buffer, n_cells, MPI_FLOAT, recv_from_rank, 793710, run_globals.mpi_comm, MPI_STATUS_IGNORE);
-          }
-          if (send_flag) {
-            int n_cells = (int)(slab_nix[run_globals.mpi_rank] * ReionGridDim * ReionGridDim);
-            MPI_Send(Mvir_crit, n_cells, MPI_FLOAT, send_to_rank, 793710, run_globals.mpi_comm);
-          }
-        }
-      } else {
-        int n_cells = (int)(slab_nix[recv_from_rank] * ReionGridDim * ReionGridDim);
-        memcpy(buffer, Mvir_crit, sizeof(float) * n_cells);
-      }
-    }
-
+  mlog("Assigning feedback grid %d to galaxies...", MLOG_OPEN, flag_feed);
+  float* values = sample_grid_for_galaxies(source, map, ngals_in_slabs);
+  for (int i = 0; i < ngals_in_slabs; ++i) {
+    galaxy_t* gal = map[i].galaxy;
+    double gamma12_local;
+    if (flag_feed == 1)
+      gal->MvirCrit = (double)values[i];
 #if USE_MINI_HALOS
-    if (flag_feed == 2) {
-
-      if (i_skip > 0) {
-        MPI_Sendrecv(&recv_flag,
-                     sizeof(bool),
-                     MPI_BYTE,
-                     recv_from_rank,
-                     6393763,
-                     &send_flag,
-                     sizeof(bool),
-                     MPI_BYTE,
-                     send_to_rank,
-                     6393763,
-                     run_globals.mpi_comm,
-                     MPI_STATUS_IGNORE);
-
-        if (send_to_rank > run_globals.mpi_rank) {
-          if (send_flag) {
-            int n_cells = (int)(slab_nix[run_globals.mpi_rank] * ReionGridDim * ReionGridDim);
-            MPI_Send(Mvir_crit_MC, n_cells, MPI_FLOAT, send_to_rank, 793713, run_globals.mpi_comm);
-          }
-          if (recv_flag) {
-            int n_cells = (int)(slab_nix[recv_from_rank] * ReionGridDim * ReionGridDim);
-            MPI_Recv(buffer, n_cells, MPI_FLOAT, recv_from_rank, 793713, run_globals.mpi_comm, MPI_STATUS_IGNORE);
-          }
-        } else {
-          if (recv_flag) {
-            int n_cells = (int)(slab_nix[recv_from_rank] * ReionGridDim * ReionGridDim);
-            MPI_Recv(buffer, n_cells, MPI_FLOAT, recv_from_rank, 793713, run_globals.mpi_comm, MPI_STATUS_IGNORE);
-          }
-          if (send_flag) {
-            int n_cells = (int)(slab_nix[run_globals.mpi_rank] * ReionGridDim * ReionGridDim);
-            MPI_Send(Mvir_crit_MC, n_cells, MPI_FLOAT, send_to_rank, 793713, run_globals.mpi_comm);
-          }
-        }
-      } else {
-        int n_cells = (int)(slab_nix[recv_from_rank] * ReionGridDim * ReionGridDim);
-        memcpy(buffer, Mvir_crit_MC, sizeof(float) * n_cells);
-      }
-    }
+    if (flag_feed == 2)
+      gal->MvirCrit_MC = (double)values[i];
 #endif
-
-    if (flag_feed == 3) {
-      if (i_skip > 0) {
-        MPI_Sendrecv(&recv_flag,
-                     sizeof(bool),
-                     MPI_BYTE,
-                     recv_from_rank,
-                     6393764,
-                     &send_flag,
-                     sizeof(bool),
-                     MPI_BYTE,
-                     send_to_rank,
-                     6393764,
-                     run_globals.mpi_comm,
-                     MPI_STATUS_IGNORE);
-
-        if (send_to_rank > run_globals.mpi_rank) {
-          if (send_flag) {
-            int n_cells = (int)(slab_nix[run_globals.mpi_rank] * ReionGridDim * ReionGridDim);
-            MPI_Send(t_resp_grid, n_cells, MPI_FLOAT, send_to_rank, 793711, run_globals.mpi_comm);
-          }
-          if (recv_flag) {
-            int n_cells = (int)(slab_nix[recv_from_rank] * ReionGridDim * ReionGridDim);
-            MPI_Recv(buffer, n_cells, MPI_FLOAT, recv_from_rank, 793711, run_globals.mpi_comm, MPI_STATUS_IGNORE);
-          }
-        } else {
-          if (recv_flag) {
-            int n_cells = (int)(slab_nix[recv_from_rank] * ReionGridDim * ReionGridDim);
-            MPI_Recv(buffer, n_cells, MPI_FLOAT, recv_from_rank, 793711, run_globals.mpi_comm, MPI_STATUS_IGNORE);
-          }
-          if (send_flag) {
-            int n_cells = (int)(slab_nix[run_globals.mpi_rank] * ReionGridDim * ReionGridDim);
-            MPI_Send(t_resp_grid, n_cells, MPI_FLOAT, send_to_rank, 793711, run_globals.mpi_comm);
-          }
-        }
-      } else {
-        int n_cells = (int)(slab_nix[recv_from_rank] * ReionGridDim * ReionGridDim);
-        memcpy(buffer, t_resp_grid, sizeof(float) * n_cells);
-      }
-    }
-
+    if (flag_feed == 3)
+      gal->t_resp = (double)values[i];
+    // Compute tau_cgm based on CGM suppression mode
+    // Mode 1: instantaneous Gamma12, Mode 2: cumulative Gamma12, Mode 3: clumping factor
     if (flag_feed == 4) {
-      // Choose grid based on CGM suppression mode: 1,2 = Gamma12, 3 = clumping_factor
-      float* source_grid = (cgm_mode == 3) ? clumping_factor_grid : Gamma12_grid;
+      physics_params_t* params = &(run_globals.params.physics);
+      if (gal->HotGas > 0.0 && gal->Rvir > 0.0) {
 
-      if (i_skip > 0) {
-        MPI_Sendrecv(&recv_flag,
-                     sizeof(bool),
-                     MPI_BYTE,
-                     recv_from_rank,
-                     6393765,
-                     &send_flag,
-                     sizeof(bool),
-                     MPI_BYTE,
-                     send_to_rank,
-                     6393765,
-                     run_globals.mpi_comm,
-                     MPI_STATUS_IGNORE);
+        double grid_value = (double)values[i];
+        double suppression_factor = 1.0; // Will be raised to FescCGMGamma12Scaling power
 
-        if (send_to_rank > run_globals.mpi_rank) {
-          if (send_flag) {
-            int n_cells = (int)(slab_nix[run_globals.mpi_rank] * ReionGridDim * ReionGridDim);
-            MPI_Send(source_grid, n_cells, MPI_FLOAT, send_to_rank, 793712, run_globals.mpi_comm);
+        switch (cgm_mode) {
+          case 1:
+            // Mode 1: Instantaneous Gamma12
+            // Normalize to 1e-12 s^-1 and scale (reference: Gamma12 = 0.1)
+            gamma12_local = grid_value * run_globals.params.Hubble_h * run_globals.params.Hubble_h;
+            CLAMP_NEGATIVE(gamma12_local);
+            suppression_factor = gamma12_local * 10.0; // Normalized at Gamma12 = 0.1
+            break;
+
+          case 2: {
+            // Mode 2: Gamma12 * dt accumulated over the galaxy's history
+            gamma12_local = grid_value * run_globals.params.Hubble_h * run_globals.params.Hubble_h;
+            CLAMP_NEGATIVE(gamma12_local);
+            double dt_myr = gal->dt * run_globals.units.UnitTime_in_s / SEC_PER_MEGAYEAR;
+            gal->cumulative_ionization += gamma12_local * dt_myr;
+            // Normalize at cumulative value of 1.0 (e.g., Gamma12=0.1 for 10 Myr)
+            suppression_factor = gal->cumulative_ionization;
+            break;
           }
-          if (recv_flag) {
-            int n_cells = (int)(slab_nix[recv_from_rank] * ReionGridDim * ReionGridDim);
-            MPI_Recv(buffer, n_cells, MPI_FLOAT, recv_from_rank, 793712, run_globals.mpi_comm, MPI_STATUS_IGNORE);
-          }
-        } else {
-          if (recv_flag) {
-            int n_cells = (int)(slab_nix[recv_from_rank] * ReionGridDim * ReionGridDim);
-            MPI_Recv(buffer, n_cells, MPI_FLOAT, recv_from_rank, 793712, run_globals.mpi_comm, MPI_STATUS_IGNORE);
-          }
-          if (send_flag) {
-            int n_cells = (int)(slab_nix[run_globals.mpi_rank] * ReionGridDim * ReionGridDim);
-            MPI_Send(source_grid, n_cells, MPI_FLOAT, send_to_rank, 793712, run_globals.mpi_comm);
-          }
-        }
-      } else {
-        int n_cells = (int)(slab_nix[recv_from_rank] * ReionGridDim * ReionGridDim);
-        memcpy(buffer, source_grid, sizeof(float) * n_cells);
-      }
-    }
 
-    // if this core has received a slab of Mvir_crit then assign values to the
-    // galaxies which belong to this slab
-    if (recv_flag) {
-      int i_gal = slab_map_offsets[recv_from_rank];
-      int ix_start = (int)slab_ix_start[recv_from_rank];
-      while ((i_gal < ngals_in_slabs) && (galaxy_to_slab_map[i_gal].slab_ind == recv_from_rank)) {
-        // TODO: We should use the position of the FOF group here...
-        galaxy_t* gal = galaxy_to_slab_map[i_gal].galaxy;
-        int ix = pos_to_ngp(gal->Pos[0], box_size, ReionGridDim) - ix_start;
-        int iy = pos_to_ngp(gal->Pos[1], box_size, ReionGridDim);
-        int iz = pos_to_ngp(gal->Pos[2], box_size, ReionGridDim);
+          case 3:
+            // Mode 3: Local clumping factor
+            CLAMP_NEGATIVE(grid_value);
+            suppression_factor = grid_value;
+            break;
 
-        assert(ix >= 0);
-        assert(ix < slab_nix[recv_from_rank]);
-
-        // Record the Mvir_crit (filtering mass) value
-        if (flag_feed == 1)
-          gal->MvirCrit = (double)buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-
-#if USE_MINI_HALOS
-        if (flag_feed == 2)
-          gal->MvirCrit_MC = (double)buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-#endif
-
-        if (flag_feed == 3)
-          gal->t_resp = (double)buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-
-        // Compute tau_cgm based on CGM suppression mode
-        // Mode 1: instantaneous Gamma12, Mode 2: cumulative Gamma12, Mode 3: clumping factor
-        if (flag_feed == 4) {
-          physics_params_t* params = &(run_globals.params.physics);
-          if (gal->HotGas > 0.0 && gal->Rvir > 0.0) {
-
-            double grid_value = (double)buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-            double suppression_factor = 1.0; // Will be raised to FescCGMGamma12Scaling power
-
-            switch (cgm_mode) {
-              case 1:
-                // Mode 1: Instantaneous Gamma12
-                // Normalize to 1e-12 s^-1 and scale (reference: Gamma12 = 0.1)
-                gamma12_local = grid_value * run_globals.params.Hubble_h * run_globals.params.Hubble_h;
-                CLAMP_NEGATIVE(gamma12_local);
-                suppression_factor = gamma12_local * 10.0; // Normalized at Gamma12 = 0.1
-                break;
-
-              case 2: {
-                // Mode 2: Gamma12 * dt accumulated over the galaxy's history
-                gamma12_local = grid_value * run_globals.params.Hubble_h * run_globals.params.Hubble_h;
-                CLAMP_NEGATIVE(gamma12_local);
-                double dt_myr = gal->dt * run_globals.units.UnitTime_in_s / SEC_PER_MEGAYEAR;
-                gal->cumulative_ionization += gamma12_local * dt_myr;
-                // Normalize at cumulative value of 1.0 (e.g., Gamma12=0.1 for 10 Myr)
-                suppression_factor = gal->cumulative_ionization;
-                break;
-              }
-
-              case 3:
-                // Mode 3: Local clumping factor
-                CLAMP_NEGATIVE(grid_value);
-                suppression_factor = grid_value;
-                break;
-
-              default:
-                suppression_factor = 1.0;
-            }
-
-            // Calculate optical depth from hot gas column density (HotGas/Rvir^2)
-            // Normalized at 1e8 Msun / (10 kpc)^2 for gas, and suppression_factor = 1
-            gal->tau_cgm =
-              params->FescCGMSuppressionNorm *
-              pow(gal->HotGas * 1.0e2 / run_globals.params.Hubble_h, params->FescCGMSuppressionScaling) *
-              pow(0.01 * run_globals.params.Hubble_h / gal->Rvir, 2.0 * params->FescCGMSuppressionScaling) *
-              pow(suppression_factor, params->FescCGMGamma12Scaling);
-          }
+          default:
+            suppression_factor = 1.0;
         }
 
-        // increment counters
-        i_gal++;
-        total_assigned++;
+        // Calculate optical depth from hot gas column density (HotGas/Rvir^2)
+        // Normalized at 1e8 Msun / (10 kpc)^2 for gas, and suppression_factor = 1
+        gal->tau_cgm = params->FescCGMSuppressionNorm *
+                       pow(gal->HotGas * 1.0e2 / run_globals.params.Hubble_h, params->FescCGMSuppressionScaling) *
+                       pow(0.01 * run_globals.params.Hubble_h / gal->Rvir, 2.0 * params->FescCGMSuppressionScaling) *
+                       pow(suppression_factor, params->FescCGMGamma12Scaling);
       }
     }
   }
-
-  if (total_assigned != ngals_in_slabs)
-    ABORT(EXIT_FAILURE);
-
+  free(values);
   mlog("...done.", MLOG_CLOSE);
 }
 
@@ -1998,9 +1767,19 @@ static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, doub
 }
 #endif
 
+static void cache_source_spectrum(float* history, fftwf_complex* spectrum, fftwf_plan plan)
+{
+  size_t count = (size_t)run_globals.reion_grids.slab_n_complex[run_globals.mpi_rank];
+  float dim = run_globals.params.ReionGridDim;
+  float n_cells = (float)((double)dim * dim * dim);
+  fftwf_execute(plan);
+  for (size_t i = 0; i < count; ++i)
+    spectrum[i] /= n_cells;
+  memcpy(history, spectrum, count * sizeof(fftwf_complex));
+}
+
 void construct_baryon_grids(int snapshot, int local_ngals)
 {
-  double box_size = run_globals.params.BoxSize;
   float* stellar_grid = run_globals.reion_grids.stars;
   float* effective_bhm_grid = run_globals.reion_grids.effective_bhm;
   float* effective_bhar_grid = run_globals.reion_grids.effective_bhar;
@@ -2037,8 +1816,8 @@ void construct_baryon_grids(int snapshot, int local_ngals)
 #endif
 
   gal_to_slab_t* galaxy_to_slab_map = run_globals.reion_grids.galaxy_to_slab_map;
-  ptrdiff_t* slab_ix_start = run_globals.reion_grids.slab_ix_start;
-  int local_n_complex = (int)(run_globals.reion_grids.slab_n_complex[run_globals.mpi_rank]);
+  size_t local_n_complex = (size_t)run_globals.reion_grids.slab_n_complex[run_globals.mpi_rank];
+  size_t stride = local_n_complex * 2;
 
 #if USE_STOCHASTICITY
   if (run_globals.params.physics.Flag_RemoveSFRScatter == 1) {
@@ -2063,68 +1842,6 @@ void construct_baryon_grids(int snapshot, int local_ngals)
 
   mlog("Constructing stellar mass and sfr grids...", MLOG_OPEN | MLOG_TIMERSTART);
 
-  // init the grid
-  for (int ii = 0; ii < local_n_complex * 2; ii++) {
-    stellar_grid[ii] = 0.0;
-    weighted_sfr_grid[ii] = 0.0;
-#if USE_MINI_HALOS
-    stellarIII_grid[ii] = 0.0;
-    weighted_sfrIII_grid[ii] = 0.0;
-#endif
-  }
-
-  bool agn_hard_needed =
-    (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 2);
-  bool agn_soft_needed =
-    (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 3);
-
-  if (run_globals.params.Flag_IncludeSpinTemp) { // For this duplicate the background
-    for (int ii = 0; ii < local_n_complex * 2; ii++) {
-      sfr_grid[ii] = 0.0;
-      for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
-        sfr_histories_grid[(snap + 1) * local_n_complex * 2 + ii] = sfr_histories_grid[snap * local_n_complex * 2 + ii];
-#if USE_STOCHASTICITY
-      xray_luminosity_grid[ii] = 0.0;
-      for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
-        xray_luminosity_histories_grid[(snap + 1) * local_n_complex * 2 + ii] =
-          xray_luminosity_histories_grid[snap * local_n_complex * 2 + ii];
-#endif
-#if USE_MINI_HALOS
-      sfrIII_grid[ii] = 0.0;
-      for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
-        sfrIII_histories_grid[(snap + 1) * local_n_complex * 2 + ii] =
-          sfrIII_histories_grid[snap * local_n_complex * 2 + ii];
-#endif
-      if (agn_hard_needed) {
-        bh_xray_grid_hard[ii] = 0.0f;
-        for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
-          bh_xray_hist_grid_hard[(snap + 1) * local_n_complex * 2 + ii] =
-            bh_xray_hist_grid_hard[snap * local_n_complex * 2 + ii];
-      }
-      if (agn_soft_needed) {
-        bh_xray_grid_soft[ii] = 0.0f;
-        for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
-          bh_xray_hist_grid_soft[(snap + 1) * local_n_complex * 2 + ii] =
-            bh_xray_hist_grid_soft[snap * local_n_complex * 2 + ii];
-      }
-#if USE_MINI_HALOS
-      if (run_globals.params.Flag_IncludeLymanWerner) {
-        bh_uv_grid[ii] = 0.0f;
-        for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
-          bh_uv_hist_grid[(snap + 1) * local_n_complex * 2 + ii] = bh_uv_hist_grid[snap * local_n_complex * 2 + ii];
-      }
-#endif
-    }
-  }
-
-  // loop through each slab
-  //
-  // N.B. We are assuming here that the galaxy_to_slab mapping has been sorted
-  // by slab index...
-  ptrdiff_t* slab_nix = run_globals.reion_grids.slab_nix;
-  ptrdiff_t buffer_size = run_globals.reion_grids.buffer_size;
-  float* buffer = run_globals.reion_grids.buffer;
-
   enum property
   {
     prop_stellar,
@@ -2143,434 +1860,328 @@ void construct_baryon_grids(int snapshot, int local_ngals)
     prop_bh_xray_emissivity_hard,
     prop_bh_xray_emissivity_soft,
 #if USE_MINI_HALOS
-    prop_bh_uv_emissivity
+    prop_bh_uv_emissivity,
 #endif
+    prop_count
   };
-#if USE_MINI_HALOS
-  for (int prop = prop_stellar; prop <= prop_bh_uv_emissivity; prop++) {
-#else
-  for (int prop = prop_stellar; prop <= prop_bh_xray_emissivity_soft; prop++) {
-#endif
 
-    // no need for sfr or sfrIII grid is not using SpinTemp
-#if USE_MINI_HALOS
-    if ((!run_globals.params.Flag_IncludeSpinTemp) && (prop == prop_sfrIII))
-      continue;
-#endif
-
-    if ((!run_globals.params.Flag_IncludeSpinTemp) && (prop == prop_sfr))
-      continue;
-
-#if USE_STOCHASTICITY
-    if ((!run_globals.params.Flag_IncludeSpinTemp) && (prop == prop_xray_luminosity))
-      continue;
-#endif
-
-    if (prop == prop_bh_xray_emissivity_hard && (!run_globals.params.Flag_IncludeSpinTemp || !agn_hard_needed))
-      continue;
-    if (prop == prop_bh_xray_emissivity_soft && (!run_globals.params.Flag_IncludeSpinTemp || !agn_soft_needed))
-      continue;
-
-#if USE_MINI_HALOS
-    // AGN UV: independent of Flag_IncludeAGNXray, gated on Flag_IncludeLymanWerner instead.
-    if (prop == prop_bh_uv_emissivity &&
-        (!run_globals.params.Flag_IncludeSpinTemp || !run_globals.params.Flag_IncludeLymanWerner))
-      continue;
-#endif
-
-    // no need to bh grids if not using BHFeedback
-    if ((!run_globals.params.physics.Flag_BHFeedback) &&
-        ((prop == prop_effective_bhm) || (prop == prop_effective_bhar)))
-      continue;
-
-    int i_gal = 0;
-    int skipped_gals = 0;
-    long N_BlackHoleMassLimitReion = 0;
-    double stochasticity_calibration_factor = 1.0;
-#if USE_STOCHASTICITY
-    double local_xray_raw = 0.0;
-    double local_xray_target = 0.0;
-    double local_sfr_raw = 0.0;
-    double local_sfr_target = 0.0;
-#endif
-
-    for (int i_r = 0; i_r < run_globals.mpi_size; i_r++) {
-      // init the buffer
-      for (int ii = 0; ii < buffer_size; ii++)
-        buffer[ii] = (float)0.;
-
-      // if this core holds no galaxies then we don't need to fill the buffer
-      if (local_ngals != 0)
-        // fill the local buffer for this slab
-        while (((i_gal - skipped_gals) < local_ngals) && (galaxy_to_slab_map[i_gal].slab_ind == i_r)) {
-          galaxy_t* gal = galaxy_to_slab_map[i_gal].galaxy;
-
-          // Dead galaxies should not be included here and are not in the
-          // local_ngals count.  They will, however, have been assigned to a
-          // slab so we will need to ignore them here...
-          if (gal->Type > 2) {
-            i_gal++;
-            skipped_gals++;
-            continue;
-          }
-
-          assert(galaxy_to_slab_map[i_gal].index >= 0);
-          assert((galaxy_to_slab_map[i_gal].slab_ind >= 0) &&
-                 (galaxy_to_slab_map[i_gal].slab_ind < run_globals.mpi_size));
-
-          int ix = (int)(pos_to_ngp(gal->Pos[0], box_size, ReionGridDim) - slab_ix_start[i_r]);
-          int iy = pos_to_ngp(gal->Pos[1], box_size, ReionGridDim);
-          int iz = pos_to_ngp(gal->Pos[2], box_size, ReionGridDim);
-
-          assert((ix < slab_nix[i_r]) && (ix >= 0));
-          assert((iy < ReionGridDim) && (iy >= 0));
-          assert((iz < ReionGridDim) && (iz >= 0));
-
-          int ind = grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL);
-
-          assert((ind >= 0) && (ind < slab_nix[i_r] * ReionGridDim * ReionGridDim));
-          stochasticity_calibration_factor = 1.0;
-
-          switch (prop) {
-            case prop_stellar:
-#if USE_STOCHASTICITY
-              if (run_globals.params.physics.EscapeFracScatterDex > ABS_TOL ||
-                  run_globals.params.physics.Flag_RemoveSFRScatter == 1) {
-                if (run_globals.params.physics.Flag_SourceRecalibration)
-                  stochasticity_calibration_factor = extract_recalibration_factors(gal, 2, true);
-                buffer[ind] += gal->StochasticityTreatedFescWeightedGSM * stochasticity_calibration_factor;
-              } else
-                buffer[ind] += gal->FescWeightedGSM;
-#else
-              buffer[ind] += gal->FescWeightedGSM;
-#endif
-              break;
-
-            case prop_effective_bhm:
-              if (gal->BlackHoleMass >= run_globals.params.physics.BlackHoleMassLimitReion) {
-                buffer[ind] += gal->EffectiveBHM;
-              } else {
-                N_BlackHoleMassLimitReion++;
-              }
-              break;
-
-#if USE_MINI_HALOS
-            case prop_stellarIII:
-#if USE_STOCHASTICITY
-              if (run_globals.params.physics.EscapeFracScatterDex > ABS_TOL ||
-                  run_globals.params.physics.Flag_RemoveSFRScatter == 1) {
-                if (run_globals.params.physics.Flag_SourceRecalibration)
-                  stochasticity_calibration_factor = extract_recalibration_factors(gal, 3, true);
-                buffer[ind] += gal->StochasticityTreatedFescIIIWeightedGSM * stochasticity_calibration_factor;
-              } else
-                buffer[ind] += gal->FescIIIWeightedGSM;
-#else
-              buffer[ind] += gal->FescIIIWeightedGSM;
-#endif
-              break;
-
-            case prop_weighted_sfrIII:
-#if USE_STOCHASTICITY
-              if (run_globals.params.physics.EscapeFracScatterDex > ABS_TOL ||
-                  run_globals.params.physics.Flag_RemoveSFRScatter == 1) {
-                if (run_globals.params.physics.Flag_SourceRecalibration)
-                  stochasticity_calibration_factor = extract_recalibration_factors(gal, 3, false);
-                buffer[ind] += gal->StochasticityTreatedFescIIIWeightedSfr * stochasticity_calibration_factor;
-              } else
-                buffer[ind] += gal->FescIIIWeightedSfr;
-#else
-              buffer[ind] += gal->FescIIIWeightedSfr;
-#endif
-              break;
-
-            case prop_sfrIII:
-#if USE_STOCHASTICITY
-              buffer[ind] +=
-                run_globals.params.Flag_InstantaneousSFR
-                  ? (run_globals.params.physics.Flag_RemoveSFRScatter == 1 ? gal->SfrIIINoScatter : gal->SfrIII)
-                  : (run_globals.params.physics.Flag_RemoveSFRScatter == 1 ? gal->GrossStellarMassIIINoScatter
-                                                                           : gal->GrossStellarMassIII);
-#else
-              buffer[ind] += run_globals.params.Flag_InstantaneousSFR ? gal->SfrIII : gal->GrossStellarMassIII;
-#endif
-              break;
-#endif
-
-            case prop_weighted_sfr:
-#if USE_STOCHASTICITY
-              if (run_globals.params.physics.EscapeFracScatterDex > ABS_TOL ||
-                  run_globals.params.physics.Flag_RemoveSFRScatter == 1) {
-                if (run_globals.params.physics.Flag_SourceRecalibration)
-                  stochasticity_calibration_factor = extract_recalibration_factors(gal, 2, false);
-                buffer[ind] += gal->StochasticityTreatedFescWeightedSfr * stochasticity_calibration_factor;
-              } else
-                buffer[ind] += gal->FescWeightedSfr;
-#else
-              buffer[ind] += gal->FescWeightedSfr;
-#endif
-              break;
-
-            case prop_effective_bhar:
-              if (gal->BlackHoleMass >= run_globals.params.physics.BlackHoleMassLimitReion) {
-                buffer[ind] += gal->EffectiveBHAR;
-              }
-              break;
-
-#if USE_STOCHASTICITY
-            case prop_xray_luminosity: {
-              double xray_target = calculate_galaxy_xray_luminosity(gal, sfr_timescale);
-              double xray_raw = xray_target;
-
-              if (run_globals.params.physics.Flag_RemoveSFRScatter == 1) {
-                galaxy_t source_view = *gal;
-                source_view.GrossStellarMass = source_view.GrossStellarMassNoScatter;
-                source_view.Sfr = source_view.SfrNoScatter;
-
-                xray_raw = calculate_galaxy_xray_luminosity(&source_view, sfr_timescale);
-              }
-
-              if (run_globals.params.physics.XrayScatterDex > 0.0)
-                xray_raw = apply_lognormal_scatter(xray_raw, run_globals.params.physics.XrayScatterDex);
-
-              if (recalibrate_xray_sources) {
-                local_xray_raw += xray_raw;
-                local_xray_target += xray_target;
-              }
-
-              buffer[ind] += (float)xray_raw;
-              break;
-            }
-#endif
-
-            case prop_sfr: {
-#if USE_STOCHASTICITY
-              double sfr_target = run_globals.params.Flag_InstantaneousSFR ? gal->Sfr : gal->GrossStellarMass;
-              double sfr_raw = sfr_target;
-
-              if (run_globals.params.physics.Flag_RemoveSFRScatter == 1)
-                sfr_raw = run_globals.params.Flag_InstantaneousSFR ? gal->SfrNoScatter : gal->GrossStellarMassNoScatter;
-
-              if (recalibrate_sfr_sources) {
-                local_sfr_raw += sfr_raw;
-                local_sfr_target += sfr_target;
-              }
-
-              buffer[ind] += sfr_raw;
-#else
-              buffer[ind] += run_globals.params.Flag_InstantaneousSFR ? gal->Sfr : gal->GrossStellarMass;
-#endif
-              break;
-            }
-
-            /*
-             *   We accumulate each per cell exactly as gal->Sfr is accumulated for prop_sfr. The MPI Reduce below sums
-             *   contributions from all galaxies on all ranks.
-             *   The BlackHoleMassLimitReion guard is applied consistency with prop_effective_bhar.
-             */
-            case prop_bh_xray_emissivity_hard:
-              if (gal->BlackHoleMass >= run_globals.params.physics.BlackHoleMassLimitReion)
-                buffer[ind] += gal->BHXrayEmissivity_hard;
-              break;
-
-            case prop_bh_xray_emissivity_soft:
-              if (gal->BlackHoleMass >= run_globals.params.physics.BlackHoleMassLimitReion)
-                buffer[ind] += gal->BHXrayEmissivity_soft;
-              break;
-
-#if USE_MINI_HALOS
-            case prop_bh_uv_emissivity:
-              if (gal->BlackHoleMass >= run_globals.params.physics.BlackHoleMassLimitReion)
-                buffer[ind] += gal->QuasarLuv;
-              break;
-#endif
-
-            default:
-              mlog_error("Unrecognised property in slab creation.");
-              ABORT(EXIT_FAILURE);
-              break;
-          }
-
-          i_gal++;
-        }
-
-      // reduce on to the correct rank
-      if (run_globals.mpi_rank == i_r)
-        MPI_Reduce(MPI_IN_PLACE, buffer, (int)buffer_size, MPI_FLOAT, MPI_SUM, i_r, run_globals.mpi_comm);
-      else
-        MPI_Reduce(buffer, buffer, (int)buffer_size, MPI_FLOAT, MPI_SUM, i_r, run_globals.mpi_comm);
-
-      if (run_globals.mpi_rank == i_r)
-
-        // Do one final pass and divide the sfr_grid by the sfr timescale
-        // in order to convert the stellar masses recorded into SFRs before
-        // finally copying the values into the appropriate slab.
-        switch (prop) {
-          case prop_weighted_sfr:
-            for (int ix = 0; ix < slab_nix[i_r]; ix++)
-              for (int iy = 0; iy < ReionGridDim; iy++)
-                for (int iz = 0; iz < ReionGridDim; iz++) {
-                  double val = (double)buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-                  CLAMP_NEGATIVE(val);
-                  weighted_sfr_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = (float)val;
-                }
-            break;
-#if USE_MINI_HALOS
-          case prop_weighted_sfrIII:
-            for (int ix = 0; ix < slab_nix[i_r]; ix++)
-              for (int iy = 0; iy < ReionGridDim; iy++)
-                for (int iz = 0; iz < ReionGridDim; iz++) {
-                  double val = (double)buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-                  CLAMP_NEGATIVE(val);
-                  weighted_sfrIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = (float)val;
-                }
-            break;
-
-          case prop_sfrIII:
-            for (int ix = 0; ix < slab_nix[i_r]; ix++)
-              for (int iy = 0; iy < ReionGridDim; iy++)
-                for (int iz = 0; iz < ReionGridDim; iz++) {
-                  double val = (double)buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-                  CLAMP_NEGATIVE(val);
-                  if (!run_globals.params.Flag_InstantaneousSFR)
-                    val /= sfr_timescale;
-                  sfrIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = (float)val;
-                  sfrIII_histories_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = (float)val;
-                }
-            break;
-
-          case prop_stellarIII:
-            for (int ix = 0; ix < slab_nix[i_r]; ix++)
-              for (int iy = 0; iy < ReionGridDim; iy++)
-                for (int iz = 0; iz < ReionGridDim; iz++) {
-                  float val = buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-                  CLAMP_NEGATIVE(val);
-                  stellarIII_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = val;
-                }
-            break;
-#endif
-          case prop_sfr:
-            for (int ix = 0; ix < slab_nix[i_r]; ix++)
-              for (int iy = 0; iy < ReionGridDim; iy++)
-                for (int iz = 0; iz < ReionGridDim; iz++) {
-                  double val = (double)buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-                  CLAMP_NEGATIVE(val);
-                  if (!run_globals.params.Flag_InstantaneousSFR)
-                    val /= sfr_timescale;
-                  sfr_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = (float)val;
-                  sfr_histories_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = (float)val;
-                }
-            break;
-
-#if USE_STOCHASTICITY
-          case prop_xray_luminosity:
-            for (int ix = 0; ix < slab_nix[i_r]; ix++)
-              for (int iy = 0; iy < ReionGridDim; iy++)
-                for (int iz = 0; iz < ReionGridDim; iz++) {
-                  float val = buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-                  xray_luminosity_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = val;
-                  xray_luminosity_histories_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = val;
-                }
-            break;
-#endif
-
-          case prop_bh_xray_emissivity_hard:
-            for (int ix = 0; ix < slab_nix[i_r]; ix++)
-              for (int iy = 0; iy < ReionGridDim; iy++)
-                for (int iz = 0; iz < ReionGridDim; iz++) {
-                  float val = buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-                  CLAMP_NEGATIVE(val);
-                  bh_xray_grid_hard[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = val;
-                  bh_xray_hist_grid_hard[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = val;
-                }
-            break;
-
-          case prop_bh_xray_emissivity_soft:
-            for (int ix = 0; ix < slab_nix[i_r]; ix++)
-              for (int iy = 0; iy < ReionGridDim; iy++)
-                for (int iz = 0; iz < ReionGridDim; iz++) {
-                  float val = buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-                  CLAMP_NEGATIVE(val);
-                  bh_xray_grid_soft[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = val;
-                  bh_xray_hist_grid_soft[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = val;
-                }
-            break;
-
-#if USE_MINI_HALOS
-          case prop_bh_uv_emissivity:
-            for (int ix = 0; ix < slab_nix[i_r]; ix++)
-              for (int iy = 0; iy < ReionGridDim; iy++)
-                for (int iz = 0; iz < ReionGridDim; iz++) {
-                  float val = buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-                  CLAMP_NEGATIVE(val);
-                  bh_uv_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = val;
-                  bh_uv_hist_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = val;
-                }
-            break;
-#endif
-
-          case prop_stellar:
-            for (int ix = 0; ix < slab_nix[i_r]; ix++)
-              for (int iy = 0; iy < ReionGridDim; iy++)
-                for (int iz = 0; iz < ReionGridDim; iz++) {
-                  float val = buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-                  CLAMP_NEGATIVE(val);
-                  stellar_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = val;
-                }
-            break;
-
-          case prop_effective_bhm:
-            for (int ix = 0; ix < slab_nix[i_r]; ix++)
-              for (int iy = 0; iy < ReionGridDim; iy++)
-                for (int iz = 0; iz < ReionGridDim; iz++) {
-                  float val = buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-                  CLAMP_NEGATIVE(val);
-                  effective_bhm_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = val;
-                }
-            break;
-
-          case prop_effective_bhar:
-            for (int ix = 0; ix < slab_nix[i_r]; ix++)
-              for (int iy = 0; iy < ReionGridDim; iy++)
-                for (int iz = 0; iz < ReionGridDim; iz++) {
-                  float val = buffer[grid_index(ix, iy, iz, ReionGridDim, INDEX_REAL)];
-                  CLAMP_NEGATIVE(val);
-                  effective_bhar_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = val;
-                }
-            break;
-          default:
-            mlog_error("Eh!?!");
-            ABORT(EXIT_FAILURE);
-        }
-    }
-#if USE_STOCHASTICITY
-    if (prop == prop_xray_luminosity && recalibrate_xray_sources) {
-      double xray_recalibration_factor = compute_xray_recalibration_factor(local_xray_raw, local_xray_target);
-
-      for (int ii = 0; ii < local_n_complex * 2; ii++) {
-        xray_luminosity_grid[ii] *= (float)xray_recalibration_factor;
-        xray_luminosity_histories_grid[ii] *= (float)xray_recalibration_factor;
-      }
-    }
-
-    if (prop == prop_sfr && recalibrate_sfr_sources) {
-      double sfr_recalibration_factor = compute_xray_recalibration_factor(local_sfr_raw, local_sfr_target);
-
-      // Match the mean stellar Ly-alpha source; older history slots retain
-      // the calibration applied when those snapshots were constructed.
-      for (int ii = 0; ii < local_n_complex * 2; ii++) {
-        sfr_grid[ii] = (float)(sfr_grid[ii] * sfr_recalibration_factor);
-        sfr_histories_grid[ii] = (float)(sfr_histories_grid[ii] * sfr_recalibration_factor);
-      }
-    }
-#endif
-    MPI_Allreduce(MPI_IN_PLACE, &N_BlackHoleMassLimitReion, 1, MPI_LONG, MPI_SUM, run_globals.mpi_comm);
-    if (prop == prop_stellar)
-      mlog("%d quasars are smaller than %g",
-           MLOG_MESG,
-           N_BlackHoleMassLimitReion,
-           run_globals.params.physics.BlackHoleMassLimitReion);
+  bool agn_hard_needed =
+    run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 2;
+  bool agn_soft_needed =
+    run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 3;
+  float* destination[prop_count];
+  int properties[prop_count], n_properties = 0;
+#define ADD_SOURCE(prop, grid)                                                                                         \
+  do {                                                                                                                 \
+    properties[n_properties] = prop;                                                                                   \
+    destination[n_properties++] = grid;                                                                                \
+  } while (0)
+  ADD_SOURCE(prop_stellar, stellar_grid);
+  if (run_globals.params.physics.Flag_BHFeedback) {
+    ADD_SOURCE(prop_effective_bhm, effective_bhm_grid);
+    ADD_SOURCE(prop_effective_bhar, effective_bhar_grid);
   }
+  ADD_SOURCE(prop_weighted_sfr, weighted_sfr_grid);
+#if USE_MINI_HALOS
+  ADD_SOURCE(prop_stellarIII, stellarIII_grid);
+  ADD_SOURCE(prop_weighted_sfrIII, weighted_sfrIII_grid);
+  if (run_globals.params.Flag_IncludeSpinTemp) {
+    ADD_SOURCE(prop_sfrIII, sfrIII_grid);
+  }
+#endif
+  if (run_globals.params.Flag_IncludeSpinTemp) {
+#if USE_STOCHASTICITY
+    ADD_SOURCE(prop_xray_luminosity, xray_luminosity_grid);
+#endif
+    ADD_SOURCE(prop_sfr, sfr_grid);
+    if (agn_hard_needed) {
+      ADD_SOURCE(prop_bh_xray_emissivity_hard, bh_xray_grid_hard);
+    }
+    if (agn_soft_needed) {
+      ADD_SOURCE(prop_bh_xray_emissivity_soft, bh_xray_grid_soft);
+    }
+#if USE_MINI_HALOS
+    if (run_globals.params.Flag_IncludeLymanWerner) {
+      ADD_SOURCE(prop_bh_uv_emissivity, bh_uv_grid);
+    }
+#endif
+  }
+#undef ADD_SOURCE
 
+  // The map was built before evolution; dead galaxies remain in it but not in local_ngals.
+  gal_to_slab_t* active_map = cpu_checked_alloc(local_ngals, sizeof(*active_map));
+  for (int i = 0, live = 0; live < local_ngals; ++i)
+    if (galaxy_to_slab_map[i].galaxy->Type <= 2)
+      active_map[live++] = galaxy_to_slab_map[i];
+  cell_layout_t layout = cells_for_galaxies(active_map, local_ngals);
+  // Each occupied cell carries all active source fields; align successive cell IDs.
+  size_t record_size = (sizeof(uint64_t) + n_properties * sizeof(float) + 7) & ~(size_t)7;
+  char* packets = cpu_checked_alloc(layout.count, record_size);
+  for (size_t i = 0; i < layout.count; ++i)
+    memcpy(packets + i * record_size, &layout.cell[i], sizeof(uint64_t));
+  long N_BlackHoleMassLimitReion = 0;
+#if USE_STOCHASTICITY
+  double local_xray_raw = 0.0, local_xray_target = 0.0;
+  double local_sfr_raw = 0.0, local_sfr_target = 0.0;
+#endif
+  for (int field = 0; field < n_properties; ++field) {
+    int prop = properties[field];
+    for (int i = 0; i < local_ngals; ++i) {
+      galaxy_t* gal = active_map[i].galaxy;
+      float* buffer = (float*)(packets + layout.slot[i] * record_size + sizeof(uint64_t)) + field;
+      const int ind = 0;
+      double stochasticity_calibration_factor = 1.0;
+      switch (prop) {
+        case prop_stellar:
+#if USE_STOCHASTICITY
+          if (run_globals.params.physics.EscapeFracScatterDex > ABS_TOL ||
+              run_globals.params.physics.Flag_RemoveSFRScatter == 1) {
+            if (run_globals.params.physics.Flag_SourceRecalibration)
+              stochasticity_calibration_factor = extract_recalibration_factors(gal, 2, true);
+            buffer[ind] += gal->StochasticityTreatedFescWeightedGSM * stochasticity_calibration_factor;
+          } else
+            buffer[ind] += gal->FescWeightedGSM;
+#else
+          buffer[ind] += gal->FescWeightedGSM;
+#endif
+          break;
+
+        case prop_effective_bhm:
+          if (gal->BlackHoleMass >= run_globals.params.physics.BlackHoleMassLimitReion) {
+            buffer[ind] += gal->EffectiveBHM;
+          } else {
+            N_BlackHoleMassLimitReion++;
+          }
+          break;
+
+#if USE_MINI_HALOS
+        case prop_stellarIII:
+#if USE_STOCHASTICITY
+          if (run_globals.params.physics.EscapeFracScatterDex > ABS_TOL ||
+              run_globals.params.physics.Flag_RemoveSFRScatter == 1) {
+            if (run_globals.params.physics.Flag_SourceRecalibration)
+              stochasticity_calibration_factor = extract_recalibration_factors(gal, 3, true);
+            buffer[ind] += gal->StochasticityTreatedFescIIIWeightedGSM * stochasticity_calibration_factor;
+          } else
+            buffer[ind] += gal->FescIIIWeightedGSM;
+#else
+          buffer[ind] += gal->FescIIIWeightedGSM;
+#endif
+          break;
+
+        case prop_weighted_sfrIII:
+#if USE_STOCHASTICITY
+          if (run_globals.params.physics.EscapeFracScatterDex > ABS_TOL ||
+              run_globals.params.physics.Flag_RemoveSFRScatter == 1) {
+            if (run_globals.params.physics.Flag_SourceRecalibration)
+              stochasticity_calibration_factor = extract_recalibration_factors(gal, 3, false);
+            buffer[ind] += gal->StochasticityTreatedFescIIIWeightedSfr * stochasticity_calibration_factor;
+          } else
+            buffer[ind] += gal->FescIIIWeightedSfr;
+#else
+          buffer[ind] += gal->FescIIIWeightedSfr;
+#endif
+          break;
+
+        case prop_sfrIII:
+#if USE_STOCHASTICITY
+          buffer[ind] +=
+            run_globals.params.Flag_InstantaneousSFR
+              ? (run_globals.params.physics.Flag_RemoveSFRScatter == 1 ? gal->SfrIIINoScatter : gal->SfrIII)
+              : (run_globals.params.physics.Flag_RemoveSFRScatter == 1 ? gal->GrossStellarMassIIINoScatter
+                                                                       : gal->GrossStellarMassIII);
+#else
+          buffer[ind] += run_globals.params.Flag_InstantaneousSFR ? gal->SfrIII : gal->GrossStellarMassIII;
+#endif
+          break;
+#endif
+
+        case prop_weighted_sfr:
+#if USE_STOCHASTICITY
+          if (run_globals.params.physics.EscapeFracScatterDex > ABS_TOL ||
+              run_globals.params.physics.Flag_RemoveSFRScatter == 1) {
+            if (run_globals.params.physics.Flag_SourceRecalibration)
+              stochasticity_calibration_factor = extract_recalibration_factors(gal, 2, false);
+            buffer[ind] += gal->StochasticityTreatedFescWeightedSfr * stochasticity_calibration_factor;
+          } else
+            buffer[ind] += gal->FescWeightedSfr;
+#else
+          buffer[ind] += gal->FescWeightedSfr;
+#endif
+          break;
+
+        case prop_effective_bhar:
+          if (gal->BlackHoleMass >= run_globals.params.physics.BlackHoleMassLimitReion) {
+            buffer[ind] += gal->EffectiveBHAR;
+          }
+          break;
+
+#if USE_STOCHASTICITY
+        case prop_xray_luminosity: {
+          double xray_target = calculate_galaxy_xray_luminosity(gal, sfr_timescale);
+          double xray_raw = xray_target;
+
+          if (run_globals.params.physics.Flag_RemoveSFRScatter == 1) {
+            galaxy_t source_view = *gal;
+            source_view.GrossStellarMass = source_view.GrossStellarMassNoScatter;
+            source_view.Sfr = source_view.SfrNoScatter;
+
+            xray_raw = calculate_galaxy_xray_luminosity(&source_view, sfr_timescale);
+          }
+
+          if (run_globals.params.physics.XrayScatterDex > 0.0)
+            xray_raw = apply_lognormal_scatter(xray_raw, run_globals.params.physics.XrayScatterDex);
+
+          if (recalibrate_xray_sources) {
+            local_xray_raw += xray_raw;
+            local_xray_target += xray_target;
+          }
+
+          buffer[ind] += (float)xray_raw;
+          break;
+        }
+#endif
+
+        case prop_sfr: {
+#if USE_STOCHASTICITY
+          double sfr_target = run_globals.params.Flag_InstantaneousSFR ? gal->Sfr : gal->GrossStellarMass;
+          double sfr_raw = sfr_target;
+
+          if (run_globals.params.physics.Flag_RemoveSFRScatter == 1)
+            sfr_raw = run_globals.params.Flag_InstantaneousSFR ? gal->SfrNoScatter : gal->GrossStellarMassNoScatter;
+
+          if (recalibrate_sfr_sources) {
+            local_sfr_raw += sfr_raw;
+            local_sfr_target += sfr_target;
+          }
+
+          buffer[ind] += sfr_raw;
+#else
+          buffer[ind] += run_globals.params.Flag_InstantaneousSFR ? gal->Sfr : gal->GrossStellarMass;
+#endif
+          break;
+        }
+
+        /*
+         *   We accumulate each per cell exactly as gal->Sfr is accumulated for prop_sfr. The owner-directed exchange
+         * below sums contributions from all galaxies on all ranks. The BlackHoleMassLimitReion guard is applied
+         * consistency with prop_effective_bhar.
+         */
+        case prop_bh_xray_emissivity_hard:
+          if (gal->BlackHoleMass >= run_globals.params.physics.BlackHoleMassLimitReion)
+            buffer[ind] += gal->BHXrayEmissivity_hard;
+          break;
+
+        case prop_bh_xray_emissivity_soft:
+          if (gal->BlackHoleMass >= run_globals.params.physics.BlackHoleMassLimitReion)
+            buffer[ind] += gal->BHXrayEmissivity_soft;
+          break;
+
+#if USE_MINI_HALOS
+        case prop_bh_uv_emissivity:
+          if (gal->BlackHoleMass >= run_globals.params.physics.BlackHoleMassLimitReion)
+            buffer[ind] += gal->QuasarLuv;
+          break;
+#endif
+
+        default:
+          mlog_error("Unrecognised property in slab creation.");
+          ABORT(EXIT_FAILURE);
+          break;
+      }
+    }
+  }
+  free(active_map);
+  size_t *counts, *offsets;
+  char* received = exchange_records(packets, layout.send_count, record_size, &counts, &offsets, run_globals.mpi_comm);
+  free(packets);
+  free_cell_layout(&layout);
+  for (int field = 0; field < n_properties; ++field)
+    memset(destination[field], 0, stride * sizeof(float));
+  const uint64_t local_cells =
+    (uint64_t)run_globals.reion_grids.slab_nix[run_globals.mpi_rank] * ReionGridDim * ReionGridDim;
+  const size_t padded_z = 2 * (ReionGridDim / 2 + 1);
+  // exchange_records groups by sender, so accumulation has a stable rank order.
+  for (size_t i = 0; i < offsets[run_globals.mpi_size]; ++i) {
+    uint64_t cell;
+    memcpy(&cell, received + i * record_size, sizeof(cell));
+    if (cell >= local_cells)
+      ABORT(EXIT_FAILURE);
+    size_t index = cell % ReionGridDim + padded_z * (cell / ReionGridDim);
+    const float* values = (const float*)(received + i * record_size + sizeof(cell));
+    for (int field = 0; field < n_properties; ++field)
+      destination[field][index] += values[field];
+  }
+  free(received);
+  free(counts);
+  free(offsets);
+  for (int field = 0; field < n_properties; ++field) {
+    int prop = properties[field];
+    int convert_to_sfr = prop == prop_sfr;
+#if USE_MINI_HALOS
+    convert_to_sfr |= prop == prop_sfrIII;
+#endif
+    for (size_t i = 0; i < stride; ++i) {
+      double val = destination[field][i];
+#if USE_STOCHASTICITY
+      if (prop != prop_xray_luminosity)
+#endif
+        CLAMP_NEGATIVE(val);
+      if (convert_to_sfr && !run_globals.params.Flag_InstantaneousSFR)
+        val /= sfr_timescale;
+      destination[field][i] = (float)val;
+    }
+  }
+#if USE_STOCHASTICITY
+  if (run_globals.params.Flag_IncludeSpinTemp && recalibrate_xray_sources) {
+    double factor = compute_xray_recalibration_factor(local_xray_raw, local_xray_target);
+    for (size_t i = 0; i < stride; ++i)
+      xray_luminosity_grid[i] *= (float)factor;
+  }
+  if (run_globals.params.Flag_IncludeSpinTemp && recalibrate_sfr_sources) {
+    double factor = compute_xray_recalibration_factor(local_sfr_raw, local_sfr_target);
+    for (size_t i = 0; i < stride; ++i)
+      sfr_grid[i] = (float)(sfr_grid[i] * factor);
+  }
+#endif
+  MPI_Allreduce(MPI_IN_PLACE, &N_BlackHoleMassLimitReion, 1, MPI_LONG, MPI_SUM, run_globals.mpi_comm);
+  if (run_globals.params.physics.Flag_BHFeedback)
+    mlog("%ld quasars are smaller than %g",
+         MLOG_MESG,
+         N_BlackHoleMassLimitReion,
+         run_globals.params.physics.BlackHoleMassLimitReion);
+
+  if (run_globals.params.Flag_IncludeSpinTemp) {
+    reion_grids_t* grids = &run_globals.reion_grids;
+    const int n_history = run_globals.NstoreSnapshots_Heating;
+    if (n_history <= 0)
+      ABORT(EXIT_FAILURE);
+    grids->heating_history_head = (grids->heating_history_head + n_history - 1) % n_history;
+    size_t offset = (size_t)grids->heating_history_head * stride;
+    // FFT each new source snapshot once. History storage holds normalized spectra,
+    // which can be linearly combined before filtering each light-cone shell.
+    cache_source_spectrum(sfr_histories_grid + offset, grids->sfr_unfiltered, grids->sfr_forward_plan);
+#if USE_STOCHASTICITY
+    cache_source_spectrum(
+      xray_luminosity_histories_grid + offset, grids->xray_luminosity_unfiltered, grids->xray_luminosity_forward_plan);
+#endif
+#if USE_MINI_HALOS
+    cache_source_spectrum(sfrIII_histories_grid + offset, grids->sfrIII_unfiltered, grids->sfrIII_forward_plan);
+#endif
+    if (agn_hard_needed)
+      cache_source_spectrum(bh_xray_hist_grid_hard + offset,
+                            grids->BHXrayEmissivity_hard_unfiltered,
+                            grids->BHXrayEmissivity_hard_forward_plan);
+    if (agn_soft_needed)
+      cache_source_spectrum(bh_xray_hist_grid_soft + offset,
+                            grids->BHXrayEmissivity_soft_unfiltered,
+                            grids->BHXrayEmissivity_soft_forward_plan);
+#if USE_MINI_HALOS
+    if (run_globals.params.Flag_IncludeLymanWerner)
+      cache_source_spectrum(
+        bh_uv_hist_grid + offset, grids->BHUVEmissivity_unfiltered, grids->BHUVEmissivity_forward_plan);
+#endif
+  }
   mlog("done", MLOG_CLOSE | MLOG_TIMERSTOP);
 }
 
@@ -2731,137 +2342,60 @@ void save_reion_input_grids(int snapshot)
   mlog("...done", MLOG_CLOSE);
 }
 
+static void load_source_spectrum(fftwf_complex* output, const float* history, int age, float weight, int replace)
+{
+  reion_grids_t* grids = &run_globals.reion_grids;
+  int n_history = run_globals.NstoreSnapshots_Heating;
+  if (age < 0 || age >= n_history) {
+    mlog_error("Heating history age %d is outside the %d stored snapshots.", age, n_history);
+    ABORT(EXIT_FAILURE);
+  }
+  size_t stride = (size_t)grids->slab_n_complex[run_globals.mpi_rank] * 2;
+  size_t offset = (size_t)((grids->heating_history_head + age) % n_history) * stride;
+  float* dest = (float*)output;
+  for (size_t i = 0; i < stride; ++i) {
+    float value = history[offset + i] * weight;
+    if (replace)
+      dest[i] = value;
+    else
+      dest[i] += value;
+  }
+}
+
 void load_reion_sfr_grids(int snapshot_counter_backwards, float weight, const int new_load)
 {
-  // Load the source histories used by ComputeTs.
-  reion_grids_t* grids = &(run_globals.reion_grids);
-  int ReionGridDim = run_globals.params.ReionGridDim;
-  int local_nix = (int)(run_globals.reion_grids.slab_nix[run_globals.mpi_rank]);
-  int local_n_complex = (int)(run_globals.reion_grids.slab_n_complex[run_globals.mpi_rank]);
-
-  if (new_load) {
-    for (int ii = 0; ii < local_nix; ii++)
-      for (int jj = 0; jj < ReionGridDim; jj++)
-        for (int kk = 0; kk < ReionGridDim; kk++) {
-          (grids->sfr)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] =
-            grids->sfr_histories[snapshot_counter_backwards * local_n_complex * 2 +
-                                 grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
-            weight;
+  reion_grids_t* grids = &run_globals.reion_grids;
+  load_source_spectrum(grids->sfr_unfiltered, grids->sfr_histories, snapshot_counter_backwards, weight, new_load);
 #if USE_STOCHASTICITY
-          (grids->xray_luminosity)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] =
-            grids->xray_luminosity_histories[snapshot_counter_backwards * local_n_complex * 2 +
-                                             grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
-            weight;
+  load_source_spectrum(
+    grids->xray_luminosity_unfiltered, grids->xray_luminosity_histories, snapshot_counter_backwards, weight, new_load);
 #endif
 #if USE_MINI_HALOS
-          (grids->sfrIII)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] =
-            grids->sfrIII_histories[snapshot_counter_backwards * local_n_complex * 2 +
-                                    grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
-            weight;
+  load_source_spectrum(grids->sfrIII_unfiltered, grids->sfrIII_histories, snapshot_counter_backwards, weight, new_load);
 #endif
-        }
-  } else {
-    for (int ii = 0; ii < local_nix; ii++)
-      for (int jj = 0; jj < ReionGridDim; jj++)
-        for (int kk = 0; kk < ReionGridDim; kk++) {
-          (grids->sfr)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] +=
-            grids->sfr_histories[snapshot_counter_backwards * local_n_complex * 2 +
-                                 grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
-            weight;
-#if USE_STOCHASTICITY
-          (grids->xray_luminosity)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] +=
-            grids->xray_luminosity_histories[snapshot_counter_backwards * local_n_complex * 2 +
-                                             grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
-            weight;
-#endif
-#if USE_MINI_HALOS
-          (grids->sfrIII)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] +=
-            grids->sfrIII_histories[snapshot_counter_backwards * local_n_complex * 2 +
-                                    grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
-            weight;
-#endif
-        }
-  }
 }
 
 void load_reion_bh_grids(int snapshot_counter_backwards, float weight, const int new_load)
 {
-  reion_grids_t* grids = &(run_globals.reion_grids);
-  int ReionGridDim = run_globals.params.ReionGridDim;
-  int local_nix = (int)(run_globals.reion_grids.slab_nix[run_globals.mpi_rank]);
-  int local_n_complex = (int)(run_globals.reion_grids.slab_n_complex[run_globals.mpi_rank]);
-
-  /* Flag_IncludeAGNXray doesn't change per cell, so compute these once here
-   * rather than re-deriving the same branch on every one of
-   * local_nix*ReionGridDim^2 iterations below (per @qyx268's review). */
-  bool agn_hard_needed =
-    (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 2);
-  bool agn_soft_needed =
-    (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 3);
-
-  if (new_load) {
-    if (agn_hard_needed)
-      for (int ii = 0; ii < local_nix; ii++)
-        for (int jj = 0; jj < ReionGridDim; jj++)
-          for (int kk = 0; kk < ReionGridDim; kk++) {
-            (grids->BHXrayEmissivity_hard)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] =
-              grids->bh_xray_histories_hard[snapshot_counter_backwards * local_n_complex * 2 +
-                                            grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
-              weight;
-          }
-    if (agn_soft_needed)
-      for (int ii = 0; ii < local_nix; ii++)
-        for (int jj = 0; jj < ReionGridDim; jj++)
-          for (int kk = 0; kk < ReionGridDim; kk++) {
-            (grids->BHXrayEmissivity_soft)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] =
-              grids->bh_xray_histories_soft[snapshot_counter_backwards * local_n_complex * 2 +
-                                            grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
-              weight;
-          }
+  reion_grids_t* grids = &run_globals.reion_grids;
+  int mode = run_globals.params.physics.Flag_IncludeAGNXray;
+  if (mode == 1 || mode == 2)
+    load_source_spectrum(grids->BHXrayEmissivity_hard_unfiltered,
+                         grids->bh_xray_histories_hard,
+                         snapshot_counter_backwards,
+                         weight,
+                         new_load);
+  if (mode == 1 || mode == 3)
+    load_source_spectrum(grids->BHXrayEmissivity_soft_unfiltered,
+                         grids->bh_xray_histories_soft,
+                         snapshot_counter_backwards,
+                         weight,
+                         new_load);
 #if USE_MINI_HALOS
-    /* AGN Lyman-Werner, independent of Flag_IncludeAGNXray. */
-    if (run_globals.params.Flag_IncludeLymanWerner)
-      for (int ii = 0; ii < local_nix; ii++)
-        for (int jj = 0; jj < ReionGridDim; jj++)
-          for (int kk = 0; kk < ReionGridDim; kk++) {
-            (grids->BHUVEmissivity)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] =
-              grids->bh_uv_histories[snapshot_counter_backwards * local_n_complex * 2 +
-                                     grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
-              weight;
-          }
+  if (run_globals.params.Flag_IncludeLymanWerner)
+    load_source_spectrum(
+      grids->BHUVEmissivity_unfiltered, grids->bh_uv_histories, snapshot_counter_backwards, weight, new_load);
 #endif
-  } else {
-    if (agn_hard_needed)
-      for (int ii = 0; ii < local_nix; ii++)
-        for (int jj = 0; jj < ReionGridDim; jj++)
-          for (int kk = 0; kk < ReionGridDim; kk++) {
-            (grids->BHXrayEmissivity_hard)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] +=
-              grids->bh_xray_histories_hard[snapshot_counter_backwards * local_n_complex * 2 +
-                                            grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
-              weight;
-          }
-    if (agn_soft_needed)
-      for (int ii = 0; ii < local_nix; ii++)
-        for (int jj = 0; jj < ReionGridDim; jj++)
-          for (int kk = 0; kk < ReionGridDim; kk++) {
-            (grids->BHXrayEmissivity_soft)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] +=
-              grids->bh_xray_histories_soft[snapshot_counter_backwards * local_n_complex * 2 +
-                                            grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
-              weight;
-          }
-#if USE_MINI_HALOS
-    /* AGN Lyman-Werner, independent of Flag_IncludeAGNXray. */
-    if (run_globals.params.Flag_IncludeLymanWerner)
-      for (int ii = 0; ii < local_nix; ii++)
-        for (int jj = 0; jj < ReionGridDim; jj++)
-          for (int kk = 0; kk < ReionGridDim; kk++) {
-            (grids->BHUVEmissivity)[grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] +=
-              grids->bh_uv_histories[snapshot_counter_backwards * local_n_complex * 2 +
-                                     grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
-              weight;
-          }
-#endif
-  }
 }
 
 void save_reion_output_grids(int snapshot)
@@ -3360,64 +2894,10 @@ bool check_if_reionization_ongoing(int snapshot)
 
 void filter(fftwf_complex* box, int local_ix_start, int slab_nx, int grid_dim, float R, int filter_type)
 {
-  int middle = grid_dim / 2;
-  float box_size = (float)run_globals.params.BoxSize;
-  float delta_k = (float)(2.0 * M_PI / box_size);
-
-  // Loop through k-box
-  for (int n_x = 0; n_x < slab_nx; n_x++) {
-    float k_x;
-    int n_x_global = n_x + local_ix_start;
-
-    if (n_x_global > middle)
-      k_x = (n_x_global - grid_dim) * delta_k;
-    else
-      k_x = n_x_global * delta_k;
-
-    for (int n_y = 0; n_y < grid_dim; n_y++) {
-      float k_y;
-
-      if (n_y > middle)
-        k_y = (n_y - grid_dim) * delta_k;
-      else
-        k_y = n_y * delta_k;
-
-      for (int n_z = 0; n_z <= middle; n_z++) {
-        float k_z = n_z * delta_k;
-
-        float k_mag = sqrtf(k_x * k_x + k_y * k_y + k_z * k_z);
-
-        float kR = k_mag * R; // Real space top-hat
-
-        switch (filter_type) {
-          case 0: // Real space top-hat
-            if (kR > 1e-4)
-              box[grid_index(n_x, n_y, n_z, grid_dim, INDEX_COMPLEX_HERM)] *=
-                (fftwf_complex)(3.0 * (sinf(kR) / powf(kR, 3) - cosf(kR) / powf(kR, 2)));
-            break;
-
-          case 1:              // k-space top hat
-            kR *= 0.413566994; // Equates integrated volume to the real space top-hat (9pi/2)^(-1/3)
-            if (kR > 1)
-              box[grid_index(n_x, n_y, n_z, grid_dim, INDEX_COMPLEX_HERM)] = (fftwf_complex)0.0;
-            break;
-
-          case 2:        // Gaussian
-            kR *= 0.643; // Equates integrated volume to the real space top-hat
-            box[grid_index(n_x, n_y, n_z, grid_dim, INDEX_COMPLEX_HERM)] *=
-              (fftwf_complex)(powf((float)M_E, (float)(-kR * kR / 2.0)));
-            break;
-
-          default:
-            if ((n_x == 0) && (n_y == 0) && (n_z == 0)) {
-              mlog_error("ReionFilterType.c: Warning, ReionFilterType type %d is undefined!", filter_type);
-              ABORT(EXIT_FAILURE);
-            }
-            break;
-        }
-      }
-    }
-  } // End looping through k box
+  // Keep the single-grid API on the same kernels as heating and ionization.
+  const fftwf_complex* inputs[] = { box };
+  fftwf_complex* outputs[] = { box };
+  filter_fields(inputs, outputs, 1, local_ix_start, slab_nx, grid_dim, R, filter_type, 1);
 }
 
 void velocity_gradient(fftwf_complex* box, int slab_nx, int grid_dim)

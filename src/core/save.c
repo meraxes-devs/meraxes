@@ -17,7 +17,7 @@
 #include "metal_evo.h"
 #endif
 
-static float current_mwmsa(galaxy_t* gal, int i_snap)
+static float current_mwmsa(const galaxy_t* gal, int i_snap)
 {
   double* LTTime = run_globals.LTTime;
   double mwmsa_num = gal->mwmsa_num;
@@ -34,110 +34,110 @@ static float current_mwmsa(galaxy_t* gal, int i_snap)
     return 0;
 }
 
-void prepare_galaxy_for_output(galaxy_t gal, galaxy_output_t* galout, int i_snap)
+void prepare_galaxy_for_output(const galaxy_t* gal, galaxy_output_t* galout, int i_snap)
 {
   run_units_t* units = &(run_globals.units);
 
-  galout->ID = gal.ID;
-  galout->Type = gal.Type;
-  if (!gal.ghost_flag) {
-    galout->HaloID = (long long)gal.Halo->ID;
-    galout->CentralGal = gal.Halo->FOFGroup->FirstOccupiedHalo->Galaxy->output_index;
-    galout->FOFMvir = (float)(gal.Halo->FOFGroup->Mvir);
+  galout->ID = gal->ID;
+  galout->Type = gal->Type;
+  if (!gal->ghost_flag) {
+    galout->HaloID = (long long)gal->Halo->ID;
+    galout->CentralGal = gal->Halo->FOFGroup->FirstOccupiedHalo->Galaxy->output_index;
+    galout->FOFMvir = (float)(gal->Halo->FOFGroup->Mvir);
   } else {
     galout->HaloID = -1;
     galout->CentralGal = -1;
     galout->FOFMvir = (float)-1.0;
   }
-  galout->GhostFlag = (int)gal.ghost_flag;
+  galout->GhostFlag = (int)gal->ghost_flag;
 
   for (int ii = 0; ii < 3; ii++) {
-    galout->Pos[ii] = gal.Pos[ii];
-    galout->Vel[ii] = gal.Vel[ii];
+    galout->Pos[ii] = gal->Pos[ii];
+    galout->Vel[ii] = gal->Vel[ii];
   }
 
-  galout->Len = gal.Len;
-  galout->MaxLen = gal.MaxLen;
-  galout->Mvir = (float)(gal.Mvir);
-  galout->Rvir = (float)(gal.Rvir);
-  galout->Vvir = (float)(gal.Vvir);
-  galout->Vmax = (float)(gal.Vmax);
-  galout->Spin = (float)(gal.Spin);
-  galout->HotGas = (float)(gal.HotGas);
-  galout->MetalsHotGas = (float)(gal.MetalsHotGas);
-  galout->ColdGas = (float)(gal.ColdGas);
-  galout->MetalsColdGas = (float)(gal.MetalsColdGas);
-  galout->H2Frac = (float)(gal.H2Frac);
-  galout->H2Mass = (float)(gal.H2Mass);
-  galout->HIMass = (float)(gal.HIMass);
-  galout->Mcool = (float)(gal.Mcool);
-  galout->StellarMass = (float)(gal.StellarMass);
-  galout->GrossStellarMass = (float)(gal.GrossStellarMass);
-  galout->Fesc = (float)(gal.Fesc);
-  galout->FescWeightedGSM = (float)(gal.FescWeightedGSM);
-  galout->BlackHoleMass = (float)(gal.BlackHoleMass);
-  galout->FescBH = (float)(gal.FescBH);
-  galout->BHemissivity = (float)(gal.BHemissivity);
-  galout->QuasarMag = (gal.QuasarLuv > 0.0) ? (float)(-19.07395 - 2.5 * log10(gal.QuasarLuv)) : 999.9f;
-  galout->QuasarLX = (float)gal.QuasarLX;
-  galout->NHbin = gal.NHbin;
-  galout->BHXrayEmissivity = (float)gal.BHXrayEmissivity_hard;
-  galout->DutyCycleAGN = (float)(gal.DutyCycleAGN);
-  galout->EffectiveBHM = (float)(gal.EffectiveBHM);
-  galout->BlackHoleAccretedHotMass = (float)(gal.BlackHoleAccretedHotMass);
-  galout->BlackHoleAccretedColdMass = (float)(gal.BlackHoleAccretedColdMass);
-  galout->DiskScaleLength = (float)(gal.DiskScaleLength);
-  galout->MetalsStellarMass = (float)(gal.MetalsStellarMass);
-  galout->Sfr = (float)(gal.Sfr * units->UnitMass_in_g / units->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS);
-  galout->LOIII = (float)gal.LOIII; // gal.LOIII is already stored in units of 1e40 erg/s
-  galout->ionization_param = (float)(gal.ionization_param);
+  galout->Len = gal->Len;
+  galout->MaxLen = gal->MaxLen;
+  galout->Mvir = (float)(gal->Mvir);
+  galout->Rvir = (float)(gal->Rvir);
+  galout->Vvir = (float)(gal->Vvir);
+  galout->Vmax = (float)(gal->Vmax);
+  galout->Spin = (float)(gal->Spin);
+  galout->HotGas = (float)(gal->HotGas);
+  galout->MetalsHotGas = (float)(gal->MetalsHotGas);
+  galout->ColdGas = (float)(gal->ColdGas);
+  galout->MetalsColdGas = (float)(gal->MetalsColdGas);
+  galout->H2Frac = (float)(gal->H2Frac);
+  galout->H2Mass = (float)(gal->H2Mass);
+  galout->HIMass = (float)(gal->HIMass);
+  galout->Mcool = (float)(gal->Mcool);
+  galout->StellarMass = (float)(gal->StellarMass);
+  galout->GrossStellarMass = (float)(gal->GrossStellarMass);
+  galout->Fesc = (float)(gal->Fesc);
+  galout->FescWeightedGSM = (float)(gal->FescWeightedGSM);
+  galout->BlackHoleMass = (float)(gal->BlackHoleMass);
+  galout->FescBH = (float)(gal->FescBH);
+  galout->BHemissivity = (float)(gal->BHemissivity);
+  galout->QuasarMag = (gal->QuasarLuv > 0.0) ? (float)(-19.07395 - 2.5 * log10(gal->QuasarLuv)) : 999.9f;
+  galout->QuasarLX = (float)gal->QuasarLX;
+  galout->NHbin = gal->NHbin;
+  galout->BHXrayEmissivity = (float)gal->BHXrayEmissivity_hard;
+  galout->DutyCycleAGN = (float)(gal->DutyCycleAGN);
+  galout->EffectiveBHM = (float)(gal->EffectiveBHM);
+  galout->BlackHoleAccretedHotMass = (float)(gal->BlackHoleAccretedHotMass);
+  galout->BlackHoleAccretedColdMass = (float)(gal->BlackHoleAccretedColdMass);
+  galout->DiskScaleLength = (float)(gal->DiskScaleLength);
+  galout->MetalsStellarMass = (float)(gal->MetalsStellarMass);
+  galout->Sfr = (float)(gal->Sfr * units->UnitMass_in_g / units->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS);
+  galout->LOIII = (float)gal->LOIII; // gal->LOIII is already stored in units of 1e40 erg/s
+  galout->ionization_param = (float)(gal->ionization_param);
   galout->FescWeightedSfr =
-    (float)(gal.FescWeightedSfr * units->UnitMass_in_g / units->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS);
-  galout->EjectedGas = (float)(gal.EjectedGas);
-  galout->MetalsEjectedGas = (float)(gal.MetalsEjectedGas);
-  galout->Rcool = (float)(gal.Rcool);
-  galout->Cos_Inc = (float)(gal.Cos_Inc);
-  galout->BaryonFracModifier = (float)(gal.BaryonFracModifier);
-  galout->FOFMvirModifier = (float)(gal.FOFMvirModifier);
-  galout->MvirCrit = (float)(gal.MvirCrit);
-  galout->tau_cgm = (float)(gal.tau_cgm);
-  galout->dt = (float)(gal.dt * units->UnitTime_in_Megayears);
-  galout->MergerBurstMass = (float)(gal.MergerBurstMass);
-  galout->MergTime = (float)(gal.MergTime * units->UnitTime_in_Megayears);
-  galout->MergerStartRadius = (float)(gal.MergerStartRadius);
-  galout->MWMSA = current_mwmsa(&gal, i_snap);
+    (float)(gal->FescWeightedSfr * units->UnitMass_in_g / units->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS);
+  galout->EjectedGas = (float)(gal->EjectedGas);
+  galout->MetalsEjectedGas = (float)(gal->MetalsEjectedGas);
+  galout->Rcool = (float)(gal->Rcool);
+  galout->Cos_Inc = (float)(gal->Cos_Inc);
+  galout->BaryonFracModifier = (float)(gal->BaryonFracModifier);
+  galout->FOFMvirModifier = (float)(gal->FOFMvirModifier);
+  galout->MvirCrit = (float)(gal->MvirCrit);
+  galout->tau_cgm = (float)(gal->tau_cgm);
+  galout->dt = (float)(gal->dt * units->UnitTime_in_Megayears);
+  galout->MergerBurstMass = (float)(gal->MergerBurstMass);
+  galout->MergTime = (float)(gal->MergTime * units->UnitTime_in_Megayears);
+  galout->MergerStartRadius = (float)(gal->MergerStartRadius);
+  galout->MWMSA = current_mwmsa(gal, i_snap);
 
 #if USE_MINI_HALOS
-  galout->GrossStellarMassIII = (float)(gal.GrossStellarMassIII);
-  galout->FescIII = (float)(gal.FescIII);
-  galout->FescIIIWeightedGSM = (float)(gal.FescIIIWeightedGSM);
+  galout->GrossStellarMassIII = (float)(gal->GrossStellarMassIII);
+  galout->FescIII = (float)(gal->FescIII);
+  galout->FescIIIWeightedGSM = (float)(gal->FescIIIWeightedGSM);
   galout->FescIIIWeightedSfr =
-    (float)(gal.FescIIIWeightedSfr * units->UnitMass_in_g / units->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS);
-  galout->SfrIII = (float)(gal.SfrIII * units->UnitMass_in_g / units->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS);
+    (float)(gal->FescIIIWeightedSfr * units->UnitMass_in_g / units->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS);
+  galout->SfrIII = (float)(gal->SfrIII * units->UnitMass_in_g / units->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS);
 
-  galout->MvirCrit_MC = (float)(gal.MvirCrit_MC);
+  galout->MvirCrit_MC = (float)(gal->MvirCrit_MC);
 
-  galout->RmetalBubble = (float)(gal.RmetalBubble); // new for MetalEvo
-  galout->Galaxy_Population = (int)(gal.Galaxy_Population);
-  galout->Flag_ExtMetEnr = (int)(gal.Flag_ExtMetEnr);
-  galout->Metal_Probability = (float)(gal.Metal_Probability);
-  galout->GalMetal_Probability = (float)(gal.GalMetal_Probability);
-  galout->StellarMass_II = (float)(gal.StellarMass_II);
-  galout->StellarMass_III = (float)(gal.StellarMass_III);
-  galout->Remnant_Mass = (float)(gal.Remnant_Mass);
+  galout->RmetalBubble = (float)(gal->RmetalBubble); // new for MetalEvo
+  galout->Galaxy_Population = (int)(gal->Galaxy_Population);
+  galout->Flag_ExtMetEnr = (int)(gal->Flag_ExtMetEnr);
+  galout->Metal_Probability = (float)(gal->Metal_Probability);
+  galout->GalMetal_Probability = (float)(gal->GalMetal_Probability);
+  galout->StellarMass_II = (float)(gal->StellarMass_II);
+  galout->StellarMass_III = (float)(gal->StellarMass_III);
+  galout->Remnant_Mass = (float)(gal->Remnant_Mass);
 #endif
 
   for (int ii = 0; ii < N_HISTORY_SNAPS; ii++) {
-    galout->NewStars[ii] = (float)(gal.NewStars[ii]);
+    galout->NewStars[ii] = (float)(gal->NewStars[ii]);
 #if USE_MINI_HALOS
-    galout->NewStars_III[ii] = (float)(gal.NewStars_III[ii]);
-    galout->NewStars_II[ii] = (float)(gal.NewStars_II[ii]);
+    galout->NewStars_III[ii] = (float)(gal->NewStars_III[ii]);
+    galout->NewStars_II[ii] = (float)(gal->NewStars_II[ii]);
 #endif
   }
 
 #ifdef CALC_MAGS
   galout->LOIII_dusty = galout->LOIII;
-  get_output_magnitudes(galout->Mags, galout->DustyMags, &gal, run_globals.ListOutputSnaps[i_snap]);
+  get_output_magnitudes(galout->Mags, galout->DustyMags, gal, run_globals.ListOutputSnaps[i_snap]);
 
   const int loiii_band_idx = run_globals.loiii_rest_band_mag_index;
   if (loiii_band_idx >= 0) {
@@ -157,7 +157,7 @@ void prepare_galaxy_for_output(galaxy_t gal, galaxy_output_t* galout, int i_snap
   }
 
 #if USE_MINI_HALOS
-  get_output_magnitudesIII(galout->MagsIII, &gal, run_globals.ListOutputSnaps[i_snap]);
+  get_output_magnitudesIII(galout->MagsIII, gal, run_globals.ListOutputSnaps[i_snap]);
 #endif
 #endif
 }
@@ -1312,6 +1312,22 @@ static inline bool pass_write_check(galaxy_t* gal, bool flag_merger)
     return false;
 }
 
+static void write_galaxy_chunk(hid_t dataset,
+                               hid_t datatype,
+                               hid_t filespace,
+                               hsize_t offset,
+                               hsize_t count,
+                               const galaxy_output_t* buffer)
+{
+  hid_t memspace = H5Screate_simple(1, &count, NULL);
+  if (memspace < 0 || H5Sselect_hyperslab(filespace, H5S_SELECT_SET, &offset, NULL, &count, NULL) < 0 ||
+      H5Dwrite(dataset, datatype, memspace, filespace, H5P_DEFAULT, buffer) < 0) {
+    mlog_error("Failed to write galaxy output chunk at record %llu", (unsigned long long)offset);
+    ABORT(EXIT_FAILURE);
+  }
+  H5Sclose(memspace);
+}
+
 void write_snapshot(int n_write, int i_out, int* last_n_write)
 {
   /*
@@ -1320,7 +1336,11 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
 
   hid_t file_id;
   hid_t group_id;
-  hsize_t chunk_size = 5000;
+  /* Bound both compression chunks and the staging buffer to about 4 MiB. */
+  hsize_t chunk_size = (4 * 1024 * 1024) / sizeof(galaxy_output_t);
+  hid_t galaxy_dataset = H5I_INVALID_HID;
+  hid_t galaxy_datatype = H5I_INVALID_HID;
+  hid_t galaxy_filespace = H5I_INVALID_HID;
   galaxy_output_t* output_buffer = NULL;
   int* fill_data = NULL;
   char target_group[20];
@@ -1379,25 +1399,50 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
   sprintf(target_group, "Snap%03d", (run_globals.ListOutputSnaps)[i_out]);
   group_id = H5Gcreate(file_id, target_group, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-  // reset the chunk size if required
-  if ((int)chunk_size < n_write)
+  if (chunk_size < 1)
+    chunk_size = 1;
+  if (n_write == 0)
+    chunk_size = 1;
+  else if (chunk_size > (hsize_t)n_write)
     chunk_size = (hsize_t)n_write;
 
   // Make the table (skip for FlagInteractive==2 which only outputs distribution functions)
   if (run_globals.params.FlagInteractive != 2) {
-    H5TBmake_table("Galaxies",
-                   group_id,
-                   "Galaxies",
-                   (hsize_t)h5props.n_props,
-                   (hsize_t)n_write,
-                   h5props.dst_size,
-                   h5props.field_names,
-                   h5props.dst_offsets,
-                   h5props.field_types,
-                   chunk_size,
-                   fill_data,
-                   1,
-                   NULL);
+    if (H5TBmake_table("Galaxies",
+                       group_id,
+                       "Galaxies",
+                       (hsize_t)h5props.n_props,
+                       (hsize_t)n_write,
+                       h5props.dst_size,
+                       h5props.field_names,
+                       h5props.dst_offsets,
+                       h5props.field_types,
+                       chunk_size,
+                       fill_data,
+                       1,
+                       NULL) < 0) {
+      mlog_error("Failed to create galaxy output table");
+      ABORT(EXIT_FAILURE);
+    }
+
+    /* Retain table metadata, but avoid reopening/rebuilding it for every block. */
+    galaxy_dataset = H5Dopen2(group_id, "Galaxies", H5P_DEFAULT);
+    galaxy_datatype = H5Tcreate(H5T_COMPOUND, h5props.dst_size);
+    if (galaxy_dataset < 0 || galaxy_datatype < 0) {
+      mlog_error("Failed to open galaxy output table");
+      ABORT(EXIT_FAILURE);
+    }
+    galaxy_filespace = H5Dget_space(galaxy_dataset);
+    if (galaxy_filespace < 0) {
+      mlog_error("Failed to get galaxy output dataspace");
+      ABORT(EXIT_FAILURE);
+    }
+    for (int ii = 0; ii < h5props.n_props; ii++) {
+      if (H5Tinsert(galaxy_datatype, h5props.field_names[ii], h5props.dst_offsets[ii], h5props.field_types[ii]) < 0) {
+        mlog_error("Failed to create galaxy output memory datatype");
+        ABORT(EXIT_FAILURE);
+      }
+    }
   }
 
   // Initialize distribution functions
@@ -1661,6 +1706,10 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
   gal_count = 0;
   gal = run_globals.FirstGal;
   output_buffer = calloc((int)chunk_size, sizeof(galaxy_output_t));
+  if (output_buffer == NULL) {
+    mlog_error("Failed to allocate galaxy output buffer");
+    ABORT(EXIT_FAILURE);
+  }
   // Accumulate into distribution functions from output buffer
   double val, weight;
   int bin_idx;
@@ -1670,7 +1719,7 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
   while (gal != NULL) {
     // Don't output galaxies which merged at this timestep
     if (pass_write_check(gal, false)) {
-      prepare_galaxy_for_output(*gal, &(output_buffer[buffer_count]), i_out);
+      prepare_galaxy_for_output(gal, &(output_buffer[buffer_count]), i_out);
 
       if (run_globals.params.Flag_OutputHMF && !output_buffer[buffer_count].GhostFlag) {
         // Extract HMF value (log10 halo mass in solar masses/h)
@@ -1786,14 +1835,8 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
     if (buffer_count == (int)chunk_size) {
       // Write galaxies to HDF5 (skip for FlagInteractive==2)
       if (run_globals.params.FlagInteractive != 2) {
-        H5TBwrite_records(group_id,
-                          "Galaxies",
-                          (hsize_t)gal_count,
-                          (hsize_t)buffer_count,
-                          h5props.dst_size,
-                          h5props.dst_offsets,
-                          h5props.dst_field_sizes,
-                          output_buffer);
+        write_galaxy_chunk(
+          galaxy_dataset, galaxy_datatype, galaxy_filespace, (hsize_t)gal_count, (hsize_t)buffer_count, output_buffer);
       }
       gal_count += buffer_count;
       buffer_count = 0;
@@ -1804,14 +1847,8 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
   // Write any remaining galaxies in the buffer (skip for FlagInteractive==2)
   if (buffer_count > 0) {
     if (run_globals.params.FlagInteractive != 2) {
-      H5TBwrite_records(group_id,
-                        "Galaxies",
-                        (hsize_t)gal_count,
-                        (hsize_t)buffer_count,
-                        h5props.dst_size,
-                        h5props.dst_offsets,
-                        h5props.dst_field_sizes,
-                        output_buffer);
+      write_galaxy_chunk(
+        galaxy_dataset, galaxy_datatype, galaxy_filespace, (hsize_t)gal_count, (hsize_t)buffer_count, output_buffer);
     }
     gal_count += buffer_count;
   }
@@ -1827,6 +1864,11 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
 
   // Free the output buffer
   free(output_buffer);
+  if (run_globals.params.FlagInteractive != 2) {
+    H5Sclose(galaxy_filespace);
+    H5Tclose(galaxy_datatype);
+    H5Dclose(galaxy_dataset);
+  }
 
   if ((run_globals.params.Flag_PatchyReion) && check_if_reionization_ongoing(run_globals.ListOutputSnaps[i_out]) &&
       (run_globals.params.Flag_OutputGrids))

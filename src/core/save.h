@@ -114,7 +114,7 @@ extern "C"
 {
 #endif
 
-  void prepare_galaxy_for_output(struct galaxy_t gal, galaxy_output_t* galout, int i_snap);
+  void prepare_galaxy_for_output(const struct galaxy_t* gal, galaxy_output_t* galout, int i_snap);
   void calc_hdf5_props(void);
   void prep_hdf5_file(void);
   void close_hdf5_file(void);

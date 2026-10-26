@@ -29,6 +29,30 @@
 #define _XRAY_HEATING_FUNCTIONS_C
 #include "XRayHeatingFunctions.h"
 
+typedef struct
+{
+  double dt, galaxy_spectrum, agn_soft_spectrum, agn_hard_spectrum;
+#if USE_MINI_HALOS
+  double popIII_spectrum;
+#endif
+} heating_shell_t;
+static heating_shell_t* heating_shells;
+
+void prepare_heating_shells(float zp)
+{
+  // Refreshed each snapshot before evolveInt; cache only factors shared by all cells in a shell.
+  for (int j = 0; j < run_globals.params.TsNumFilterSteps; ++j) {
+    double zpp = (zpp_edge[j] + (j ? zpp_edge[j - 1] : zp)) * 0.5;
+    heating_shells[j].dt = dtdz((float)zpp);
+    heating_shells[j].galaxy_spectrum = pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayGal);
+    heating_shells[j].agn_soft_spectrum = pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayAGNSoft);
+    heating_shells[j].agn_hard_spectrum = pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayAGNHard);
+#if USE_MINI_HALOS
+    heating_shells[j].popIII_spectrum = pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayIII);
+#endif
+  }
+}
+
 static double *sigma_atR, *sigma_Tmin, *ST_over_PS;
 
 static float x_int_Energy[x_int_NENERGY];
@@ -42,6 +66,9 @@ int init_heat()
 {
 
   size_t TsNumFilterSteps = (size_t)run_globals.params.TsNumFilterSteps;
+  heating_shells = calloc(TsNumFilterSteps, sizeof(*heating_shells));
+  if (!heating_shells)
+    ABORT(EXIT_FAILURE);
   zpp_edge = calloc(TsNumFilterSteps, sizeof(double)); // calloc allocates the requested memory and returns a pointer to
                                                        // it. callocs(number of elem to be allocated, size)
   sigma_atR = calloc(TsNumFilterSteps, sizeof(double));
@@ -83,6 +110,8 @@ void destruct_heat()
   free(sigma_Tmin);
   free(sigma_atR);
   free(zpp_edge);
+  free(heating_shells);
+  heating_shells = NULL;
 
 #if USE_MINI_HALOS
   free(sum_lyn_III);
@@ -1390,56 +1419,57 @@ void evolveInt(float zp,
         zpp = (zpp_edge[zpp_ct] + zpp_edge[zpp_ct - 1]) * 0.5;
         dzpp = zpp_edge[zpp_ct - 1] - zpp_edge[zpp_ct];
       }
-      dt_dzpp = dtdz(zpp);
+      const double shell_dt = heating_shells[zpp_ct].dt;
 
+      // Keep cell-dependent source factors here; the shell-wide redshift factor is prepared above.
 #if USE_STOCHASTICITY
-      zpp_integrand_GAL = XRAY_LUMINOSITY_GAL[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayGal);
+      zpp_integrand_GAL = XRAY_LUMINOSITY_GAL[zpp_ct] * heating_shells[zpp_ct].galaxy_spectrum;
 #else
       // Use this when using the SFR provided by Meraxes
       // Units should be M_solar/s. Factor of (dt_dzp * dzpp) converts from per s to per z'
-      zpp_integrand_GAL = SFR_GAL[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayGal);
+      zpp_integrand_GAL = SFR_GAL[zpp_ct] * heating_shells[zpp_ct].galaxy_spectrum;
 #endif
 
 #if USE_MINI_HALOS
-      zpp_integrand_III = SFR_III[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayIII);
+      zpp_integrand_III = SFR_III[zpp_ct] * heating_shells[zpp_ct].popIII_spectrum;
 #endif
 
-      dxheat_dt_GAL += dt_dzpp * dzpp * zpp_integrand_GAL *
+      dxheat_dt_GAL += shell_dt * dzpp * zpp_integrand_GAL *
                        freq_int_heat_GAL[zpp_ct]; // Integral in frequency must be computed for each TsNumFilterSteps
-      dxion_source_dt_GAL += dt_dzpp * dzpp * zpp_integrand_GAL * freq_int_ion_GAL[zpp_ct];
-      dxlya_dt_GAL += dt_dzpp * dzpp * zpp_integrand_GAL * freq_int_lya_GAL[zpp_ct];
+      dxion_source_dt_GAL += shell_dt * dzpp * zpp_integrand_GAL * freq_int_ion_GAL[zpp_ct];
+      dxlya_dt_GAL += shell_dt * dzpp * zpp_integrand_GAL * freq_int_lya_GAL[zpp_ct];
       // Use this when using the SFR provided by Meraxes
       // Units should be M_solar/s. Factor of (dt_dzp * dzpp) converts from per s to per z'
-      dstarlya_dt_GAL += SFR_GAL[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn[zpp_ct] * dt_dzpp * dzpp;
+      dstarlya_dt_GAL += SFR_GAL[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn[zpp_ct] * shell_dt * dzpp;
 
 #if USE_MINI_HALOS
-      dxheat_dt_III += dt_dzpp * dzpp * zpp_integrand_III *
+      dxheat_dt_III += shell_dt * dzpp * zpp_integrand_III *
                        freq_int_heat_III[zpp_ct]; // Integral in frequency must be computed for each TsNumFilterSteps
-      dxion_source_dt_III += dt_dzpp * dzpp * zpp_integrand_III * freq_int_ion_III[zpp_ct];
-      dxlya_dt_III += dt_dzpp * dzpp * zpp_integrand_III * freq_int_lya_III[zpp_ct];
+      dxion_source_dt_III += shell_dt * dzpp * zpp_integrand_III * freq_int_ion_III[zpp_ct];
+      dxlya_dt_III += shell_dt * dzpp * zpp_integrand_III * freq_int_lya_III[zpp_ct];
 
-      dstarlya_dt_III += SFR_III[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_III[zpp_ct] * dt_dzpp * dzpp;
+      dstarlya_dt_III += SFR_III[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_III[zpp_ct] * shell_dt * dzpp;
 
       if (run_globals.params.Flag_IncludeLymanWerner) {
-        dstarlyLW_dt_GAL += SFR_GAL[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW[zpp_ct] * dt_dzpp * dzpp;
-        dstarlyLW_dt_III += SFR_III[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW_III[zpp_ct] * dt_dzpp * dzpp;
-        dstarlyLW_dt_AGN += AGN_LW[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW_AGN[zpp_ct] * dt_dzpp * dzpp;
+        dstarlyLW_dt_GAL += SFR_GAL[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW[zpp_ct] * shell_dt * dzpp;
+        dstarlyLW_dt_III += SFR_III[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW_III[zpp_ct] * shell_dt * dzpp;
+        dstarlyLW_dt_AGN += AGN_LW[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW_AGN[zpp_ct] * shell_dt * dzpp;
       }
 #endif
 
       /* dX_AGN_soft/dt += (dt/dz'')dz'' × XAGN_soft[zpp_ct] × (1+z'')^-alpha_soft × freq_int_X_AGN_soft[zpp_ct]
        * dX_AGN_hard/dt += (dt/dz'')dz'' × XAGN_hard[zpp_ct] × (1+z'')^-alpha_hard × freq_int_X_AGN_hard[zpp_ct] */
-      zpp_integrand_AGN_soft = XAGN_soft[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayAGNSoft);
+      zpp_integrand_AGN_soft = XAGN_soft[zpp_ct] * heating_shells[zpp_ct].agn_soft_spectrum;
 
-      dxheat_dt_AGN_soft += dt_dzpp * dzpp * zpp_integrand_AGN_soft * freq_int_heat_AGN_soft[zpp_ct];
-      dxion_source_dt_AGN_soft += dt_dzpp * dzpp * zpp_integrand_AGN_soft * freq_int_ion_AGN_soft[zpp_ct];
-      dxlya_dt_AGN_soft += dt_dzpp * dzpp * zpp_integrand_AGN_soft * freq_int_lya_AGN_soft[zpp_ct];
+      dxheat_dt_AGN_soft += shell_dt * dzpp * zpp_integrand_AGN_soft * freq_int_heat_AGN_soft[zpp_ct];
+      dxion_source_dt_AGN_soft += shell_dt * dzpp * zpp_integrand_AGN_soft * freq_int_ion_AGN_soft[zpp_ct];
+      dxlya_dt_AGN_soft += shell_dt * dzpp * zpp_integrand_AGN_soft * freq_int_lya_AGN_soft[zpp_ct];
 
-      zpp_integrand_AGN_hard = XAGN_hard[zpp_ct] * pow(1 + zpp, -run_globals.params.physics.SpecIndexXrayAGNHard);
+      zpp_integrand_AGN_hard = XAGN_hard[zpp_ct] * heating_shells[zpp_ct].agn_hard_spectrum;
 
-      dxheat_dt_AGN_hard += dt_dzpp * dzpp * zpp_integrand_AGN_hard * freq_int_heat_AGN_hard[zpp_ct];
-      dxion_source_dt_AGN_hard += dt_dzpp * dzpp * zpp_integrand_AGN_hard * freq_int_ion_AGN_hard[zpp_ct];
-      dxlya_dt_AGN_hard += dt_dzpp * dzpp * zpp_integrand_AGN_hard * freq_int_lya_AGN_hard[zpp_ct];
+      dxheat_dt_AGN_hard += shell_dt * dzpp * zpp_integrand_AGN_hard * freq_int_heat_AGN_hard[zpp_ct];
+      dxion_source_dt_AGN_hard += shell_dt * dzpp * zpp_integrand_AGN_hard * freq_int_ion_AGN_hard[zpp_ct];
+      dxlya_dt_AGN_hard += shell_dt * dzpp * zpp_integrand_AGN_hard * freq_int_lya_AGN_hard[zpp_ct];
     }
 
     // After you finish the loop for each Radius, you add prefactors which are constants for the redshift (snapshot) and

@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "XRayHeatingFunctions.h"
+#include "cpu_utils.h"
 #include "meraxes.h"
 #include "meraxes_gpu.h"
 #include "misc_tools.h"
@@ -157,6 +158,19 @@ void _find_HII_bubbles(const int snapshot)
   for (int ii = 0; ii < slab_n_real; ii++)
     r_bubble[ii] = 0.0;
 
+  // BH growth/feedback remains enabled even when the escaped ionizing source
+  // fields are zero. Every rank must make the same decision before FFT calls.
+  int use_bh_ionizing_sources = 0;
+  if (run_globals.params.physics.Flag_BHFeedback) {
+    const float* bh_fields[] = { run_globals.reion_grids.effective_bhm, run_globals.reion_grids.effective_bhar };
+    int zero_sources = cpu_sources_are_zero(bh_fields, 2, local_nix, ReionGridDim, run_globals.mpi_comm);
+    if (zero_sources < 0) {
+      mlog_error("Non-finite black-hole ionizing source grid. Aborting...");
+      ABORT(EXIT_FAILURE);
+    }
+    use_bh_ionizing_sources = !zero_sources;
+  }
+
   // Forward fourier transform to obtain k-space fields
   // TODO: Ensure that fftwf_mpi_init has been called and fftwf_mpi_cleanup will be called
 
@@ -174,7 +188,7 @@ void _find_HII_bubbles(const int snapshot)
   fftwf_complex* effective_bhar_unfiltered = NULL;
   fftwf_complex* effective_bhar_filtered = NULL;
   float* effective_bhar = NULL;
-  if (run_globals.params.physics.Flag_BHFeedback) {
+  if (use_bh_ionizing_sources) {
     effective_bhm_unfiltered = run_globals.reion_grids.effective_bhm_unfiltered;
     effective_bhm_filtered = run_globals.reion_grids.effective_bhm_filtered;
     fftwf_execute(run_globals.reion_grids.effective_bhm_forward_plan);
@@ -246,7 +260,7 @@ void _find_HII_bubbles(const int snapshot)
     if (run_globals.params.Flag_IncludeSpinTemp) {
       x_e_unfiltered[ii] /= total_n_cells;
     }
-    if (run_globals.params.physics.Flag_BHFeedback) {
+    if (use_bh_ionizing_sources) {
       effective_bhm_unfiltered[ii] /= total_n_cells;
       effective_bhar_unfiltered[ii] /= total_n_cells;
     }
@@ -288,64 +302,44 @@ void _find_HII_bubbles(const int snapshot)
     // mlog("R = %.2e (h=0.678 -> %.2e)", MLOG_MESG, R, R/0.678);
     mlog(".", MLOG_CONT);
 
-    // copy the k-space grids
-    memcpy(deltax_filtered, deltax_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-    memcpy(stars_filtered, stars_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-    memcpy(weighted_sfr_filtered, weighted_sfr_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
+    // Every field uses the same radial window. Evaluate it once and copy directly
+    // into the inverse-FFT workspaces, leaving the spectra intact for the next R.
+    const fftwf_complex* inputs[9];
+    fftwf_complex* outputs[9];
+    int n_fields = 0;
+#define ADD_FILTER_FIELD(name)                                                                                         \
+  do {                                                                                                                 \
+    inputs[n_fields] = name##_unfiltered;                                                                              \
+    outputs[n_fields++] = name##_filtered;                                                                             \
+  } while (0)
+    ADD_FILTER_FIELD(deltax);
+    ADD_FILTER_FIELD(stars);
+    ADD_FILTER_FIELD(weighted_sfr);
 #if USE_MINI_HALOS
-    memcpy(starsIII_filtered, starsIII_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-    memcpy(weighted_sfrIII_filtered, weighted_sfrIII_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
+    ADD_FILTER_FIELD(starsIII);
+    ADD_FILTER_FIELD(weighted_sfrIII);
 #endif
-
     if (run_globals.params.Flag_IncludeRecombinations) {
-      memcpy(N_rec_filtered, N_rec_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
+      ADD_FILTER_FIELD(N_rec);
     }
     if (run_globals.params.Flag_IncludeSpinTemp) {
-      memcpy(x_e_filtered, x_e_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
+      inputs[n_fields] = x_e_unfiltered;
+      outputs[n_fields++] = x_e_filtered;
     }
-    if (run_globals.params.physics.Flag_BHFeedback) {
-      memcpy(effective_bhm_filtered, effective_bhm_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-      memcpy(effective_bhar_filtered, effective_bhar_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
+    if (use_bh_ionizing_sources) {
+      ADD_FILTER_FIELD(effective_bhm);
+      ADD_FILTER_FIELD(effective_bhar);
     }
-
-    // do the filtering unless this is the last filter step
-    int local_ix_start = (int)(run_globals.reion_grids.slab_ix_start[run_globals.mpi_rank]);
-    if (!flag_last_filter_step) {
-      filter(deltax_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.ReionFilterType);
-      filter(stars_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.ReionFilterType);
-      filter(
-        weighted_sfr_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.ReionFilterType);
-#if USE_MINI_HALOS
-      filter(starsIII_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.ReionFilterType);
-      filter(weighted_sfrIII_filtered,
-             local_ix_start,
-             local_nix,
-             ReionGridDim,
-             (float)R,
-             run_globals.params.ReionFilterType);
-#endif
-
-      if (run_globals.params.Flag_IncludeRecombinations) {
-        filter(N_rec_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.ReionFilterType);
-      }
-      if (run_globals.params.Flag_IncludeSpinTemp) {
-        filter(x_e_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.ReionFilterType);
-      }
-      if (run_globals.params.physics.Flag_BHFeedback) {
-        filter(effective_bhm_filtered,
-               local_ix_start,
-               local_nix,
-               ReionGridDim,
-               (float)R,
-               run_globals.params.ReionFilterType);
-        filter(effective_bhar_filtered,
-               local_ix_start,
-               local_nix,
-               ReionGridDim,
-               (float)R,
-               run_globals.params.ReionFilterType);
-      }
-    }
+#undef ADD_FILTER_FIELD
+    filter_fields(inputs,
+                  outputs,
+                  n_fields,
+                  (int)run_globals.reion_grids.slab_ix_start[run_globals.mpi_rank],
+                  local_nix,
+                  ReionGridDim,
+                  (float)R,
+                  run_globals.params.ReionFilterType,
+                  !flag_last_filter_step);
 
     // inverse fourier transform back to real space
     fftwf_execute(run_globals.reion_grids.deltax_filtered_reverse_plan);
@@ -364,7 +358,7 @@ void _find_HII_bubbles(const int snapshot)
       fftwf_execute(run_globals.reion_grids.x_e_filtered_reverse_plan);
     }
 
-    if (run_globals.params.physics.Flag_BHFeedback) {
+    if (use_bh_ionizing_sources) {
       fftwf_execute(run_globals.reion_grids.effective_bhm_filtered_reverse_plan);
       fftwf_execute(run_globals.reion_grids.effective_bhar_filtered_reverse_plan);
     }
@@ -409,7 +403,7 @@ void _find_HII_bubbles(const int snapshot)
             }
             ((float*)x_e_filtered)[i_padded] = fminf(((float*)x_e_filtered)[i_padded], 0.999);
           }
-          if (run_globals.params.physics.Flag_BHFeedback) {
+          if (use_bh_ionizing_sources) {
             ((float*)effective_bhm_filtered)[i_padded] = fmaxf(((float*)effective_bhm_filtered)[i_padded], 0.0);
             if (((float*)effective_bhm_filtered)[i_padded] < ABS_TOL) {
               ((float*)effective_bhm_filtered)[i_padded] = 0;
@@ -460,7 +454,7 @@ void _find_HII_bubbles(const int snapshot)
 #if USE_MINI_HALOS
           f_coll_starsIII = (double)((float*)starsIII_filtered)[i_padded] / density_over_mean;
 #endif
-          if (run_globals.params.physics.Flag_BHFeedback)
+          if (use_bh_ionizing_sources)
             f_coll_effective_bhm = (double)((float*)effective_bhm_filtered)[i_padded] / density_over_mean;
 
           // Calculate the recombinations within the cell
@@ -492,7 +486,7 @@ void _find_HII_bubbles(const int snapshot)
 #if USE_MINI_HALOS
               Gamma12[i_real] += ((float*)weighted_sfrIII_filtered)[i_padded] * (float)(Gamma_R_prefactorIII);
 #endif
-              if (run_globals.params.physics.Flag_BHFeedback)
+              if (use_bh_ionizing_sources)
                 Gamma12[i_real] += ((float*)effective_bhar_filtered)[i_padded] * (float)(Gamma_R_prefactor_BH);
               // Record radius
               r_bubble[i_real] = (float)R;
@@ -502,7 +496,7 @@ void _find_HII_bubbles(const int snapshot)
 #if USE_MINI_HALOS
                 J_21_at_ionization[i_real] += ((float*)starsIII_filtered)[i_padded] * J_21_auxIII_constant;
 #endif
-                if (run_globals.params.physics.Flag_BHFeedback)
+                if (use_bh_ionizing_sources)
                   J_21_at_ionization[i_real] += ((float*)effective_bhm_filtered)[i_padded] * J_21_aux_constant_BH;
               }
             }
@@ -537,7 +531,7 @@ void _find_HII_bubbles(const int snapshot)
 #if USE_MINI_HALOS
               J_21_at_ionization[i_real] += ((float*)starsIII_filtered)[i_padded] * J_21_auxIII_constant;
 #endif
-              if (run_globals.params.physics.Flag_BHFeedback)
+              if (use_bh_ionizing_sources)
                 J_21_at_ionization[i_real] += ((float*)effective_bhm_filtered)[i_padded] * J_21_aux_constant_BH;
             }
           }
@@ -586,7 +580,7 @@ void _find_HII_bubbles(const int snapshot)
 #if USE_MINI_HALOS
         volume_weighted_global_weighted_sfrIII += (double)weighted_sfrIII[i_padded];
 #endif
-        if (run_globals.params.physics.Flag_BHFeedback)
+        if (use_bh_ionizing_sources)
           volume_weighted_global_effective_bhar += (double)((float*)effective_bhar)[i_padded];
 
         density_over_mean = 1.0 + (double)((float*)deltax)[i_padded];
