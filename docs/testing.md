@@ -39,7 +39,15 @@ Without Criterion, only the two standalone drivers are built. Without Python, th
 | `test_emission_lines` | [O III] coefficients and luminosities. |
 | `test_xray_luminosity` | The original and metallicity-dependent Lx-SFR relations, normalization, source units, recorded birth abundances and scatter. |
 | `test_star_forming_metallicity` | Birth-metallicity recording through star formation, feedback, mergers and snapshot reset. |
+| `test_agn_xray_heating` | Disabled AGN bands, empty hard-band boundaries, and spectral normalization for enabled bands. |
 | `main_cooling`, `main_blackhole_feedback` | Standalone drivers that print the same quantities for given inputs. |
+
+`test_agn_xray_heating` checks that disabling AGN, or selecting soft AGN only,
+allows `NuXrayMax = NuXraySoftCut` without evaluating an unused hard-band
+normalization. Enabled bands must have finite parameters and positive width;
+the existing heating error checks reject invalid enabled-band prefactors.
+The tests also compare active-band normalization with an independent numerical
+integration for spectral indices 1.0, 1.7 and 2.2.
 
 ## Metallicity-dependent X-ray luminosity tests
 
