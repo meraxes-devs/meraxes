@@ -39,7 +39,6 @@
 // NB. Not written by smutch!!! ;)
 #ifdef _XRAY_HEATING_FUNCTIONS_C
 double x_e_ave;
-double dt_dzpp;
 double dt_dzp;
 double* zpp_edge;
 
@@ -74,7 +73,6 @@ double const_zp_prefactor_AGN_hard;
 float x_int_XHII[x_int_NXHII];
 #else
 extern double x_e_ave;
-extern double dt_dzpp;
 extern double dt_dzp;
 extern double* zpp_edge;
 extern double* stored_fcoll;
@@ -131,6 +129,7 @@ extern "C"
   double alpha_A(double T);
 
   /* initialization routine */
+  void prepare_heating_shells(float zp);
   int init_heat();
 
   /* destruction/deallocation routine */

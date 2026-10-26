@@ -5,6 +5,7 @@
 
 #include "ComputeTs.h"
 #include "XRayHeatingFunctions.h"
+#include "cpu_utils.h"
 #include "find_HII_bubbles.h"
 #include "meraxes.h"
 #include "misc_tools.h"
@@ -80,6 +81,25 @@ int set_sfr_history()
       max_snaps = snapshot_counter_backwards;
   }
   return max_snaps;
+}
+
+/* Each table element is evaluated once, then copied to every rank.  Gather
+ * instead of reducing so the integration results are not rounded again. */
+static void split_heating_table_work(int n_items, int* counts, int* offsets)
+{
+  const int n_ranks = run_globals.mpi_size;
+  int offset = 0;
+  for (int rank = 0; rank < n_ranks; ++rank) {
+    counts[rank] = n_items / n_ranks + (rank < n_items % n_ranks);
+    offsets[rank] = offset;
+    offset += counts[rank];
+  }
+}
+
+static void gather_heating_table(double* table, const int* counts, const int* offsets)
+{
+  if (run_globals.mpi_size > 1)
+    MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DOUBLE, table, counts, offsets, MPI_DOUBLE, run_globals.mpi_comm);
 }
 
 void _ComputeTs(int snapshot)
@@ -376,9 +396,9 @@ void _ComputeTs(int snapshot)
           mlog("R_ct = %d, went beyong snapshot 0, clear tocf sfr grids.", MLOG_MESG, R_ct);
 #endif
           for (int ii = 0; ii < slab_n_complex * 2; ii++) {
-            grids->sfr[ii] = 0;
+            ((float*)grids->sfr_unfiltered)[ii] = 0;
 #if USE_STOCHASTICITY
-            grids->xray_luminosity[ii] = 0;
+            ((float*)grids->xray_luminosity_unfiltered)[ii] = 0;
 #endif
           }
           snapshot_counter_backwards[R_ct] += 1;
@@ -395,9 +415,9 @@ void _ComputeTs(int snapshot)
                  weight);
 #endif
             for (int ii = 0; ii < slab_n_complex * 2; ii++) {
-              grids->sfr[ii] *= weight;
+              ((float*)grids->sfr_unfiltered)[ii] *= weight;
 #if USE_STOCHASTICITY
-              grids->xray_luminosity[ii] *= weight;
+              ((float*)grids->xray_luminosity_unfiltered)[ii] *= weight;
 #endif
             }
           } else {
@@ -426,10 +446,9 @@ void _ComputeTs(int snapshot)
                    R_ct - 1);
 #endif
               for (int ii = 0; ii < slab_n_complex * 2; ii++) {
-                grids->sfr[ii] = 0;
-                ;
+                ((float*)grids->sfr_unfiltered)[ii] = 0;
 #if USE_STOCHASTICITY
-                grids->xray_luminosity[ii] = 0;
+                ((float*)grids->xray_luminosity_unfiltered)[ii] = 0;
 #endif
               }
             }
@@ -489,99 +508,42 @@ void _ComputeTs(int snapshot)
         }
       }
 
-      fftwf_execute(run_globals.reion_grids.sfr_forward_plan);
-      // Remember to add the factor of VOLUME/TOT_NUM_PIXELS when converting from real space to k-space
-      // Note: we will leave off factor of VOLUME, in anticipation of the inverse FFT below
-      // TODO: Double check that looping over correct number of elements here
-      for (int ii = 0; ii < slab_n_complex; ii++)
-        sfr_unfiltered[ii] /= (float)total_n_cells;
+      const fftwf_complex* inputs[6];
+      fftwf_complex* outputs[6];
+      int n_fields = 0;
+#define ADD_HEATING_FIELD(name)                                                                                        \
+  do {                                                                                                                 \
+    inputs[n_fields] = name##_unfiltered;                                                                              \
+    outputs[n_fields++] = name##_filtered;                                                                             \
+  } while (0)
+      ADD_HEATING_FIELD(sfr);
 #if USE_STOCHASTICITY
-      fftwf_execute(run_globals.reion_grids.xray_luminosity_forward_plan);
-      for (int ii = 0; ii < slab_n_complex; ii++)
-        xray_luminosity_unfiltered[ii] /= (float)total_n_cells;
+      ADD_HEATING_FIELD(xray_luminosity);
 #endif
 #if USE_MINI_HALOS
-      fftwf_execute(run_globals.reion_grids.sfrIII_forward_plan);
-      for (int ii = 0; ii < slab_n_complex; ii++)
-        sfrIII_unfiltered[ii] /= (float)total_n_cells;
+      ADD_HEATING_FIELD(sfrIII);
 #endif
-
       if (agn_hard_needed) {
-        fftwf_execute(run_globals.reion_grids.BHXrayEmissivity_hard_forward_plan);
-        for (int ii = 0; ii < slab_n_complex; ii++)
-          BHXrayEmissivity_hard_unfiltered[ii] /= (float)total_n_cells;
+        ADD_HEATING_FIELD(BHXrayEmissivity_hard);
       }
       if (agn_soft_needed) {
-        fftwf_execute(run_globals.reion_grids.BHXrayEmissivity_soft_forward_plan);
-        for (int ii = 0; ii < slab_n_complex; ii++)
-          BHXrayEmissivity_soft_unfiltered[ii] /= (float)total_n_cells;
+        ADD_HEATING_FIELD(BHXrayEmissivity_soft);
       }
 #if USE_MINI_HALOS
       if (run_globals.params.Flag_IncludeLymanWerner) {
-        fftwf_execute(run_globals.reion_grids.BHUVEmissivity_forward_plan);
-        for (int ii = 0; ii < slab_n_complex; ii++)
-          BHUVEmissivity_unfiltered[ii] /= (float)total_n_cells;
+        ADD_HEATING_FIELD(BHUVEmissivity);
       }
 #endif
-
-      memcpy(sfr_filtered, sfr_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-#if USE_STOCHASTICITY
-      memcpy(xray_luminosity_filtered, xray_luminosity_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-#endif
-#if USE_MINI_HALOS
-      memcpy(sfrIII_filtered, sfrIII_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-#endif
-      if (agn_hard_needed)
-        memcpy(
-          BHXrayEmissivity_hard_filtered, BHXrayEmissivity_hard_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-      if (agn_soft_needed)
-        memcpy(
-          BHXrayEmissivity_soft_filtered, BHXrayEmissivity_soft_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-#if USE_MINI_HALOS
-      if (run_globals.params.Flag_IncludeLymanWerner)
-        memcpy(BHUVEmissivity_filtered, BHUVEmissivity_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-#endif
-
-      if (R_ct > 0) {
-        int local_ix_start = (int)(run_globals.reion_grids.slab_ix_start[run_globals.mpi_rank]);
-
-        filter(sfr_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.TsHeatingFilterType);
-#if USE_STOCHASTICITY
-        filter(xray_luminosity_filtered,
-               local_ix_start,
-               local_nix,
-               ReionGridDim,
-               (float)R,
-               run_globals.params.TsHeatingFilterType);
-#endif
-#if USE_MINI_HALOS
-        filter(
-          sfrIII_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.TsHeatingFilterType);
-#endif
-        if (agn_hard_needed)
-          filter(BHXrayEmissivity_hard_filtered,
-                 local_ix_start,
-                 local_nix,
-                 ReionGridDim,
-                 (float)R,
-                 run_globals.params.TsHeatingFilterType);
-        if (agn_soft_needed)
-          filter(BHXrayEmissivity_soft_filtered,
-                 local_ix_start,
-                 local_nix,
-                 ReionGridDim,
-                 (float)R,
-                 run_globals.params.TsHeatingFilterType);
-#if USE_MINI_HALOS
-        if (run_globals.params.Flag_IncludeLymanWerner)
-          filter(BHUVEmissivity_filtered,
-                 local_ix_start,
-                 local_nix,
-                 ReionGridDim,
-                 (float)R,
-                 run_globals.params.TsHeatingFilterType);
-#endif
-      }
+#undef ADD_HEATING_FIELD
+      filter_fields(inputs,
+                    outputs,
+                    n_fields,
+                    (int)run_globals.reion_grids.slab_ix_start[run_globals.mpi_rank],
+                    local_nix,
+                    ReionGridDim,
+                    (float)R,
+                    run_globals.params.TsHeatingFilterType,
+                    R_ct > 0);
 
       // inverse fourier transform back to real space
       fftwf_execute(run_globals.reion_grids.sfr_filtered_reverse_plan);
@@ -786,112 +748,111 @@ void _ComputeTs(int snapshot)
       NO_LIGHT = 1;
     }
 
-    // Populate the initial ionisation/heating tables
-    for (R_ct = 0; R_ct < TsNumFilterSteps; R_ct++) {
-
-      if (R_ct == 0) {
-        prev_zpp = zp;
-        prev_R = 0;
-      } else {
-        prev_zpp = zpp_edge[R_ct - 1];
-        prev_R = R_values[R_ct - 1];
-      }
-      zpp = (zpp_edge[R_ct] + prev_zpp) * 0.5; // average redshift value of shell: z'' + 0.5 * dz''
-
+    // The shell edges and mean IGM state are identical on every rank. First
+    // distribute the optical-depth roots; no root depends on a previous root.
+    int table_counts[run_globals.mpi_size], table_offsets[run_globals.mpi_size];
+    double nu_tau_one_by_radius[TsNumFilterSteps];
+    const int table_rank = run_globals.mpi_rank;
 #if USE_MINI_HALOS
-      filling_factor_of_HI_zp =
-        1. - (ReionEfficiency * collapse_fraction + ReionEfficiencyIII * collapse_fractionIII) / (1.0 - x_e_ave);
+    filling_factor_of_HI_zp =
+      1. - (ReionEfficiency * collapse_fraction + ReionEfficiencyIII * collapse_fractionIII) / (1.0 - x_e_ave);
 #else
-      filling_factor_of_HI_zp = 1. - ReionEfficiency * collapse_fraction / (1.0 - x_e_ave);
+    filling_factor_of_HI_zp = 1. - ReionEfficiency * collapse_fraction / (1.0 - x_e_ave);
 #endif
+    split_heating_table_work(TsNumFilterSteps, table_counts, table_offsets);
+    for (R_ct = table_offsets[table_rank]; R_ct < table_offsets[table_rank] + table_counts[table_rank]; ++R_ct) {
+      prev_zpp = R_ct == 0 ? zp : zpp_edge[R_ct - 1];
+      zpp = (zpp_edge[R_ct] + prev_zpp) * 0.5;
+      nu_tau_one_by_radius[R_ct] = nu_tau_one(zp, zpp, x_e_ave, filling_factor_of_HI_zp, snapshot);
+    }
+    gather_heating_table(nu_tau_one_by_radius, table_counts, table_offsets);
 
-      nu_tau_one_zpp = nu_tau_one(zp, zpp, x_e_ave, filling_factor_of_HI_zp, snapshot);
+    // Distribute individual (ionisation fraction, radius) pairs, rather than
+    // whole shells, to keep ranks busy even when there are few filtering radii.
+    split_heating_table_work(x_int_NXHII * TsNumFilterSteps, table_counts, table_offsets);
+    for (int item = table_offsets[table_rank]; item < table_offsets[table_rank] + table_counts[table_rank]; ++item) {
+      x_e_ct = item / TsNumFilterSteps;
+      R_ct = item % TsNumFilterSteps;
+      prev_zpp = R_ct == 0 ? zp : zpp_edge[R_ct - 1];
+      zpp = (zpp_edge[R_ct] + prev_zpp) * 0.5;
+      nu_tau_one_zpp = nu_tau_one_by_radius[R_ct];
       lower_int_limit_GAL = fmax(nu_tau_one_zpp, run_globals.params.physics.NuXrayThreshold * NU_over_EV);
       upper_int_limit_GAL = run_globals.params.physics.NuXrayMax * NU_over_EV;
 
-      if (filling_factor_of_HI_zp < 0)
-        filling_factor_of_HI_zp =
-          0; // for global evol; nu_tau_one above treats negative (post_reionization) inferred filling factors properly
-
-      for (x_e_ct = 0; x_e_ct < x_int_NXHII; x_e_ct++) {
-        freq_int_heat_tbl_GAL[x_e_ct][R_ct] = integrate_over_nu(zp,
-                                                                x_int_XHII[x_e_ct],
-                                                                lower_int_limit_GAL,
-                                                                upper_int_limit_GAL,
-                                                                run_globals.params.physics.NuXrayThreshold,
-                                                                run_globals.params.physics.SpecIndexXrayGal,
-                                                                0);
-        freq_int_ion_tbl_GAL[x_e_ct][R_ct] = integrate_over_nu(zp,
-                                                               x_int_XHII[x_e_ct],
-                                                               lower_int_limit_GAL,
-                                                               upper_int_limit_GAL,
-                                                               run_globals.params.physics.NuXrayThreshold,
-                                                               run_globals.params.physics.SpecIndexXrayGal,
-                                                               1);
-        freq_int_lya_tbl_GAL[x_e_ct][R_ct] = integrate_over_nu(zp,
-                                                               x_int_XHII[x_e_ct],
-                                                               lower_int_limit_GAL,
-                                                               upper_int_limit_GAL,
-                                                               run_globals.params.physics.NuXrayThreshold,
-                                                               run_globals.params.physics.SpecIndexXrayGal,
-                                                               2);
+      freq_int_heat_tbl_GAL[x_e_ct][R_ct] = integrate_over_nu(zp,
+                                                              x_int_XHII[x_e_ct],
+                                                              lower_int_limit_GAL,
+                                                              upper_int_limit_GAL,
+                                                              run_globals.params.physics.NuXrayThreshold,
+                                                              run_globals.params.physics.SpecIndexXrayGal,
+                                                              0);
+      freq_int_ion_tbl_GAL[x_e_ct][R_ct] = integrate_over_nu(zp,
+                                                             x_int_XHII[x_e_ct],
+                                                             lower_int_limit_GAL,
+                                                             upper_int_limit_GAL,
+                                                             run_globals.params.physics.NuXrayThreshold,
+                                                             run_globals.params.physics.SpecIndexXrayGal,
+                                                             1);
+      freq_int_lya_tbl_GAL[x_e_ct][R_ct] = integrate_over_nu(zp,
+                                                             x_int_XHII[x_e_ct],
+                                                             lower_int_limit_GAL,
+                                                             upper_int_limit_GAL,
+                                                             run_globals.params.physics.NuXrayThreshold,
+                                                             run_globals.params.physics.SpecIndexXrayGal,
+                                                             2);
 
 #if USE_MINI_HALOS
-        freq_int_heat_tbl_III[x_e_ct][R_ct] = integrate_over_nu(zp,
-                                                                x_int_XHII[x_e_ct],
-                                                                lower_int_limit_GAL,
-                                                                upper_int_limit_GAL,
-                                                                run_globals.params.physics.NuXrayThreshold,
-                                                                run_globals.params.physics.SpecIndexXrayIII,
-                                                                0);
-        freq_int_ion_tbl_III[x_e_ct][R_ct] = integrate_over_nu(zp,
-                                                               x_int_XHII[x_e_ct],
-                                                               lower_int_limit_GAL,
-                                                               upper_int_limit_GAL,
-                                                               run_globals.params.physics.NuXrayThreshold,
-                                                               run_globals.params.physics.SpecIndexXrayIII,
-                                                               1);
-        freq_int_lya_tbl_III[x_e_ct][R_ct] = integrate_over_nu(zp,
-                                                               x_int_XHII[x_e_ct],
-                                                               lower_int_limit_GAL,
-                                                               upper_int_limit_GAL,
-                                                               run_globals.params.physics.NuXrayThreshold,
-                                                               run_globals.params.physics.SpecIndexXrayIII,
-                                                               2);
+      freq_int_heat_tbl_III[x_e_ct][R_ct] = integrate_over_nu(zp,
+                                                              x_int_XHII[x_e_ct],
+                                                              lower_int_limit_GAL,
+                                                              upper_int_limit_GAL,
+                                                              run_globals.params.physics.NuXrayThreshold,
+                                                              run_globals.params.physics.SpecIndexXrayIII,
+                                                              0);
+      freq_int_ion_tbl_III[x_e_ct][R_ct] = integrate_over_nu(zp,
+                                                             x_int_XHII[x_e_ct],
+                                                             lower_int_limit_GAL,
+                                                             upper_int_limit_GAL,
+                                                             run_globals.params.physics.NuXrayThreshold,
+                                                             run_globals.params.physics.SpecIndexXrayIII,
+                                                             1);
+      freq_int_lya_tbl_III[x_e_ct][R_ct] = integrate_over_nu(zp,
+                                                             x_int_XHII[x_e_ct],
+                                                             lower_int_limit_GAL,
+                                                             upper_int_limit_GAL,
+                                                             run_globals.params.physics.NuXrayThreshold,
+                                                             run_globals.params.physics.SpecIndexXrayIII,
+                                                             2);
 #endif
-      }
 
-      /* K_b(zp,zpp,x_e) = Int_{nu_lo(zp,zpp)}^{nu_hi(zp,zpp)} f_dep(nu,x_e) * (nu/nu_th)^(-alpha_b-1) dnu */
       if (agn_soft_needed) {
         lower_int_limit_AGN_soft =
           fmax(nu_tau_one_zpp, run_globals.params.physics.NuXrayThreshold * NU_over_EV * (1. + zp) / (1. + zpp));
         upper_int_limit_AGN_soft = run_globals.params.physics.NuXraySoftCut * NU_over_EV * (1. + zp) / (1. + zpp);
 
-        for (x_e_ct = 0; x_e_ct < x_int_NXHII; x_e_ct++) {
-          freq_int_heat_tbl_AGN_soft[x_e_ct][R_ct] = integrate_over_nu(zp,
-                                                                       x_int_XHII[x_e_ct],
-                                                                       lower_int_limit_AGN_soft,
-                                                                       upper_int_limit_AGN_soft,
-                                                                       run_globals.params.physics.NuXrayThreshold,
-                                                                       run_globals.params.physics.SpecIndexXrayAGNSoft,
-                                                                       0);
+        freq_int_heat_tbl_AGN_soft[x_e_ct][R_ct] = integrate_over_nu(zp,
+                                                                     x_int_XHII[x_e_ct],
+                                                                     lower_int_limit_AGN_soft,
+                                                                     upper_int_limit_AGN_soft,
+                                                                     run_globals.params.physics.NuXrayThreshold,
+                                                                     run_globals.params.physics.SpecIndexXrayAGNSoft,
+                                                                     0);
 
-          freq_int_ion_tbl_AGN_soft[x_e_ct][R_ct] = integrate_over_nu(zp,
-                                                                      x_int_XHII[x_e_ct],
-                                                                      lower_int_limit_AGN_soft,
-                                                                      upper_int_limit_AGN_soft,
-                                                                      run_globals.params.physics.NuXrayThreshold,
-                                                                      run_globals.params.physics.SpecIndexXrayAGNSoft,
-                                                                      1);
+        freq_int_ion_tbl_AGN_soft[x_e_ct][R_ct] = integrate_over_nu(zp,
+                                                                    x_int_XHII[x_e_ct],
+                                                                    lower_int_limit_AGN_soft,
+                                                                    upper_int_limit_AGN_soft,
+                                                                    run_globals.params.physics.NuXrayThreshold,
+                                                                    run_globals.params.physics.SpecIndexXrayAGNSoft,
+                                                                    1);
 
-          freq_int_lya_tbl_AGN_soft[x_e_ct][R_ct] = integrate_over_nu(zp,
-                                                                      x_int_XHII[x_e_ct],
-                                                                      lower_int_limit_AGN_soft,
-                                                                      upper_int_limit_AGN_soft,
-                                                                      run_globals.params.physics.NuXrayThreshold,
-                                                                      run_globals.params.physics.SpecIndexXrayAGNSoft,
-                                                                      2);
-        }
+        freq_int_lya_tbl_AGN_soft[x_e_ct][R_ct] = integrate_over_nu(zp,
+                                                                    x_int_XHII[x_e_ct],
+                                                                    lower_int_limit_AGN_soft,
+                                                                    upper_int_limit_AGN_soft,
+                                                                    run_globals.params.physics.NuXrayThreshold,
+                                                                    run_globals.params.physics.SpecIndexXrayAGNSoft,
+                                                                    2);
       }
 
       if (agn_hard_needed) {
@@ -899,32 +860,59 @@ void _ComputeTs(int snapshot)
           fmax(nu_tau_one_zpp, run_globals.params.physics.NuXraySoftCut * NU_over_EV * (1. + zp) / (1. + zpp));
         upper_int_limit_AGN_hard = run_globals.params.physics.NuXrayMax * NU_over_EV * (1. + zp) / (1. + zpp);
 
-        for (x_e_ct = 0; x_e_ct < x_int_NXHII; x_e_ct++) {
-          freq_int_heat_tbl_AGN_hard[x_e_ct][R_ct] = integrate_over_nu(zp,
-                                                                       x_int_XHII[x_e_ct],
-                                                                       lower_int_limit_AGN_hard,
-                                                                       upper_int_limit_AGN_hard,
-                                                                       run_globals.params.physics.NuXrayThreshold,
-                                                                       run_globals.params.physics.SpecIndexXrayAGNHard,
-                                                                       0);
+        freq_int_heat_tbl_AGN_hard[x_e_ct][R_ct] = integrate_over_nu(zp,
+                                                                     x_int_XHII[x_e_ct],
+                                                                     lower_int_limit_AGN_hard,
+                                                                     upper_int_limit_AGN_hard,
+                                                                     run_globals.params.physics.NuXrayThreshold,
+                                                                     run_globals.params.physics.SpecIndexXrayAGNHard,
+                                                                     0);
 
-          freq_int_ion_tbl_AGN_hard[x_e_ct][R_ct] = integrate_over_nu(zp,
-                                                                      x_int_XHII[x_e_ct],
-                                                                      lower_int_limit_AGN_hard,
-                                                                      upper_int_limit_AGN_hard,
-                                                                      run_globals.params.physics.NuXrayThreshold,
-                                                                      run_globals.params.physics.SpecIndexXrayAGNHard,
-                                                                      1);
+        freq_int_ion_tbl_AGN_hard[x_e_ct][R_ct] = integrate_over_nu(zp,
+                                                                    x_int_XHII[x_e_ct],
+                                                                    lower_int_limit_AGN_hard,
+                                                                    upper_int_limit_AGN_hard,
+                                                                    run_globals.params.physics.NuXrayThreshold,
+                                                                    run_globals.params.physics.SpecIndexXrayAGNHard,
+                                                                    1);
 
-          freq_int_lya_tbl_AGN_hard[x_e_ct][R_ct] = integrate_over_nu(zp,
-                                                                      x_int_XHII[x_e_ct],
-                                                                      lower_int_limit_AGN_hard,
-                                                                      upper_int_limit_AGN_hard,
-                                                                      run_globals.params.physics.NuXrayThreshold,
-                                                                      run_globals.params.physics.SpecIndexXrayAGNHard,
-                                                                      2);
-        }
+        freq_int_lya_tbl_AGN_hard[x_e_ct][R_ct] = integrate_over_nu(zp,
+                                                                    x_int_XHII[x_e_ct],
+                                                                    lower_int_limit_AGN_hard,
+                                                                    upper_int_limit_AGN_hard,
+                                                                    run_globals.params.physics.NuXrayThreshold,
+                                                                    run_globals.params.physics.SpecIndexXrayAGNHard,
+                                                                    2);
       }
+    }
+
+#define GATHER_HEATING_TABLES(source)                                                                                  \
+  do {                                                                                                                 \
+    gather_heating_table(&freq_int_heat_tbl_##source[0][0], table_counts, table_offsets);                              \
+    gather_heating_table(&freq_int_ion_tbl_##source[0][0], table_counts, table_offsets);                               \
+    gather_heating_table(&freq_int_lya_tbl_##source[0][0], table_counts, table_offsets);                               \
+  } while (0)
+    GATHER_HEATING_TABLES(GAL);
+#if USE_MINI_HALOS
+    GATHER_HEATING_TABLES(III);
+#endif
+    if (agn_soft_needed)
+      GATHER_HEATING_TABLES(AGN_soft);
+    if (agn_hard_needed)
+      GATHER_HEATING_TABLES(AGN_hard);
+#undef GATHER_HEATING_TABLES
+
+    // Keep the Ly-alpha transition sum and its neighbouring-radius correction
+    // in the original increasing-radius order.
+    for (R_ct = 0; R_ct < TsNumFilterSteps; R_ct++) {
+      if (R_ct == 0) {
+        prev_zpp = zp;
+        prev_R = 0;
+      } else {
+        prev_zpp = zpp_edge[R_ct - 1];
+        prev_R = R_values[R_ct - 1];
+      }
+      zpp = (zpp_edge[R_ct] + prev_zpp) * 0.5;
 
       // and create the sum over Lya transitions from direct Lyn flux
       sum_lyn[R_ct] = 0;
@@ -1202,6 +1190,8 @@ void _ComputeTs(int snapshot)
     }
 #endif
 
+    prepare_heating_shells((float)zp);
+
     // interpolate to correct nu integral value based on the cell's ionization state
     for (int ix = 0; ix < local_nix; ix++)
       for (int iy = 0; iy < ReionGridDim; iy++)
@@ -1214,6 +1204,18 @@ void _ComputeTs(int snapshot)
 #if USE_MINI_HALOS
           ans[2] = Tk_boxII[i_real];
 #endif
+
+          xHII_call = x_e_box_prev[i_padded];
+
+          // Check if ionized fraction is within boundaries; if not, adjust to be within
+          if (xHII_call > x_int_XHII[x_int_NXHII - 1] * 0.999) {
+            xHII_call = x_int_XHII[x_int_NXHII - 1] * 0.999;
+          } else if (xHII_call < x_int_XHII[0]) {
+            xHII_call = 1.001 * x_int_XHII[0];
+          }
+
+          m_xHII_low = locate_xHII_index((float)xHII_call);
+          m_xHII_high = m_xHII_low + 1;
 
           for (R_ct = 0; R_ct < TsNumFilterSteps; R_ct++) {
             i_smoothed_heating = grid_index_smoothedSFR(R_ct, ix, iy, iz, TsNumFilterSteps, ReionGridDim);
@@ -1232,18 +1234,6 @@ void _ComputeTs(int snapshot)
                              ? run_globals.params.physics.AGNLWEfficiency * SMOOTHED_AGN_UV[i_smoothed_heating]
                              : 0.0;
 #endif
-            xHII_call = x_e_box_prev[i_padded];
-
-            // Check if ionized fraction is within boundaries; if not, adjust to be within
-            if (xHII_call > x_int_XHII[x_int_NXHII - 1] * 0.999) {
-              xHII_call = x_int_XHII[x_int_NXHII - 1] * 0.999;
-            } else if (xHII_call < x_int_XHII[0]) {
-              xHII_call = 1.001 * x_int_XHII[0];
-            }
-
-            m_xHII_low = locate_xHII_index((float)xHII_call);
-            m_xHII_high = m_xHII_low + 1;
-
             // heat
             freq_int_heat_GAL[R_ct] =
               (freq_int_heat_tbl_GAL[m_xHII_high][R_ct] - freq_int_heat_tbl_GAL[m_xHII_low][R_ct]) /

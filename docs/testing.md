@@ -1,11 +1,12 @@
 # Testing
 
-Meraxes has two kinds of tests:
+Meraxes has three kinds of tests:
 
 - **Unit tests** check individual physics modules (cooling, black-hole feedback, emission lines, parameter parsing).
+- **MPI integration tests** check source grids, filtering, history buffers and HDF5 input/output on small synthetic data.
 - **Regression tests** run the whole model on a small simulation and compare the results with stored references, so any change to the outputs is caught.
 
-GitHub Actions runs both on every push and pull request (see [Continuous integration](#continuous-integration)).
+GitHub Actions runs these on every push and pull request (see [Continuous integration](#continuous-integration)).
 
 ## Running the tests
 
@@ -16,7 +17,7 @@ mkdir build
 cd build
 cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DMERAXES_TESTDATA_DIR=/path/to/testdata
 make
-ctest -LE regression    # unit tests
+ctest -LE regression    # unit and MPI integration tests
 ctest -L regression     # regression tests
 ```
 
@@ -25,11 +26,12 @@ Debug builds compile with `-Werror=implicit` and run under AddressSanitizer and 
 | Tests | Requirement |
 |---|---|
 | Unit tests | [Criterion](https://github.com/Snaipe/Criterion) |
+| MPI integration tests | MPI and the normal build dependencies; no downloaded simulation data |
 | Regression runs | MPI; each run uses 2 ranks |
 | Regression comparisons | Python 3 with `h5py` and `numpy` |
 | Regression plots (optional) | `matplotlib` |
 
-Without Criterion, only the two standalone drivers are built. Without Python, the regression runs still happen but aren't compared.
+Without Criterion, the standalone drivers, MPI integration tests and regression tests are still built. Without Python, the regression runs still happen but aren't compared.
 
 | Unit test | Checks |
 |---|---|
@@ -38,6 +40,34 @@ Without Criterion, only the two standalone drivers are built. Without Python, th
 | `test_blackhole_feedback` | Black-hole emissivity, accretion time and luminosities. |
 | `test_emission_lines` | [O III] coefficients and luminosities. |
 | `main_cooling`, `main_blackhole_feedback` | Standalone drivers that print the same quantities for given inputs. |
+
+## CPU speedups and physical model changes
+
+Run the eight MPI integration cases with `ctest -L cpu --output-on-failure`:
+
+| Tests | MPI ranks | Checks |
+|---|---|---|
+| `cpu_mpi_1`, `cpu_mpi_2`, `cpu_mpi_3` | 1, 2, 3 | Filters against an independent reference, cache keys, zero/non-finite sources, record exchange, galaxy grid sampling, source construction and circular Fourier histories, including empty ranks. |
+| `save_output_mpi_1`, `save_output_mpi_2` | 1, 2 | Bounded output buffers, HDF5 table fields and values, galaxy ordering and tree links. |
+| `tree_reader_mpi_1`, `tree_reader_mpi_2`, `tree_reader_mpi_3` | 1, 2, 3 | Synthetic HDF5 merger-tree reads, empty ranks and FOF links across read batches. |
+
+The optimizations keep the physical calculations at the following entry points:
+
+| Change | Entry point |
+|---|---|
+| Galaxy X-ray luminosity or scatter | `calculate_galaxy_xray_luminosity()` and `construct_baryon_grids()` in `reionization.c` |
+| Redshift-shell source weighting | `zpp_integrand_GAL` in `evolveInt()`; shell-wide factors in `prepare_heating_shells()`, both in `XRayHeatingFunctions.c` |
+| X-ray spectrum or energy band | Frequency limits and luminosity normalization in `ComputeTs.c`, plus `integrand_in_nu_*()` and the shell factors in `XRayHeatingFunctions.c` |
+| Absorption and optical depth | `tauX_integrand()`, `tauX()` and `nu_tau_one()` in `XRayHeatingFunctions.c` |
+| Smoothing kernel | `filter_fields()` in `cpu_utils.c`; `filter()` delegates to this same implementation |
+
+Heating histories store normalized **Fourier spectra**, indexed through `heating_history_head` and `load_source_spectrum()`. Their weighted combination uses FFT linearity. Apply nonlinear galaxy or real-space source physics before `cache_source_spectrum()`; do not treat `*_histories` as real-space cells.
+
+`prepare_heating_shells()` refreshes the shell factors each snapshot before cell evolution. It holds only factors shared by all cells at that shell. Cell-dependent factors belong in the cell calculation; a cell-dependent spectrum also requires extending the shared frequency tables. The frequency and optical-depth tables are recomputed each snapshot, with independent entries distributed over MPI ranks.
+
+Filter windows are cached by radius, filter type, box size and local grid geometry. If a new kernel depends on another parameter, include it in the cache key or invalidate the cache when it changes.
+
+After changing physics, run the relevant full regression setup as well as these integration tests. For an optimization comparison, keep build options, MPI rank count, inputs and tables identical. In particular, `USE_STOCHASTICITY` selects different X-ray source paths even when the scatter amplitude is zero.
 
 ## Regression tests
 
