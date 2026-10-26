@@ -120,9 +120,7 @@ void _ComputeTs(int snapshot)
   double Luminosity_converstion_factor_AGN_soft; /* soft band: nu_thresh -> nu_break   */
   double Luminosity_converstion_factor_AGN_hard; /* hard band: nu_break  -> nu_hard_cut */
   float bh, bh_soft; /* per-cell BHXrayEmissivity(_soft), read while building SMOOTHED_AGN_hard(_soft) */
-#if USE_MINI_HALOS
-  float bh_uv; /* per-cell BHUVEmissivity, read while building SMOOTHED_AGN_UV */
-#endif
+  float bh_uv;       /* per-cell BHUVEmissivity, read while building SMOOTHED_AGN_UV */
 
 #if USE_MINI_HALOS
   double Luminosity_converstion_factor_III, collapse_fractionIII, collapse_fractionIII_in_cell;
@@ -165,9 +163,9 @@ void _ComputeTs(int snapshot)
   int snapshot_counter_backwards[TsNumFilterSteps];
   double zedge;
 #if USE_MINI_HALOS
-  double ans[3], dansdz[14];
+  double ans[3], dansdz[DERIV_NUM];
 #else
-  double ans[2], dansdz[7];
+  double ans[2], dansdz[DERIV_NUM];
 #endif
   double xHII_call;
   double SFR_GAL[TsNumFilterSteps];
@@ -181,6 +179,10 @@ void _ComputeTs(int snapshot)
   double lw_term_stellar, lw_term_III, lw_term_AGN;
   int i_spec;
 #endif
+  double AGN_eps1450[TsNumFilterSteps]; /* AGN UV emissivity at 1450A, per shell */
+  double nu_emit;                       /* emitted-frame frequency, for the AGN Lya weight */
+  double lya_band_boost;                /* band-2 BLR multiplier, derived below */
+  double a_uv, nu_lo, nu_hi, nu_L, n_cont, n_line;
 
 #if USE_MINI_HALOS
   double SFR_III[TsNumFilterSteps];
@@ -209,10 +211,8 @@ void _ComputeTs(int snapshot)
   fftwf_complex* BHXrayEmissivity_hard_filtered = run_globals.reion_grids.BHXrayEmissivity_hard_filtered;
   fftwf_complex* BHXrayEmissivity_soft_unfiltered = run_globals.reion_grids.BHXrayEmissivity_soft_unfiltered;
   fftwf_complex* BHXrayEmissivity_soft_filtered = run_globals.reion_grids.BHXrayEmissivity_soft_filtered;
-#if USE_MINI_HALOS
   fftwf_complex* BHUVEmissivity_unfiltered = run_globals.reion_grids.BHUVEmissivity_unfiltered;
   fftwf_complex* BHUVEmissivity_filtered = run_globals.reion_grids.BHUVEmissivity_filtered;
-#endif
 
 #if USE_MINI_HALOS
   fftwf_complex* sfrIII_unfiltered = run_globals.reion_grids.sfrIII_unfiltered;
@@ -225,9 +225,7 @@ void _ComputeTs(int snapshot)
 #endif
   double* SMOOTHED_AGN_hard = run_globals.reion_grids.SMOOTHED_AGN_hard;
   double* SMOOTHED_AGN_soft = run_globals.reion_grids.SMOOTHED_AGN_soft;
-#if USE_MINI_HALOS
   double* SMOOTHED_AGN_UV = run_globals.reion_grids.SMOOTHED_AGN_UV;
-#endif
 #if USE_MINI_HALOS
   double* SMOOTHED_SFR_III = run_globals.reion_grids.SMOOTHED_SFR_III;
 #endif
@@ -240,6 +238,7 @@ void _ComputeTs(int snapshot)
   double J_alpha_ave, xalpha_ave, Xheat_ave, Xion_ave, J_LW_ave;
   J_alpha_ave = xalpha_ave = Xheat_ave = Xion_ave = J_LW_ave = 0.0;
 
+  double J_alpha_ave_AGN_UV = 0.0, J_alpha_ave_AGN_Xray = 0.0;
   double Xheat_ave_AGN_soft = 0.0;
   double Xheat_ave_AGN_hard = 0.0;
 
@@ -516,13 +515,11 @@ void _ComputeTs(int snapshot)
         for (int ii = 0; ii < slab_n_complex; ii++)
           BHXrayEmissivity_soft_unfiltered[ii] /= (float)total_n_cells;
       }
-#if USE_MINI_HALOS
-      if (run_globals.params.Flag_IncludeLymanWerner) {
+      if ((run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)) {
         fftwf_execute(run_globals.reion_grids.BHUVEmissivity_forward_plan);
         for (int ii = 0; ii < slab_n_complex; ii++)
           BHUVEmissivity_unfiltered[ii] /= (float)total_n_cells;
       }
-#endif
 
       memcpy(sfr_filtered, sfr_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
 #if USE_STOCHASTICITY
@@ -537,10 +534,8 @@ void _ComputeTs(int snapshot)
       if (agn_soft_needed)
         memcpy(
           BHXrayEmissivity_soft_filtered, BHXrayEmissivity_soft_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-#if USE_MINI_HALOS
-      if (run_globals.params.Flag_IncludeLymanWerner)
+      if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)
         memcpy(BHUVEmissivity_filtered, BHUVEmissivity_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-#endif
 
       if (R_ct > 0) {
         int local_ix_start = (int)(run_globals.reion_grids.slab_ix_start[run_globals.mpi_rank]);
@@ -572,15 +567,13 @@ void _ComputeTs(int snapshot)
                  ReionGridDim,
                  (float)R,
                  run_globals.params.TsHeatingFilterType);
-#if USE_MINI_HALOS
-        if (run_globals.params.Flag_IncludeLymanWerner)
+        if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)
           filter(BHUVEmissivity_filtered,
                  local_ix_start,
                  local_nix,
                  ReionGridDim,
                  (float)R,
                  run_globals.params.TsHeatingFilterType);
-#endif
       }
 
       // inverse fourier transform back to real space
@@ -595,10 +588,8 @@ void _ComputeTs(int snapshot)
         fftwf_execute(run_globals.reion_grids.BHXrayEmissivity_hard_filtered_reverse_plan);
       if (agn_soft_needed)
         fftwf_execute(run_globals.reion_grids.BHXrayEmissivity_soft_filtered_reverse_plan);
-#if USE_MINI_HALOS
-      if (run_globals.params.Flag_IncludeLymanWerner)
+      if ((run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha))
         fftwf_execute(run_globals.reion_grids.BHUVEmissivity_filtered_reverse_plan);
-#endif
 
       // Compute and store the collapse fraction and average electron fraction. Necessary for evaluating the integrals
       // back along the light-cone. Need the non-smoothed version, hence this is only done for R_ct == 0.
@@ -654,15 +645,13 @@ void _ComputeTs(int snapshot)
                   (double)bh_soft * 1e10 * SOLAR_LUM / pixel_volume * pow(units->UnitLength_in_cm, -3.0);
                 agn_xray_soft_ave += SMOOTHED_AGN_soft[i_smoothed_heating];
               }
-#if USE_MINI_HALOS
-              if (run_globals.params.Flag_IncludeLymanWerner) {
+              if ((run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)) {
                 ((float*)BHUVEmissivity_filtered)[i_padded] = fmaxf(((float*)BHUVEmissivity_filtered)[i_padded], 0.0);
 
                 bh_uv = ((float*)BHUVEmissivity_filtered)[i_padded];
                 SMOOTHED_AGN_UV[i_smoothed_heating] = (double)bh_uv * 1e-11 * SOLAR_LUM / NU_1450 / pixel_volume *
                                                       pow(units->UnitLength_in_cm, -3.0); // 1e21 erg/s/Hz/cm^3
               }
-#endif
 
               density_over_mean = 1.0 + run_globals.reion_grids.deltax[i_padded];
 
@@ -759,15 +748,13 @@ void _ComputeTs(int snapshot)
                 SMOOTHED_AGN_soft[i_smoothed_heating] =
                   (double)bh_soft * 1e10 * SOLAR_LUM / pixel_volume * pow(units->UnitLength_in_cm, -3.0);
               }
-#if USE_MINI_HALOS
-              if (run_globals.params.Flag_IncludeLymanWerner) {
+              if ((run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)) {
                 ((float*)BHUVEmissivity_filtered)[i_padded] = fmaxf(((float*)BHUVEmissivity_filtered)[i_padded], 0.0);
 
                 bh_uv = ((float*)BHUVEmissivity_filtered)[i_padded];
                 SMOOTHED_AGN_UV[i_smoothed_heating] = (double)bh_uv * 1e-11 * SOLAR_LUM / NU_1450 / pixel_volume *
                                                       pow(units->UnitLength_in_cm, -3.0); // 1e21 erg/s/Hz/cm^3
               }
-#endif
             }
       }
 
@@ -784,6 +771,25 @@ void _ComputeTs(int snapshot)
       NO_LIGHT = 0;
     } else {
       NO_LIGHT = 1;
+    }
+
+    /* Band-2 BLR multiplier, derived from the EW so the two cannot drift apart. */
+    lya_band_boost = 1.0;
+    if (run_globals.params.physics.AGNBandLineEW > 0.0) {
+      a_uv = run_globals.params.physics.SpecIndexUVAGNSoft;
+      nu_lo = nu_n(2) * NU_LA;
+      nu_hi = nu_n(3) * NU_LA;
+      nu_L = SPEED_OF_LIGHT / (AGN_BAND_LINE_LAMBDA * 1e-8);
+      n_cont = pow(NU_1450, a_uv) / PLANCK * (pow(nu_lo, -a_uv) - pow(nu_hi, -a_uv)) / a_uv;
+      n_line = (run_globals.params.physics.AGNBandLineEW * 1e-8) * pow(nu_L / NU_1450, -a_uv) * nu_L /
+               (SPEED_OF_LIGHT * PLANCK);
+      lya_band_boost = 1.0 + n_line / n_cont;
+      mlog("AGN band-2 BLR line: EW = %.2f A at %.1f A, alpha = %.3f -> boost = %.6f",
+           MLOG_MESG,
+           run_globals.params.physics.AGNBandLineEW,
+           AGN_BAND_LINE_LAMBDA,
+           a_uv,
+           lya_band_boost);
     }
 
     // Populate the initial ionisation/heating tables
@@ -928,6 +934,7 @@ void _ComputeTs(int snapshot)
 
       // and create the sum over Lya transitions from direct Lyn flux
       sum_lyn[R_ct] = 0;
+      sum_lyn_AGN[R_ct] = 0;
 #if USE_MINI_HALOS
       sum_lyn_III[R_ct] = 0;
       if (run_globals.params.Flag_IncludeLymanWerner) {
@@ -950,8 +957,17 @@ void _ComputeTs(int snapshot)
 
         nuprime = nu_n(n_ct) * (1 + zpp) / (1.0 + zp);
         sum_lyn[R_ct] += frecycle(n_ct) * spectral_emissivity(nuprime, 0, 2);
+        /* Must precede the LW floor clip: nuprime has to stay unclipped. */
+        if (run_globals.params.physics.Flag_IncludeAGNLyAlpha) {
+          nu_emit = nuprime * NU_LA;
+          /* Band 2 only: f_rec(3)=0, and Lya itself is a local term in evolveInt. */
+          sum_lyn_AGN[R_ct] += ((n_ct == 2) ? lya_band_boost : 1.0) * frecycle(n_ct) *
+                               pow(nu_emit / NU_1450, -run_globals.params.physics.SpecIndexUVAGNSoft) /
+                               (PLANCK * nu_emit);
+        }
 #if USE_MINI_HALOS
         sum_lyn_III[R_ct] += frecycle(n_ct) * spectral_emissivity(nuprime, 0, 3);
+
         if (run_globals.params.Flag_IncludeLymanWerner) {
           if (nuprime < NU_LW / NU_LA)
             nuprime = NU_LW / NU_LA;
@@ -1024,6 +1040,7 @@ void _ComputeTs(int snapshot)
         // Now add a non-zero contribution to the previously zero contribution
         // The amount is the weight, multplied by the contribution from the previous radii
         sum_lyn[R_ct] = weight * sum_lyn[R_ct - 1];
+        sum_lyn_AGN[R_ct] = weight * sum_lyn_AGN[R_ct - 1];
 #if USE_MINI_HALOS
         sum_lyn_III[R_ct] = weight * sum_lyn_III[R_ct - 1]; // I am not really sure about this line!
         if (run_globals.params.Flag_IncludeLymanWerner) {
@@ -1232,6 +1249,8 @@ void _ComputeTs(int snapshot)
                              ? run_globals.params.physics.AGNLWEfficiency * SMOOTHED_AGN_UV[i_smoothed_heating]
                              : 0.0;
 #endif
+            AGN_eps1450[R_ct] =
+              run_globals.params.physics.Flag_IncludeAGNLyAlpha ? SMOOTHED_AGN_UV[i_smoothed_heating] * 1e21 : 0.0;
             xHII_call = x_e_box_prev[i_padded];
 
             // Check if ionized fraction is within boundaries; if not, adjust to be within
@@ -1348,6 +1367,7 @@ void _ComputeTs(int snapshot)
                     XAGN_soft,
                     XAGN_hard,
                     AGN_LW,
+                    AGN_eps1450,
                     freq_int_heat_GAL,
                     freq_int_ion_GAL,
                     freq_int_lya_GAL,
@@ -1372,6 +1392,7 @@ void _ComputeTs(int snapshot)
 #endif
                     XAGN_soft,
                     XAGN_hard,
+                    AGN_eps1450,
                     freq_int_heat_GAL,
                     freq_int_ion_GAL,
                     freq_int_lya_GAL,
@@ -1385,6 +1406,8 @@ void _ComputeTs(int snapshot)
                     ans,
                     dansdz);
 #endif
+          J_alpha_ave_AGN_UV += dansdz[DERIV_JA_AGN_UV];
+          J_alpha_ave_AGN_Xray += dansdz[DERIV_JA_AGN_XRAY];
           Xheat_ave_AGN_soft += dansdz[5];
           Xheat_ave_AGN_hard += dansdz[6];
 
@@ -1451,6 +1474,8 @@ void _ComputeTs(int snapshot)
     MPI_Allreduce(MPI_IN_PLACE, &xalpha_ave, 1, MPI_DOUBLE, MPI_SUM, run_globals.mpi_comm);
     MPI_Allreduce(MPI_IN_PLACE, &Xheat_ave, 1, MPI_DOUBLE, MPI_SUM, run_globals.mpi_comm);
     MPI_Allreduce(MPI_IN_PLACE, &Xion_ave, 1, MPI_DOUBLE, MPI_SUM, run_globals.mpi_comm);
+    MPI_Allreduce(MPI_IN_PLACE, &J_alpha_ave_AGN_UV, 1, MPI_DOUBLE, MPI_SUM, run_globals.mpi_comm);
+    MPI_Allreduce(MPI_IN_PLACE, &J_alpha_ave_AGN_Xray, 1, MPI_DOUBLE, MPI_SUM, run_globals.mpi_comm);
     MPI_Allreduce(MPI_IN_PLACE, &Xheat_ave_AGN_soft, 1, MPI_DOUBLE, MPI_SUM, run_globals.mpi_comm);
     MPI_Allreduce(MPI_IN_PLACE, &Xheat_ave_AGN_hard, 1, MPI_DOUBLE, MPI_SUM, run_globals.mpi_comm);
 #if USE_MINI_HALOS
@@ -1466,6 +1491,8 @@ void _ComputeTs(int snapshot)
     xalpha_ave /= total_n_cells;
     Xheat_ave /= total_n_cells;
     Xion_ave /= total_n_cells;
+    J_alpha_ave_AGN_UV /= total_n_cells;
+    J_alpha_ave_AGN_Xray /= total_n_cells;
     Xheat_ave_AGN_soft /= total_n_cells;
     Xheat_ave_AGN_hard /= total_n_cells;
 #if USE_MINI_HALOS
@@ -1483,6 +1510,8 @@ void _ComputeTs(int snapshot)
     run_globals.reion_grids.volume_ave_xalpha = xalpha_ave;
     run_globals.reion_grids.volume_ave_Xheat = Xheat_ave;
     run_globals.reion_grids.volume_ave_Xion = Xion_ave;
+    run_globals.reion_grids.volume_ave_J_alpha_AGN_UV = J_alpha_ave_AGN_UV;
+    run_globals.reion_grids.volume_ave_J_alpha_AGN_Xray = J_alpha_ave_AGN_Xray;
     run_globals.reion_grids.volume_ave_Xheat_AGN_soft = Xheat_ave_AGN_soft;
     run_globals.reion_grids.volume_ave_Xheat_AGN_hard = Xheat_ave_AGN_hard;
 #if USE_MINI_HALOS
