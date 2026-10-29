@@ -13,8 +13,9 @@ if(NOT EXISTS "${MERAXES_TESTDATA_DIR}/L10_N512/a_list.txt")
     return()
 endif()
 
-# Each setup's reference results come from one build configuration, so a setup
-# only runs in that configuration.
+# Most setups run only in the build configuration used for their reference.
+# The deterministic xray_metallicity setup shares one reference between
+# default and USE_STOCHASTICITY builds.
 set(optional_features USE_MINI_HALOS CALC_MAGS USE_STOCHASTICITY USE_JWST USE_HST)
 set(enabled_features "")
 foreach(feature IN LISTS optional_features)
@@ -24,7 +25,7 @@ foreach(feature IN LISTS optional_features)
 endforeach()
 
 if(enabled_features STREQUAL "")
-    set(setups default igm xray)
+    set(setups default igm xray xray_metallicity)
 elseif(enabled_features STREQUAL "USE_MINI_HALOS")
     set(setups mini_halos)
 elseif(enabled_features STREQUAL "CALC_MAGS")
@@ -36,7 +37,7 @@ elseif(enabled_features STREQUAL "CALC_MAGS")
         return()
     endif()
 elseif(enabled_features STREQUAL "USE_STOCHASTICITY")
-    set(setups stochasticity)
+    set(setups stochasticity xray_metallicity)
 else()
     message(STATUS "Regression tests disabled: no setup for the feature combination ${enabled_features}")
     return()

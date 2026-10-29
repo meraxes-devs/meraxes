@@ -10,6 +10,13 @@
 
 #include "meraxes.h"
 
+// Convert luminosity density [erg/s/cm^3] to the effective SFR density [Msun/s/cm^3]
+// used with the original LXrayGal * SEC_PER_YEAR heating prefactor. Zero normalization disables X-rays.
+static inline double xray_luminosity_to_sfr_density(double luminosity_density, double lx_per_sfr)
+{
+  return lx_per_sfr > 0.0 ? luminosity_density / (lx_per_sfr * SEC_PER_YEAR) : 0.0;
+}
+
 // Below gives grid sizes for the interpolation arrays
 #ifndef _x_int_VARIABLES_DEFINED
 #define x_int_NXHII 14
@@ -214,9 +221,7 @@ extern "C"
   void evolveInt(float zp,
                  float curr_delNL0,
                  const double SFR_GAL[],
-#if USE_STOCHASTICITY
-                 const double XRAY_LUMINOSITY_GAL[],
-#endif
+                 const double XRAY_SFR_GAL[],
                  const double SFR_III[],
                  const double XAGN_soft[],
                  const double XAGN_hard[],
@@ -240,9 +245,7 @@ extern "C"
 void evolveInt(float zp,
                float curr_delNL0,
                const double SFR_GAL[],
-#if USE_STOCHASTICITY
-               const double XRAY_LUMINOSITY_GAL[],
-#endif
+               const double XRAY_SFR_GAL[],
                const double XAGN_soft[],
                const double XAGN_hard[],
                const double freq_int_heat_GAL[],

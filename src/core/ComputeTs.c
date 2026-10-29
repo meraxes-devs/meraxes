@@ -29,6 +29,88 @@
  * III)
  */
 
+typedef enum
+{
+  XRAY_GAL = 0,
+  XRAY_GAL_III = 1,
+  XRAY_AGN_HARD = 2,
+  XRAY_AGN_SOFT = 3
+} xray_source_t;
+
+static double xray_heating_prefactor(xray_source_t source, double zp)
+{
+  const physics_params_t* params = &run_globals.params.physics;
+  double energy_lo = params->NuXrayThreshold;
+  double energy_hi = params->NuXraySoftCut;
+  double alpha;
+  double lx_per_sfr = 1.0;
+
+  switch (source) {
+    case XRAY_GAL:
+      alpha = params->SpecIndexXrayGal;
+      lx_per_sfr = params->LXrayGal;
+      break;
+
+    case XRAY_GAL_III:
+#if USE_MINI_HALOS
+      alpha = params->SpecIndexXrayIII;
+      lx_per_sfr = params->LXrayGalIII;
+      break;
+#else
+      return 0.0;
+#endif
+
+    case XRAY_AGN_HARD:
+      if (params->Flag_IncludeAGNXray != 1 && params->Flag_IncludeAGNXray != 2)
+        return 0.0;
+      energy_lo = params->NuXraySoftCut;
+      energy_hi = params->NuXrayMax;
+      alpha = params->SpecIndexXrayAGNHard;
+      break;
+
+    case XRAY_AGN_SOFT:
+      if (params->Flag_IncludeAGNXray != 1 && params->Flag_IncludeAGNXray != 3)
+        return 0.0;
+      alpha = params->SpecIndexXrayAGNSoft;
+      break;
+
+    default:
+      return NAN;
+  }
+
+  if (!isfinite(lx_per_sfr) || lx_per_sfr < 0.0)
+    return NAN;
+  if (lx_per_sfr == 0.0)
+    return 0.0;
+
+  if (!isfinite(energy_lo) || !isfinite(energy_hi) || !isfinite(params->NuXrayThreshold) || !isfinite(alpha) ||
+      energy_lo <= 0.0 || energy_hi <= energy_lo || params->NuXrayThreshold <= 0.0)
+    return NAN;
+
+  double luminosity_conversion;
+  if (fabs(alpha - 1.0) < REL_TOL) {
+    luminosity_conversion = (params->NuXrayThreshold * NU_over_EV) * log(energy_hi / energy_lo);
+    luminosity_conversion = 1.0 / luminosity_conversion;
+  } else {
+    luminosity_conversion = pow(energy_hi * NU_over_EV, 1.0 - alpha) - pow(energy_lo * NU_over_EV, 1.0 - alpha);
+    luminosity_conversion = 1.0 / luminosity_conversion;
+    luminosity_conversion *= pow(params->NuXrayThreshold * NU_over_EV, -alpha) * (1.0 - alpha);
+  }
+
+  // Galaxy inputs are SFR densities; AGN inputs are luminosity densities.
+  if (source == XRAY_GAL) {
+    luminosity_conversion *= 1.0 / PLANCK;
+    luminosity_conversion *= lx_per_sfr * SEC_PER_YEAR;
+  } else if (source == XRAY_GAL_III) {
+    luminosity_conversion *= SEC_PER_YEAR / PLANCK;
+    luminosity_conversion *= lx_per_sfr;
+  } else {
+    luminosity_conversion /= PLANCK;
+  }
+
+  return luminosity_conversion / (params->NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT * pow(1.0 + zp, alpha + 3.0);
+}
+
 int set_sfr_history()
 {
   double box_size = run_globals.params.BoxSize / run_globals.params.Hubble_h; // Mpc
@@ -106,8 +188,7 @@ void _ComputeTs(int snapshot)
 
   int i_real, i_padded, i_smoothed_heating, R_ct, x_e_ct, n_ct, m_xHII_low, m_xHII_high, NO_LIGHT;
 
-  double prev_zpp, prev_R, zpp, zp, lower_int_limit_GAL, filling_factor_of_HI_zp, R_factor, R, nuprime, dzp,
-    Luminosity_converstion_factor_GAL;
+  double prev_zpp, prev_R, zpp, zp, lower_int_limit_GAL, filling_factor_of_HI_zp, R_factor, R, nuprime, dzp;
   double collapse_fraction, density_over_mean, collapse_fraction_in_cell;
   double agn_xray_hard_ave = 0.0, agn_xray_soft_ave = 0.0; /* volume-averaged emissivity density, this snapshot */
   double hmxb_xray_ave = 0.0; /* volume-averaged HMXB (galaxy) X-ray emissivity density, this snapshot */
@@ -117,15 +198,13 @@ void _ComputeTs(int snapshot)
   double upper_int_limit_AGN_soft;
   double upper_int_limit_AGN_hard;
   double nu_tau_one_zpp;
-  double Luminosity_converstion_factor_AGN_soft; /* soft band: nu_thresh -> nu_break   */
-  double Luminosity_converstion_factor_AGN_hard; /* hard band: nu_break  -> nu_hard_cut */
   float bh, bh_soft; /* per-cell BHXrayEmissivity(_soft), read while building SMOOTHED_AGN_hard(_soft) */
 #if USE_MINI_HALOS
   float bh_uv; /* per-cell BHUVEmissivity, read while building SMOOTHED_AGN_UV */
 #endif
 
 #if USE_MINI_HALOS
-  double Luminosity_converstion_factor_III, collapse_fractionIII, collapse_fractionIII_in_cell;
+  double collapse_fractionIII, collapse_fractionIII_in_cell;
 #endif
 
   // TODO: Can we reduce the scope of these variables and, if not, improve the names?
@@ -156,6 +235,7 @@ void _ComputeTs(int snapshot)
     freq_int_lya_tbl_III[x_int_NXHII][TsNumFilterSteps];
 #endif
 
+  bool xray_luminosity_needed = USE_STOCHASTICITY || run_globals.params.physics.Flag_UseXrayMetallicity;
   bool agn_soft_needed =
     (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 3);
   bool agn_hard_needed =
@@ -171,9 +251,7 @@ void _ComputeTs(int snapshot)
 #endif
   double xHII_call;
   double SFR_GAL[TsNumFilterSteps];
-#if USE_STOCHASTICITY
-  double XRAY_LUMINOSITY_GAL[TsNumFilterSteps];
-#endif
+  double XRAY_SFR_GAL[TsNumFilterSteps];
   double XAGN_soft[TsNumFilterSteps];
   double XAGN_hard[TsNumFilterSteps];
 #if USE_MINI_HALOS
@@ -200,10 +278,8 @@ void _ComputeTs(int snapshot)
 
   fftwf_complex* sfr_unfiltered = run_globals.reion_grids.sfr_unfiltered;
   fftwf_complex* sfr_filtered = run_globals.reion_grids.sfr_filtered;
-#if USE_STOCHASTICITY
   fftwf_complex* xray_luminosity_unfiltered = run_globals.reion_grids.xray_luminosity_unfiltered;
   fftwf_complex* xray_luminosity_filtered = run_globals.reion_grids.xray_luminosity_filtered;
-#endif
 
   fftwf_complex* BHXrayEmissivity_hard_unfiltered = run_globals.reion_grids.BHXrayEmissivity_hard_unfiltered;
   fftwf_complex* BHXrayEmissivity_hard_filtered = run_globals.reion_grids.BHXrayEmissivity_hard_filtered;
@@ -220,9 +296,7 @@ void _ComputeTs(int snapshot)
 #endif
 
   double* SMOOTHED_SFR_GAL = run_globals.reion_grids.SMOOTHED_SFR_GAL;
-#if USE_STOCHASTICITY
   double* SMOOTHED_XRAY_LUMINOSITY_GAL = run_globals.reion_grids.SMOOTHED_XRAY_LUMINOSITY_GAL;
-#endif
   double* SMOOTHED_AGN_hard = run_globals.reion_grids.SMOOTHED_AGN_hard;
   double* SMOOTHED_AGN_soft = run_globals.reion_grids.SMOOTHED_AGN_soft;
 #if USE_MINI_HALOS
@@ -377,9 +451,8 @@ void _ComputeTs(int snapshot)
 #endif
           for (int ii = 0; ii < slab_n_complex * 2; ii++) {
             grids->sfr[ii] = 0;
-#if USE_STOCHASTICITY
-            grids->xray_luminosity[ii] = 0;
-#endif
+            if (xray_luminosity_needed)
+              grids->xray_luminosity[ii] = 0;
           }
           snapshot_counter_backwards[R_ct] += 1;
         } else if (zpp_edge[R_ct] > run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]]) {
@@ -396,9 +469,8 @@ void _ComputeTs(int snapshot)
 #endif
             for (int ii = 0; ii < slab_n_complex * 2; ii++) {
               grids->sfr[ii] *= weight;
-#if USE_STOCHASTICITY
-              grids->xray_luminosity[ii] *= weight;
-#endif
+              if (xray_luminosity_needed)
+                grids->xray_luminosity[ii] *= weight;
             }
           } else {
             if (run_globals.ZZ[snapshot - snapshot_counter_backwards[R_ct]] > zpp_edge[R_ct - 1]) {
@@ -428,9 +500,8 @@ void _ComputeTs(int snapshot)
               for (int ii = 0; ii < slab_n_complex * 2; ii++) {
                 grids->sfr[ii] = 0;
                 ;
-#if USE_STOCHASTICITY
-                grids->xray_luminosity[ii] = 0;
-#endif
+                if (xray_luminosity_needed)
+                  grids->xray_luminosity[ii] = 0;
               }
             }
           }
@@ -495,11 +566,11 @@ void _ComputeTs(int snapshot)
       // TODO: Double check that looping over correct number of elements here
       for (int ii = 0; ii < slab_n_complex; ii++)
         sfr_unfiltered[ii] /= (float)total_n_cells;
-#if USE_STOCHASTICITY
-      fftwf_execute(run_globals.reion_grids.xray_luminosity_forward_plan);
-      for (int ii = 0; ii < slab_n_complex; ii++)
-        xray_luminosity_unfiltered[ii] /= (float)total_n_cells;
-#endif
+      if (xray_luminosity_needed) {
+        fftwf_execute(run_globals.reion_grids.xray_luminosity_forward_plan);
+        for (int ii = 0; ii < slab_n_complex; ii++)
+          xray_luminosity_unfiltered[ii] /= (float)total_n_cells;
+      }
 #if USE_MINI_HALOS
       fftwf_execute(run_globals.reion_grids.sfrIII_forward_plan);
       for (int ii = 0; ii < slab_n_complex; ii++)
@@ -525,9 +596,8 @@ void _ComputeTs(int snapshot)
 #endif
 
       memcpy(sfr_filtered, sfr_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-#if USE_STOCHASTICITY
-      memcpy(xray_luminosity_filtered, xray_luminosity_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-#endif
+      if (xray_luminosity_needed)
+        memcpy(xray_luminosity_filtered, xray_luminosity_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
 #if USE_MINI_HALOS
       memcpy(sfrIII_filtered, sfrIII_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
 #endif
@@ -546,14 +616,13 @@ void _ComputeTs(int snapshot)
         int local_ix_start = (int)(run_globals.reion_grids.slab_ix_start[run_globals.mpi_rank]);
 
         filter(sfr_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.TsHeatingFilterType);
-#if USE_STOCHASTICITY
-        filter(xray_luminosity_filtered,
-               local_ix_start,
-               local_nix,
-               ReionGridDim,
-               (float)R,
-               run_globals.params.TsHeatingFilterType);
-#endif
+        if (xray_luminosity_needed)
+          filter(xray_luminosity_filtered,
+                 local_ix_start,
+                 local_nix,
+                 ReionGridDim,
+                 (float)R,
+                 run_globals.params.TsHeatingFilterType);
 #if USE_MINI_HALOS
         filter(
           sfrIII_filtered, local_ix_start, local_nix, ReionGridDim, (float)R, run_globals.params.TsHeatingFilterType);
@@ -585,9 +654,8 @@ void _ComputeTs(int snapshot)
 
       // inverse fourier transform back to real space
       fftwf_execute(run_globals.reion_grids.sfr_filtered_reverse_plan);
-#if USE_STOCHASTICITY
-      fftwf_execute(run_globals.reion_grids.xray_luminosity_filtered_reverse_plan);
-#endif
+      if (xray_luminosity_needed)
+        fftwf_execute(run_globals.reion_grids.xray_luminosity_filtered_reverse_plan);
 #if USE_MINI_HALOS
       fftwf_execute(run_globals.reion_grids.sfrIII_filtered_reverse_plan);
 #endif
@@ -616,17 +684,20 @@ void _ComputeTs(int snapshot)
               SMOOTHED_SFR_GAL[i_smoothed_heating] = (((float*)sfr_filtered)[i_padded] / pixel_volume) *
                                                      (units->UnitMass_in_g / units->UnitTime_in_s) *
                                                      pow(units->UnitLength_in_cm, -3.) / SOLAR_MASS;
-#if USE_STOCHASTICITY
-              SMOOTHED_XRAY_LUMINOSITY_GAL[i_smoothed_heating] =
-                (((float*)xray_luminosity_filtered)[i_padded] / pixel_volume) * XRAY_LUMINOSITY_UNIT *
-                pow(units->UnitLength_in_cm, -3.);
+              if (xray_luminosity_needed)
+                SMOOTHED_XRAY_LUMINOSITY_GAL[i_smoothed_heating] =
+                  (((float*)xray_luminosity_filtered)[i_padded] / pixel_volume) * XRAY_LUMINOSITY_UNIT *
+                  pow(units->UnitLength_in_cm, -3.);
 
+#if USE_STOCHASTICITY
               hmxb_xray_ave += SMOOTHED_XRAY_LUMINOSITY_GAL[i_smoothed_heating];
 #else
-              // Should include a hmxb_xray_ave branch in USE_STOCHASTICITY? I've added a line but correct it if I am
-              // wrong
-              hmxb_xray_ave +=
-                run_globals.params.physics.LXrayGal * SEC_PER_YEAR * SMOOTHED_SFR_GAL[i_smoothed_heating];
+              if (run_globals.params.physics.Flag_UseXrayMetallicity) {
+                hmxb_xray_ave += SMOOTHED_XRAY_LUMINOSITY_GAL[i_smoothed_heating];
+              } else {
+                hmxb_xray_ave +=
+                  run_globals.params.physics.LXrayGal * SEC_PER_YEAR * SMOOTHED_SFR_GAL[i_smoothed_heating];
+              }
 #endif
 #if USE_MINI_HALOS
               ((float*)sfrIII_filtered)[i_padded] = fmaxf(((float*)sfrIII_filtered)[i_padded], 0.0);
@@ -732,11 +803,10 @@ void _ComputeTs(int snapshot)
               SMOOTHED_SFR_GAL[i_smoothed_heating] = (((float*)sfr_filtered)[i_padded] / pixel_volume) *
                                                      (units->UnitMass_in_g / units->UnitTime_in_s) *
                                                      pow(units->UnitLength_in_cm, -3.) / SOLAR_MASS;
-#if USE_STOCHASTICITY
-              SMOOTHED_XRAY_LUMINOSITY_GAL[i_smoothed_heating] =
-                (((float*)xray_luminosity_filtered)[i_padded] / pixel_volume) * XRAY_LUMINOSITY_UNIT *
-                pow(units->UnitLength_in_cm, -3.);
-#endif
+              if (xray_luminosity_needed)
+                SMOOTHED_XRAY_LUMINOSITY_GAL[i_smoothed_heating] =
+                  (((float*)xray_luminosity_filtered)[i_padded] / pixel_volume) * XRAY_LUMINOSITY_UNIT *
+                  pow(units->UnitLength_in_cm, -3.);
 #if USE_MINI_HALOS
               SMOOTHED_SFR_III[i_smoothed_heating] = (((float*)sfrIII_filtered)[i_padded] / pixel_volume) *
                                                      (units->UnitMass_in_g / units->UnitTime_in_s) *
@@ -1044,129 +1114,25 @@ void _ComputeTs(int snapshot)
     dgrowth_factor_dzp = ddicke_dz(zp);
     dt_dzp = dtdz((float)zp);
 
-    // Below is the converstion of the soft-band X_ray luminosity into number of X-ray photons produced. This is the
-    // code taken from 21CMMC, which somewhat uses the 21cmFAST nomenclature (to ease flipping between old/new
-    // parameterisation), so isn't necessarily the most intuitive way to express this.
-
-    // Conversion of the input bolometric luminosity (new) to a ZETA_X (old) to be consistent with Ts.c from 21cmFAST
-    // Conversion here means the code otherwise remains the same as the original Ts.c
-
-    /*
-     * L(nu) = L0*(nu/nu_th)^(-alpha) on [nu_lo,nu_hi], nu_th = NuXrayThreshold.
-     * C = L0/L_band:
-     *   alpha != 1:  C = (1-alpha) * nu_th^-alpha / [nu_hi^(1-alpha) - nu_lo^(1-alpha)]
-     *   alpha == 1:  C = 1 / (nu_th * ln(nu_hi/nu_lo))
-     * [nu_lo,nu_hi]: GAL/III/AGN-soft -> [NuXrayThreshold,NuXraySoftCut], AGN-hard -> [NuXraySoftCut,NuXrayMax].
-     */
-    if (fabs(run_globals.params.physics.SpecIndexXrayGal - 1.0) < REL_TOL) {
-      Luminosity_converstion_factor_GAL =
-        (run_globals.params.physics.NuXrayThreshold * NU_over_EV) *
-        log(run_globals.params.physics.NuXraySoftCut / run_globals.params.physics.NuXrayThreshold);
-      Luminosity_converstion_factor_GAL = 1. / Luminosity_converstion_factor_GAL;
-    } else {
-      Luminosity_converstion_factor_GAL =
-        pow(run_globals.params.physics.NuXraySoftCut * NU_over_EV, 1. - run_globals.params.physics.SpecIndexXrayGal) -
-        pow(run_globals.params.physics.NuXrayThreshold * NU_over_EV, 1. - run_globals.params.physics.SpecIndexXrayGal);
-      Luminosity_converstion_factor_GAL = 1. / Luminosity_converstion_factor_GAL;
-      Luminosity_converstion_factor_GAL *=
-        pow(run_globals.params.physics.NuXrayThreshold * NU_over_EV, -run_globals.params.physics.SpecIndexXrayGal) *
-        (1 - run_globals.params.physics.SpecIndexXrayGal);
-    }
-    Luminosity_converstion_factor_GAL *= 1.0 / PLANCK;
-    // Finally, convert to the correct units. NU_over_EV*hplank as only want to divide by eV -> erg (owing to the
-    // definition of Luminosity)
-    if (fabs(run_globals.params.physics.SpecIndexXrayAGNSoft - 1.0) < REL_TOL) {
-      Luminosity_converstion_factor_AGN_soft =
-        (run_globals.params.physics.NuXrayThreshold * NU_over_EV) *
-        log(run_globals.params.physics.NuXraySoftCut / run_globals.params.physics.NuXrayThreshold);
-      Luminosity_converstion_factor_AGN_soft = 1.0 / Luminosity_converstion_factor_AGN_soft;
-    } else {
-      Luminosity_converstion_factor_AGN_soft = pow(run_globals.params.physics.NuXraySoftCut * NU_over_EV,
-                                                   1.0 - run_globals.params.physics.SpecIndexXrayAGNSoft) -
-                                               pow(run_globals.params.physics.NuXrayThreshold * NU_over_EV,
-                                                   1.0 - run_globals.params.physics.SpecIndexXrayAGNSoft);
-      Luminosity_converstion_factor_AGN_soft = 1.0 / Luminosity_converstion_factor_AGN_soft;
-      Luminosity_converstion_factor_AGN_soft *=
-        pow(run_globals.params.physics.NuXrayThreshold * NU_over_EV, -run_globals.params.physics.SpecIndexXrayAGNSoft) *
-        (1.0 - run_globals.params.physics.SpecIndexXrayAGNSoft);
-    }
-    Luminosity_converstion_factor_AGN_soft /= (PLANCK);
-
-    if (fabs(run_globals.params.physics.SpecIndexXrayAGNHard - 1.0) < REL_TOL) {
-      Luminosity_converstion_factor_AGN_hard =
-        (run_globals.params.physics.NuXrayThreshold * NU_over_EV) *
-        log(run_globals.params.physics.NuXrayMax / run_globals.params.physics.NuXraySoftCut);
-      Luminosity_converstion_factor_AGN_hard = 1.0 / Luminosity_converstion_factor_AGN_hard;
-    } else {
-      Luminosity_converstion_factor_AGN_hard =
-        pow(run_globals.params.physics.NuXrayMax * NU_over_EV, 1.0 - run_globals.params.physics.SpecIndexXrayAGNHard) -
-        pow(run_globals.params.physics.NuXraySoftCut * NU_over_EV,
-            1.0 - run_globals.params.physics.SpecIndexXrayAGNHard);
-      Luminosity_converstion_factor_AGN_hard = 1.0 / Luminosity_converstion_factor_AGN_hard;
-      Luminosity_converstion_factor_AGN_hard *=
-        pow(run_globals.params.physics.NuXrayThreshold * NU_over_EV, -run_globals.params.physics.SpecIndexXrayAGNHard) *
-        (1.0 - run_globals.params.physics.SpecIndexXrayAGNHard);
-    }
-    Luminosity_converstion_factor_AGN_hard /= (PLANCK);
-
-    // Do the same for Pop III.
-
+    const_zp_prefactor_GAL = xray_heating_prefactor(XRAY_GAL, zp);
 #if USE_MINI_HALOS
-    if (fabs(run_globals.params.physics.SpecIndexXrayIII - 1.0) < REL_TOL) {
-      Luminosity_converstion_factor_III =
-        (run_globals.params.physics.NuXrayThreshold * NU_over_EV) *
-        log(run_globals.params.physics.NuXraySoftCut / run_globals.params.physics.NuXrayThreshold);
-      Luminosity_converstion_factor_III = 1. / Luminosity_converstion_factor_III;
-    } else {
-      Luminosity_converstion_factor_III =
-        pow(run_globals.params.physics.NuXraySoftCut * NU_over_EV, 1. - run_globals.params.physics.SpecIndexXrayIII) -
-        pow(run_globals.params.physics.NuXrayThreshold * NU_over_EV, 1. - run_globals.params.physics.SpecIndexXrayIII);
-      Luminosity_converstion_factor_III = 1. / Luminosity_converstion_factor_III;
-      Luminosity_converstion_factor_III *=
-        pow(run_globals.params.physics.NuXrayThreshold * NU_over_EV, -run_globals.params.physics.SpecIndexXrayIII) *
-        (1 - run_globals.params.physics.SpecIndexXrayIII);
-    }
-    Luminosity_converstion_factor_III *= (SEC_PER_YEAR) / (PLANCK);
+    const_zp_prefactor_III = xray_heating_prefactor(XRAY_GAL_III, zp);
 #endif
+    const_zp_prefactor_AGN_soft = xray_heating_prefactor(XRAY_AGN_SOFT, zp);
+    const_zp_prefactor_AGN_hard = xray_heating_prefactor(XRAY_AGN_HARD, zp);
 
-    // Leave the original 21cmFAST code for reference. Refer to Greig & Mesinger (2017) for the new parameterisation.
-    //        const_zp_prefactor_GAL = (1.0/0.59)*( run_globals.params.physics.LXrayGal *
-    //        Luminosity_converstion_factor_GAL ) / (run_globals.params.physics.NuXrayThreshold*NU_over_EV) *
-    //        SPEED_OF_LIGHT * pow(1+zp, run_globals.params.physics.SpecIndexXrayGal+3);
-#if USE_STOCHASTICITY
-    const_zp_prefactor_GAL = Luminosity_converstion_factor_GAL /
-                             (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
-                             pow(1 + zp, run_globals.params.physics.SpecIndexXrayGal + 3);
-#else
-    const_zp_prefactor_GAL = (run_globals.params.physics.LXrayGal * SEC_PER_YEAR * Luminosity_converstion_factor_GAL) /
-                             (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
-                             pow(1 + zp, run_globals.params.physics.SpecIndexXrayGal + 3);
-#endif
+    if (!isfinite(const_zp_prefactor_GAL) || !isfinite(const_zp_prefactor_AGN_soft) ||
+        !isfinite(const_zp_prefactor_AGN_hard)
 #if USE_MINI_HALOS
-    const_zp_prefactor_III = (run_globals.params.physics.LXrayGalIII * Luminosity_converstion_factor_III) /
-                             (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
-                             pow(1 + zp, run_globals.params.physics.SpecIndexXrayIII + 3);
+        || !isfinite(const_zp_prefactor_III)
 #endif
-
-    /* A_b(zp) = (C_b / nu_th) * c * (1+zp)^(alpha_b + 3) */
-    const_zp_prefactor_AGN_soft = Luminosity_converstion_factor_AGN_soft /
-                                  (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
-                                  pow(1.0 + zp, run_globals.params.physics.SpecIndexXrayAGNSoft + 3.0);
-    if (!isfinite(const_zp_prefactor_AGN_soft)) {
-      mlog_error(
-        "const_zp_prefactor_AGN_soft is not finite — check NuXrayThreshold/NuXraySoftCut/SpecIndexXrayAGNSoft.");
+    ) {
+      mlog_error("Invalid X-ray heating prefactor: check enabled source normalizations, "
+                 "energy bands and spectral indices.");
       ABORT(EXIT_FAILURE);
     }
 
-    const_zp_prefactor_AGN_hard = Luminosity_converstion_factor_AGN_hard /
-                                  (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
-                                  pow(1.0 + zp, run_globals.params.physics.SpecIndexXrayAGNHard + 3.0);
-    if (!isfinite(const_zp_prefactor_AGN_hard)) {
-      mlog_error("const_zp_prefactor_AGN_hard is not finite — check NuXrayThreshold/NuXrayMax/SpecIndexXrayAGNHard.");
-      ABORT(EXIT_FAILURE);
-    }
-    // Note the factor of 0.59 appears to be required to match 21cmFAST
-
+    // Note the factor of 0.59 appears to be required to match 21cmFAST.
     // I believe it arises from differing definitions of a stellar baryon mass
     // 21cmFAST appears to define a stellar baryon as 0.59*m_p, whereas Meraxes defines it as m_p
     // Had issues with normalisation factors comparing the codes, adding 0.59 here rectified the normalisation somewhat
@@ -1219,9 +1185,12 @@ void _ComputeTs(int snapshot)
             i_smoothed_heating = grid_index_smoothedSFR(R_ct, ix, iy, iz, TsNumFilterSteps, ReionGridDim);
 
             SFR_GAL[R_ct] = SMOOTHED_SFR_GAL[i_smoothed_heating];
-#if USE_STOCHASTICITY
-            XRAY_LUMINOSITY_GAL[R_ct] = SMOOTHED_XRAY_LUMINOSITY_GAL[i_smoothed_heating];
-#endif
+            // Convert only the X-ray source supplied to evolveInt. Keep the stored luminosity density
+            // in erg/s/cm^3 and the actual SFR density for stellar Lyman-alpha emission.
+            XRAY_SFR_GAL[R_ct] = xray_luminosity_needed
+                                   ? xray_luminosity_to_sfr_density(SMOOTHED_XRAY_LUMINOSITY_GAL[i_smoothed_heating],
+                                                                    run_globals.params.physics.LXrayGal)
+                                   : SFR_GAL[R_ct];
             {
               XAGN_soft[R_ct] = agn_soft_needed ? SMOOTHED_AGN_soft[i_smoothed_heating] : 0.0;
               XAGN_hard[R_ct] = agn_hard_needed ? SMOOTHED_AGN_hard[i_smoothed_heating] : 0.0;
@@ -1341,9 +1310,7 @@ void _ComputeTs(int snapshot)
           evolveInt((float)zp,
                     run_globals.reion_grids.deltax[i_padded],
                     SFR_GAL,
-#if USE_STOCHASTICITY
-                    XRAY_LUMINOSITY_GAL,
-#endif
+                    XRAY_SFR_GAL,
                     SFR_III,
                     XAGN_soft,
                     XAGN_hard,
@@ -1367,9 +1334,7 @@ void _ComputeTs(int snapshot)
           evolveInt((float)zp,
                     run_globals.reion_grids.deltax[i_padded],
                     SFR_GAL,
-#if USE_STOCHASTICITY
-                    XRAY_LUMINOSITY_GAL,
-#endif
+                    XRAY_SFR_GAL,
                     XAGN_soft,
                     XAGN_hard,
                     freq_int_heat_GAL,
