@@ -256,7 +256,6 @@ Test(xray_luminosity, no_sfr_rescaling_preserves_birth_abundance)
     galaxy_t view = xray_no_sfr_source_view(&gal);
     double target = calculate_galaxy_xray_luminosity(&gal, 8.0, 0.0);
     expect_luminosity(calculate_galaxy_xray_luminosity(&view, 8.0, 0.0), factors[instant] * target);
-
   }
 }
 
