@@ -28,27 +28,33 @@ Regenerate them whenever a reference changes:
 
 ## Metallicity-dependent X-ray references
 
-### Review validation on 2026-10-23
+The active metallicity reference is `xray_metallicity.h5`, used with
+`XrayScatterDex=0` in both default and stochasticity builds. The former mixed
+`xray_metallicity_scatter` setup and its reference are retired. The records
+below describe earlier validation, including that retired model. They do not
+report validation of the current model-selection and spectral-helper changes.
 
-The current local source is based on
+### Historical review validation on 2026-10-23
+
+The local source used for this validation was based on
 `f81101401e69110801efb13fa6c2ad9dccd77b07` plus the uncommitted PR review
 changes: shared `LXrayGal` normalization, explicit input-band normalization,
 recorded birth metallicity and the equivalent heating-source unit conversion.
-The `xray` and `stochasticity` flag-off setups have completed their native
-two-rank MPI runs. Both pass strict comparison against the unchanged checked-in
+The `xray` and `stochasticity` flag-off setups completed their native
+two-rank MPI runs. Both passed strict comparison against the unchanged checked-in
 references, whose metadata identifies source `72800527`.
 
-The builds use Ubuntu 24.04.3, GCC 13.3.0, CMake 3.28.3, Open MPI 4.1.6,
+The builds used Ubuntu 24.04.3, GCC 13.3.0, CMake 3.28.3, Open MPI 4.1.6,
 parallel HDF5 1.10.10, GSL 2.7.1 and FFTW 3.3.10. The two non-mini-halo builds
-used for the full MPI runs are Debug builds with `-O2 -g`. The two mini-halo
-builds used for unit checks retain `-g` without added optimization. All four
-use AddressSanitizer and UBSan, without fast-math; leak detection is disabled
-for the test runs. The input is the official L10_N512 archive from
+used for the full MPI runs were Debug builds with `-O2 -g`. The two mini-halo
+builds used for unit checks retained `-g` without added optimization. All four
+used AddressSanitizer and UBSan, without fast-math; leak detection was disabled
+for the test runs. The input was the official L10_N512 archive from
 Zenodo record 23281409 (MD5 `afe3719ce9144869c9f0b8629c62e9d5`), with two MPI
 ranks, seed 1809 and output snapshots 48, 63 and 75.
 
 All four native model runs completed successfully. The two metallicity-enabled
-summaries differ from the previous references because the abundance now tracks
+summaries differed from the previous references because the abundance tracked
 the gas that formed the stars. Their numerical differences, source trends and
 IGM comparison plots were inspected before replacing only these two HDF5
 references with the corresponding run summaries. This was an accepted physics
@@ -59,33 +65,29 @@ update, not a strict-comparison pass against the old metallicity references.
 | `xray_metallicity.h5` | default | `xray_metallicity/summary.h5` | 63: 55 grid, 7 galaxy-total and 1 global-emissivity quantities |
 | `xray_metallicity_scatter.h5` | `USE_STOCHASTICITY=ON` | `xray_metallicity_scatter/summary.h5` | 77: 58 grid, 15 galaxy, 1 global-emissivity and 3 luminosity-function quantities |
 
-Both summaries retain the same 230 dataset keys, shapes, and NaN and positive/
-negative-infinity masks; galaxy counts are unchanged. At snapshot 75, the
-volume-mean `Tk_box` changes from 403.9478 to 429.51494 K without scatter and
+Both summaries retained the same 230 dataset keys, shapes, and NaN and positive/
+negative-infinity masks; galaxy counts were unchanged. At snapshot 75, the
+volume-mean `Tk_box` changed from 403.9478 to 429.51494 K without scatter and
 from 405.40097 to 431.09932 K with scatter. The unchanged flag-off controls
-isolate these changes from the unit and parameter refactoring.
+isolated these changes from the unit and parameter refactoring.
 
-The current parameters are `LXrayGal=3.16e40`,
+The parameters used for those runs were `LXrayGal=3.16e40`,
 `XrayMetallicityExponent=0.3`, `XrayMetallicityTurnover=0.008`,
-`NuXrayThreshold=500` eV and `NuXraySoftCut=2000` eV. The scatter setup uses
-`XrayScatterDex=0.3` and `Flag_SourceRecalibration=1`. Both reference files
-record `gitref=f81101401e69110801efb13fa6c2ad9dccd77b07`, `git_dirty=1`
+`NuXrayThreshold=500` eV and `NuXraySoftCut=2000` eV. The now-retired scatter
+setup used `XrayScatterDex=0.3` and `Flag_SourceRecalibration=1`. Both reference
+files recorded `gitref=f81101401e69110801efb13fa6c2ad9dccd77b07`, `git_dirty=1`
 and `ncores=2`. No comparison tolerances or CMake comparison registrations
 were changed. The standard strict checks of the completed outputs against the
-new references both pass. These checks reuse the generating runs; independent
+new references both passed. These checks reused the generating runs; independent
 repeat-run reproducibility was not tested.
 The hashes, old-to-new differences and unit-test execution details are in
 [local_validation_20261023.txt](local_validation_20261023.txt).
 
 ### Current reference plots
 
-The six reference-only plots below were generated from the 2026-10-23 HDF5
-summaries and added with this update:
-
 | Setup | Distribution functions | Galaxy properties | IGM and 21-cm |
 | --- | --- | --- | --- |
 | `xray_metallicity` | [plot](plots/xray_metallicity_distributions.png) | [plot](plots/xray_metallicity_galaxies.png) | [plot](plots/xray_metallicity_igm.png) |
-| `xray_metallicity_scatter` | [plot](plots/xray_metallicity_scatter_distributions.png) | [plot](plots/xray_metallicity_scatter_galaxies.png) | [plot](plots/xray_metallicity_scatter_igm.png) |
 
 ### Previous references from 2026-10-19
 
