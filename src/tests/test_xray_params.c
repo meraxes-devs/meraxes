@@ -5,7 +5,13 @@
 
 #include "meraxes.h"
 
-// Retain production validation; replace MPI termination in this isolated test.
+// Exercise production parameter validation without MPI logging or termination.
+#undef mlog
+#define mlog(...) ((void)0)
+
+#undef mlog_error
+#define mlog_error(...) ((void)0)
+
 #undef ABORT
 #define ABORT(status) exit(status)
 #include "core/read_params.c"
