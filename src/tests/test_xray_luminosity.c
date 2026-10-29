@@ -192,7 +192,7 @@ Test(xray_luminosity, zero_normalization_disables_xrays)
   run_globals.params.physics.LXrayGal = 0.0;
   for (int flag = 0; flag <= 1; flag++) {
     run_globals.params.physics.Flag_UseXrayMetallicity = flag;
-    cr_expect_eq(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.3), 0.0);
+    cr_expect_eq(calculate_galaxy_xray_luminosity(&gal, 1.0, flag ? 0.0 : 0.3), 0.0);
   }
   cr_expect_eq(xray_luminosity_to_sfr_density(0.0, 0.0), 0.0);
 }
@@ -245,7 +245,7 @@ Test(xray_luminosity, averaged_source_uses_cumulative_birth_abundance)
 }
 
 #if USE_STOCHASTICITY
-Test(xray_luminosity, no_sfr_rescaling_preserves_birth_abundance_and_scatter)
+Test(xray_luminosity, no_sfr_rescaling_preserves_birth_abundance)
 {
   galaxy_t gal = make_galaxy();
   gal.SfrNoScatter = 2.0 * gal.Sfr;
@@ -256,16 +256,11 @@ Test(xray_luminosity, no_sfr_rescaling_preserves_birth_abundance_and_scatter)
     galaxy_t view = xray_no_sfr_source_view(&gal);
     double target = calculate_galaxy_xray_luminosity(&gal, 8.0, 0.0);
     expect_luminosity(calculate_galaxy_xray_luminosity(&view, 8.0, 0.0), factors[instant] * target);
-    gsl_rng_set(run_globals.random_generator, 1809);
-    double expected = apply_lognormal_scatter(factors[instant] * target, 0.3);
-    unsigned long next = gsl_rng_get(run_globals.random_generator);
-    gsl_rng_set(run_globals.random_generator, 1809);
-    expect_luminosity(calculate_galaxy_xray_luminosity(&view, 8.0, 0.3), expected);
-    cr_expect_eq(gsl_rng_get(run_globals.random_generator), next);
+
   }
 }
 
-Test(xray_luminosity, imputed_sfr_uses_recorded_history_or_legacy_fallback)
+Test(xray_luminosity, imputed_sfr_uses_zero_instantaneous_birth_abundance)
 {
   galaxy_t gal = make_galaxy();
   gal.Sfr = 0.0;
@@ -273,8 +268,8 @@ Test(xray_luminosity, imputed_sfr_uses_recorded_history_or_legacy_fallback)
   gal.SfrNoScatter = 1.0;
   gal.GrossStellarMassNoScatter = 1.0;
   galaxy_t view = xray_no_sfr_source_view(&gal);
-  expect_luminosity(calculate_galaxy_xray_luminosity(&view, 1.0, 0.0),
-                    pow(10.0, 39.287708200795179) / XRAY_LUMINOSITY_UNIT);
+  cr_expect_eq(galaxy_xray_metallicity(&gal), 0.0);
+  expect_luminosity(calculate_galaxy_xray_luminosity(&view, 1.0, 0.0), 3.16);
   gal.GrossStellarMass = gal.GrossStellarMetals = 0.0;
   for (int instant = 0; instant <= 1; instant++) {
     run_globals.params.Flag_InstantaneousSFR = instant;
@@ -293,7 +288,7 @@ Test(xray_luminosity, zero_sfr_has_zero_luminosity)
     run_globals.params.physics.Flag_UseXrayMetallicity = flag;
     for (int instant = 0; instant <= 1; instant++) {
       run_globals.params.Flag_InstantaneousSFR = instant;
-      cr_expect_float_eq(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.3), 0.0, 0.0);
+      cr_expect_float_eq(calculate_galaxy_xray_luminosity(&gal, 1.0, flag ? 0.0 : 0.3), 0.0, 0.0);
     }
   }
 }
@@ -315,22 +310,6 @@ Test(xray_luminosity, flag_off_preserves_legacy_scatter_and_rng_sequence)
   cr_expect_eq(gsl_rng_get(run_globals.random_generator), next);
 }
 
-Test(xray_luminosity, metallicity_scatter_is_a_gaussian_residual_in_dex)
-{
-  galaxy_t gal = make_galaxy();
-  gsl_rng* reference_rng = gsl_rng_clone(run_globals.random_generator);
-  cr_assert_not_null(reference_rng);
-
-  for (int i = 0; i < 32; i++) {
-    double residual = 0.3 * gsl_cdf_ugaussian_Pinv(gsl_rng_uniform(reference_rng));
-    double luminosity = calculate_galaxy_xray_luminosity(&gal, 1.0, 0.3);
-    cr_assert_gt(luminosity, 0.0);
-    cr_expect_float_eq(log10(luminosity * XRAY_LUMINOSITY_UNIT) - 39.287708200795179, residual, 1e-11);
-  }
-  cr_expect_eq(gsl_rng_get(run_globals.random_generator), gsl_rng_get(reference_rng));
-  gsl_rng_free(reference_rng);
-}
-
 Test(xray_luminosity, zero_scatter_and_zero_sfr_do_not_consume_rng)
 {
   galaxy_t gal = make_galaxy();
@@ -343,7 +322,7 @@ Test(xray_luminosity, zero_scatter_and_zero_sfr_do_not_consume_rng)
     double expected = flag ? pow(10.0, 39.287708200795179) / XRAY_LUMINOSITY_UNIT : 3.16;
     expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), expected);
     gal.Sfr = 0.0;
-    cr_expect_float_eq(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.3), 0.0, 0.0);
+    cr_expect_float_eq(calculate_galaxy_xray_luminosity(&gal, 1.0, flag ? 0.0 : 0.3), 0.0, 0.0);
   }
   cr_expect_eq(gsl_rng_get(run_globals.random_generator), gsl_rng_get(reference_rng));
   gsl_rng_free(reference_rng);
@@ -356,7 +335,7 @@ Test(xray_luminosity, non_stochastic_helper_is_deterministic)
   for (int flag = 0; flag <= 1; flag++) {
     run_globals.params.physics.Flag_UseXrayMetallicity = flag;
     double expected = flag ? pow(10.0, 39.287708200795179) / XRAY_LUMINOSITY_UNIT : 3.16;
-    expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.3), expected);
+    expect_luminosity(calculate_galaxy_xray_luminosity(&gal, 1.0, 0.0), expected);
   }
 }
 #endif

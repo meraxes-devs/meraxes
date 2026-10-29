@@ -8,6 +8,8 @@
 #include "physics/mergers.h"
 #include "physics/star_formation.h"
 #include "physics/supernova_feedback.h"
+// Synthetic energy tables for the production merger/SN lifecycle test.
+#include "core/stellar_feedback.c"
 
 static void setup(void)
 {
@@ -163,3 +165,44 @@ Test(star_forming_metallicity, popiii_episodes_do_not_change_popii_birth_abundan
   cr_expect_float_eq(gal.GrossStellarMetals, 0.01, 1e-14);
 }
 #endif
+
+Test(star_forming_metallicity, merger_starburst_records_birth_abundance_before_feedback)
+{
+  physics_params_t* params = &run_globals.params.physics;
+  params->MinMergerStellarMass = 0.0;
+  params->MinMergerRatioForBurst = 0.0;
+  params->MergerBurstFactor = 0.5;
+  params->MergerBurstScaling = 1.0;
+  params->SfRecycleFraction = 0.2;
+  params->Yield = 0.01;
+  params->SnModel = 1;
+  params->SnReheatNorm = params->SnEjectionNorm = 100.0;
+
+  // Finite synthetic SN tables; energy-coupling efficiencies remain zero.
+  energy_tables[NAGE - 1] = 1.0;
+  for (int i = 0; i < NMETAL; i++)
+    energy_tables_working[0][i] = 1.0;
+
+  galaxy_t parent = make_galaxy(2.0, 0.01, 1.0);
+  galaxy_t satellite = make_galaxy(2.0, 0.03, 0.5);
+  fof_group_t fof = { 0 };
+  halo_t halo = { 0 };
+
+  fof.Vvir = parent.Vvir = parent.Vmax = 100.0;
+  halo.FOFGroup = &fof;
+  parent.Halo = &halo;
+
+  update_reservoirs_from_sf(&parent, 1.0, 1, INSITU);
+  update_reservoirs_from_sf(&satellite, 1.0, 1, INSITU);
+  satellite.MergerTarget = &parent;
+  int dead = 0;
+  merge_with_target(&satellite, &dead, 1);
+
+  cr_expect_eq(dead, 1);
+  cr_expect_float_eq(parent.MergerBurstMass, 1.0, 1e-14);
+  cr_expect_float_eq(parent.Sfr, 4.0, 1e-14);
+  cr_expect_float_eq(parent.StarFormingGasMetallicity, 0.0225, 1e-14);
+  cr_expect_float_eq(parent.GrossStellarMass, 3.0, 1e-14);
+  cr_expect_float_eq(parent.GrossStellarMetals, 0.06, 1e-14);
+  cr_expect_float_eq(parent.MetalsColdGas / parent.ColdGas, 0.025, 1e-14);
+}

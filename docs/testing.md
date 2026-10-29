@@ -37,9 +37,10 @@ Without Criterion, only the two standalone drivers are built. Without Python, th
 | `test_cooling` | Cooling tables, cooling rates and the streaming-velocity cooling mass. |
 | `test_blackhole_feedback` | Black-hole emissivity, accretion time and luminosities. |
 | `test_emission_lines` | [O III] coefficients and luminosities. |
-| `test_xray_luminosity` | The original and metallicity-dependent Lx-SFR relations, normalization, source units, recorded birth abundances and scatter. |
+| `test_xray_luminosity` | Deterministic metallicity-dependent luminosities, normalization, source units, birth abundances and empirical scatter with metallicity disabled. |
 | `test_star_forming_metallicity` | Birth-metallicity recording through star formation, feedback, mergers and snapshot reset. |
-| `test_agn_xray_heating` | Disabled AGN bands, empty hard-band boundaries, and spectral normalization for enabled bands. |
+| `test_agn_xray_heating` | GAL, Pop. III and AGN spectral normalization, and disabled-band boundaries. |
+| `test_xray_params` | Rejecting mixed metallicity/scatter parameters and accepting separate modes. |
 | `main_cooling`, `main_blackhole_feedback` | Standalone drivers that print the same quantities for given inputs. |
 
 `test_agn_xray_heating` checks that disabling AGN, or selecting soft AGN only,
@@ -51,77 +52,70 @@ integration for spectral indices 1.0, 1.7 and 2.2.
 
 ## Metallicity-dependent X-ray luminosity tests
 
-`test_xray_luminosity.c` includes `core/reionization.c`, following the existing
-cooling test, so it exercises the actual static source functions without
-changing their visibility. It runs in every Criterion build; the conditional
-cases test the RNG sequence and Gaussian residual when `USE_STOCHASTICITY` is
-on, and the source function's absence of scatter when it is off. Parameter
-validation rejects requested scatter in a non-stochastic executable.
+`test_xray_luminosity` covers deterministic metallicity-dependent luminosities,
+source units, the low-metallicity plateau, instantaneous and cumulative birth
+abundances, and the unchanged empirical scatter path with metallicity disabled.
+`test_xray_params` checks that the mixed model is rejected and the separate
+models are accepted. The rejection test replaces MPI termination with process
+exit while retaining the production parameter validation.
 
-The metallicity cases cover the Fragos/Kaur shape in absolute metal mass
-fraction, its finite zero-metallicity plateau, continuity at the plateau edge,
-the shared `LXrayGal` normalization, and variations of the exponent and
-turnover. The source luminosity is already normalized in the selected
-`NuXrayThreshold`–`NuXraySoftCut` band; changing the band does not automatically
-rescale the input normalization. Birth-abundance tests distinguish the current
-SFR-weighted metallicity from the cumulative formed-mass-weighted metallicity.
-`test_star_forming_metallicity` checks the underlying recording and lifecycle,
-including exhausted gas and the separate Pop. II tracking in mini-halo builds.
-The regression scatter value of 0.3 dex is a test setting, not a measured
-dispersion of this relation.
+`test_agn_xray_heating` checks spectral normalization for GAL, Pop. III and both
+AGN bands, including disabled and zero-width bands. `test_star_forming_metallicity`
+checks the birth-abundance lifecycle, including a merger-induced burst and
+subsequent feedback with synthetic energy tables.
 
-Build and run the unit test in both stochasticity configurations:
+Build and run these tests in all four combinations of `USE_STOCHASTICITY` and
+`USE_MINI_HALOS`:
 
 ```bash
 for stoch in OFF ON; do
-  cmake -S . -B "build_xray_test_${stoch}" \
-    -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON \
-    -DUSE_STOCHASTICITY="$stoch" -DUSE_MINI_HALOS=OFF \
-    -DHDF5_PREFER_PARALLEL=ON
-  cmake --build "build_xray_test_${stoch}" \
-    --target test_xray_luminosity test_star_forming_metallicity --parallel 4
-  ASAN_OPTIONS=detect_leaks=0 ctest --test-dir "build_xray_test_${stoch}" \
-    --output-on-failure --no-tests=error -R '^test_(xray_luminosity|star_forming_metallicity)$'
+  for mini in OFF ON; do
+    build_dir="build_xray_test_${stoch}_${mini}"
+    cmake -S . -B "$build_dir" \
+      -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON \
+      -DUSE_STOCHASTICITY="$stoch" -DUSE_MINI_HALOS="$mini" \
+      -DHDF5_PREFER_PARALLEL=ON
+    cmake --build "$build_dir" --parallel 4 \
+      --target test_xray_luminosity test_star_forming_metallicity \
+               test_agn_xray_heating test_xray_params
+    ASAN_OPTIONS=detect_leaks=0 ctest --test-dir "$build_dir" \
+      --output-on-failure --no-tests=error \
+      -R '^test_(xray_luminosity|star_forming_metallicity|agn_xray_heating|xray_params)$'
+  done
 done
 ```
 
-Repeat with `-DUSE_MINI_HALOS=ON` in separate build directories to cover the
-Pop. II birth-metallicity tracking. CI already builds these configurations. Criterion
-is required; if it is installed under a custom prefix, pass
+Criterion is required. If it is installed under a custom prefix, pass
 `-DCRITERION_INCLUDE_DIR=/path/to/criterion/include` and
 `-DCRITERION_LIBRARY=/path/to/criterion/lib/libcriterion.so` to CMake.
 
-For the end-to-end tests, configure with
-`-DMERAXES_TESTDATA_DIR=/path/to/testdata`, build `meraxes`, then run:
+The end-to-end setups are `xray` and
+`xray_metallicity` in the default build, and `stochasticity` and `xray_metallicity`
+in the stochasticity build. The metallicity setup has `XrayScatterDex=0` and
+`Flag_SourceRecalibration=0` in both builds. The former combined
+`xray_metallicity_scatter` setup is retired. Its earlier results are historical
+validation records, not references for a supported model.
+
+For end-to-end checks, add
+`-DMERAXES_TESTDATA_DIR=/path/to/testdata -DREGRESSION_COMPARE=strict` when
+configuring the two builds with `USE_MINI_HALOS=OFF`, then build `meraxes`
+and run:
 
 ```bash
-ASAN_OPTIONS=detect_leaks=0 ctest --test-dir build_xray_test_OFF \
-  --output-on-failure --no-tests=error -R '^regression_xray(_metallicity)?(_|$)'
-ASAN_OPTIONS=detect_leaks=0 ctest --test-dir build_xray_test_ON \
-  --output-on-failure --no-tests=error -R '^regression_(stochasticity|xray_metallicity_scatter)(_|$)'
+cmake --build build_xray_test_OFF_OFF --target meraxes --parallel 4
+cmake --build build_xray_test_ON_OFF --target meraxes --parallel 4
+ASAN_OPTIONS=detect_leaks=0 ctest --test-dir build_xray_test_OFF_OFF \
+  --output-on-failure --no-tests=error \
+  -R '^regression_xray(_metallicity)?(_|$)'
+ASAN_OPTIONS=detect_leaks=0 ctest --test-dir build_xray_test_ON_OFF \
+  --output-on-failure --no-tests=error \
+  -R '^regression_(stochasticity|xray_metallicity)(_|$)'
 ```
 
-The checked-in `reference/xray_metallicity.h5` and
-`reference/xray_metallicity_scatter.h5` were regenerated locally on 2026-10-23
-using recorded birth metallicities. All four native two-rank MPI model runs
-completed. The flag-off `xray` and `stochasticity` outputs agree with their
-unchanged references in strict mode. The metallicity-enabled outputs differ
-from their previous references, as expected from the changed abundance
-prescription: 63 and 77 quantities exceed the strict tolerance, respectively.
-The differences and comparison plots were inspected before replacing only
-these two references and adding their reference-only plots. Both summaries
-retain all 230 dataset keys, shapes and non-finite-value masks; galaxy counts
-are unchanged. No comparison tolerances were relaxed. See the
+The flag-off `xray` and `stochasticity` references and the deterministic
+`xray_metallicity` reference remain unchanged. Run strict comparisons before
+accepting changes to those references. See the
 [reference README](../src/tests/regression/reference/README.md) for provenance.
-Both completed outputs also pass the standard strict check against the new
-references; this check reused the same runs and is not an independent rerun.
-
-The two X-ray unit-test sources were also exercised in all four stochasticity/mini-halo
-build combinations: 98 cases and 1,022 assertions passed using a temporary
-in-process runner. Criterion's IPC runner is blocked in this environment, so
-these are not native CTest unit-test results. Build settings and completed
-checks are recorded in the
-[local validation record](../src/tests/regression/reference/local_validation_20261023.txt).
 
 ## Regression tests
 
@@ -147,7 +141,10 @@ Each setup is an `input.par` template in `src/tests/regression/setups/`. All of 
 | `OutputSnapshots` | 48, 63, 75 (*z* = 15, 12, 10) |
 | Everything else | `input/params/defaults.par` |
 
-With a fixed seed and rank count, repeated runs give bitwise-identical output. Each setup changes only the parameters below, and runs only in the build configuration its reference comes from:
+Keep the seed, MPI rank count, build settings and library versions fixed when
+checking repeat-run reproducibility. The setups below run in their listed
+build configurations; the deterministic `xray_metallicity` setup also runs in
+the stochasticity build as described below.
 
 | Setup | Build | Changes from the defaults | Covers |
 |---|---|---|---|
@@ -158,12 +155,10 @@ With a fixed seed and rank count, repeated runs give bitwise-identical output. E
 | `calc_mags` | `-DCALC_MAGS=ON -DMAGS_N_SNAPS=3 -DMAGS_N_BANDS=2` | `TargetSnaps 48, 63, 75`, `RestBands 1550, 1650, 4958, 5058` | Photometry, UVLF, DustyLF, OIIIDustyLF |
 | `stochasticity` | `-DUSE_STOCHASTICITY=ON` | spin temperature and power spectrum, `EscapeFracScatterDex 0.3`, `XrayScatterDex 0.3`, `Flag_SourceRecalibration 1` | Escape-fraction and X-ray scatter, source recalibration |
 
-The `xray_metallicity` setup adds `Flag_UseXrayMetallicity 1` to `xray` in the default build.
-The `xray_metallicity_scatter` setup uses the same physics in a
-`USE_STOCHASTICITY` build, with `XrayScatterDex 0.3` and
-`Flag_SourceRecalibration 1`. Both use `EscapeFracScatterDex 0` and keep
-separate references, leaving the original `xray` and `stochasticity`
-references as checks of `Flag_UseXrayMetallicity 0`.
+The `xray_metallicity` setup adds `Flag_UseXrayMetallicity=1` to `xray`,
+with `XrayScatterDex=0` and `Flag_SourceRecalibration=0`. It runs in both default
+and stochasticity builds against the same deterministic reference. The
+`stochasticity` setup retains the empirical scatter model with metallicity disabled.
 
 In Debug builds the runs take from about 10 s (`default`, `igm`, `calc_mags`) to 2–3 minutes (`xray`, `mini_halos`).
 
@@ -371,7 +366,7 @@ Prefer references generated by CI, whose comparisons use strict mode. For local 
 | default | `default`, `igm`, `xray`, `xray_metallicity` | always |
 | mini-halos | `mini_halos` | a changed C source or header mentions `USE_MINI_HALOS` |
 | calc-mags | `calc_mags` | a changed C source or header mentions `CALC_MAGS`, `USE_JWST` or `USE_HST` |
-| stochasticity | `stochasticity`, `xray_metallicity_scatter` | a changed C source or header mentions `USE_STOCHASTICITY` |
+| stochasticity | `stochasticity`, `xray_metallicity` | a changed C source or header mentions `USE_STOCHASTICITY` |
 | stochasticity-mini-halos | none (unit tests only) | as stochasticity |
 
 Every configuration runs when the build system, the workflow, `src/tests/regression/` or `input/` changes, on manual runs, and when the changes can't be determined.
