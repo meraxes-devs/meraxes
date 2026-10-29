@@ -29,33 +29,92 @@
  * III)
  */
 
-static double agn_xray_heating_prefactor(bool hard_band, double zp)
+typedef enum {
+  XRAY_GAL = 0,
+  XRAY_GAL_III = 1,
+  XRAY_AGN_HARD = 2,
+  XRAY_AGN_SOFT = 3
+} xray_source_t;
+
+static double xray_heating_prefactor(xray_source_t source, double zp)
 {
   const physics_params_t* params = &run_globals.params.physics;
-  bool needed = params->Flag_IncludeAGNXray == 1 || params->Flag_IncludeAGNXray == (hard_band ? 2 : 3);
-  if (!needed)
+  double energy_lo = params->NuXrayThreshold;
+  double energy_hi = params->NuXraySoftCut;
+  double alpha;
+  double lx_per_sfr = 1.0;
+
+  switch (source) {
+    case XRAY_GAL:
+      alpha = params->SpecIndexXrayGal;
+      lx_per_sfr = params->LXrayGal;
+      break;
+
+    case XRAY_GAL_III:
+#if USE_MINI_HALOS
+      alpha = params->SpecIndexXrayIII;
+      lx_per_sfr = params->LXrayGalIII;
+      break;
+#else
+      return 0.0;
+#endif
+
+    case XRAY_AGN_HARD:
+      if (params->Flag_IncludeAGNXray != 1 && params->Flag_IncludeAGNXray != 2)
+        return 0.0;
+      energy_lo = params->NuXraySoftCut;
+      energy_hi = params->NuXrayMax;
+      alpha = params->SpecIndexXrayAGNHard;
+      break;
+
+    case XRAY_AGN_SOFT:
+      if (params->Flag_IncludeAGNXray != 1 && params->Flag_IncludeAGNXray != 3)
+        return 0.0;
+      alpha = params->SpecIndexXrayAGNSoft;
+      break;
+
+    default:
+      return NAN;
+  }
+
+  if (!isfinite(lx_per_sfr) || lx_per_sfr < 0.0)
+    return NAN;
+  if (lx_per_sfr == 0.0)
     return 0.0;
 
-  double energy_lo = hard_band ? params->NuXraySoftCut : params->NuXrayThreshold;
-  double energy_hi = hard_band ? params->NuXrayMax : params->NuXraySoftCut;
-  double alpha = hard_band ? params->SpecIndexXrayAGNHard : params->SpecIndexXrayAGNSoft;
-  if (!isfinite(energy_lo) || !isfinite(energy_hi) || !isfinite(params->NuXrayThreshold) || !isfinite(alpha) ||
-      energy_lo <= 0.0 || energy_hi <= energy_lo || params->NuXrayThreshold <= 0.0)
+  if (!isfinite(energy_lo) || !isfinite(energy_hi) ||
+      !isfinite(params->NuXrayThreshold) || !isfinite(alpha) ||
+      energy_lo <= 0.0 || energy_hi <= energy_lo ||
+      params->NuXrayThreshold <= 0.0)
     return NAN;
 
-  // Normalize L_nu proportional to (nu/nu_th)^(-alpha) only for an enabled band.
   double luminosity_conversion;
   if (fabs(alpha - 1.0) < REL_TOL) {
-    luminosity_conversion = (params->NuXrayThreshold * NU_over_EV) * log(energy_hi / energy_lo);
+    luminosity_conversion =
+      (params->NuXrayThreshold * NU_over_EV) * log(energy_hi / energy_lo);
     luminosity_conversion = 1.0 / luminosity_conversion;
   } else {
-    luminosity_conversion = pow(energy_hi * NU_over_EV, 1.0 - alpha) - pow(energy_lo * NU_over_EV, 1.0 - alpha);
+    luminosity_conversion =
+      pow(energy_hi * NU_over_EV, 1.0 - alpha)
+      - pow(energy_lo * NU_over_EV, 1.0 - alpha);
     luminosity_conversion = 1.0 / luminosity_conversion;
-    luminosity_conversion *= pow(params->NuXrayThreshold * NU_over_EV, -alpha) * (1.0 - alpha);
+    luminosity_conversion *=
+      pow(params->NuXrayThreshold * NU_over_EV, -alpha) * (1.0 - alpha);
   }
-  luminosity_conversion /= PLANCK;
 
-  return luminosity_conversion / (params->NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT * pow(1.0 + zp, alpha + 3.0);
+  // Galaxy inputs are SFR densities; AGN inputs are luminosity densities.
+  if (source == XRAY_GAL) {
+    luminosity_conversion *= 1.0 / PLANCK;
+    luminosity_conversion *= lx_per_sfr * SEC_PER_YEAR;
+  } else if (source == XRAY_GAL_III) {
+    luminosity_conversion *= SEC_PER_YEAR / PLANCK;
+    luminosity_conversion *= lx_per_sfr;
+  } else {
+    luminosity_conversion /= PLANCK;
+  }
+
+  return luminosity_conversion / (params->NuXrayThreshold * NU_over_EV)
+         * SPEED_OF_LIGHT * pow(1.0 + zp, alpha + 3.0);
 }
 
 int set_sfr_history()
@@ -135,8 +194,7 @@ void _ComputeTs(int snapshot)
 
   int i_real, i_padded, i_smoothed_heating, R_ct, x_e_ct, n_ct, m_xHII_low, m_xHII_high, NO_LIGHT;
 
-  double prev_zpp, prev_R, zpp, zp, lower_int_limit_GAL, filling_factor_of_HI_zp, R_factor, R, nuprime, dzp,
-    Luminosity_converstion_factor_GAL;
+  double prev_zpp, prev_R, zpp, zp, lower_int_limit_GAL, filling_factor_of_HI_zp, R_factor, R, nuprime, dzp;
   double collapse_fraction, density_over_mean, collapse_fraction_in_cell;
   double agn_xray_hard_ave = 0.0, agn_xray_soft_ave = 0.0; /* volume-averaged emissivity density, this snapshot */
   double hmxb_xray_ave = 0.0; /* volume-averaged HMXB (galaxy) X-ray emissivity density, this snapshot */
@@ -152,7 +210,7 @@ void _ComputeTs(int snapshot)
 #endif
 
 #if USE_MINI_HALOS
-  double Luminosity_converstion_factor_III, collapse_fractionIII, collapse_fractionIII_in_cell;
+  double collapse_fractionIII, collapse_fractionIII_in_cell;
 #endif
 
   // TODO: Can we reduce the scope of these variables and, if not, improve the names?
@@ -1062,85 +1120,27 @@ void _ComputeTs(int snapshot)
     dgrowth_factor_dzp = ddicke_dz(zp);
     dt_dzp = dtdz((float)zp);
 
-    // Below is the converstion of the soft-band X_ray luminosity into number of X-ray photons produced. This is the
-    // code taken from 21CMMC, which somewhat uses the 21cmFAST nomenclature (to ease flipping between old/new
-    // parameterisation), so isn't necessarily the most intuitive way to express this.
-
-    // Conversion of the input bolometric luminosity (new) to a ZETA_X (old) to be consistent with Ts.c from 21cmFAST
-    // Conversion here means the code otherwise remains the same as the original Ts.c
-
-    /*
-     * L(nu) = L0*(nu/nu_th)^(-alpha) on [nu_lo,nu_hi], nu_th = NuXrayThreshold.
-     * C = L0/L_band:
-     *   alpha != 1:  C = (1-alpha) * nu_th^-alpha / [nu_hi^(1-alpha) - nu_lo^(1-alpha)]
-     *   alpha == 1:  C = 1 / (nu_th * ln(nu_hi/nu_lo))
-     * [nu_lo,nu_hi]: GAL/III/AGN-soft -> [NuXrayThreshold,NuXraySoftCut], AGN-hard -> [NuXraySoftCut,NuXrayMax].
-     */
-    if (fabs(run_globals.params.physics.SpecIndexXrayGal - 1.0) < REL_TOL) {
-      Luminosity_converstion_factor_GAL =
-        (run_globals.params.physics.NuXrayThreshold * NU_over_EV) *
-        log(run_globals.params.physics.NuXraySoftCut / run_globals.params.physics.NuXrayThreshold);
-      Luminosity_converstion_factor_GAL = 1. / Luminosity_converstion_factor_GAL;
-    } else {
-      Luminosity_converstion_factor_GAL =
-        pow(run_globals.params.physics.NuXraySoftCut * NU_over_EV, 1. - run_globals.params.physics.SpecIndexXrayGal) -
-        pow(run_globals.params.physics.NuXrayThreshold * NU_over_EV, 1. - run_globals.params.physics.SpecIndexXrayGal);
-      Luminosity_converstion_factor_GAL = 1. / Luminosity_converstion_factor_GAL;
-      Luminosity_converstion_factor_GAL *=
-        pow(run_globals.params.physics.NuXrayThreshold * NU_over_EV, -run_globals.params.physics.SpecIndexXrayGal) *
-        (1 - run_globals.params.physics.SpecIndexXrayGal);
-    }
-    Luminosity_converstion_factor_GAL *= 1.0 / PLANCK;
-    // Finally, convert to the correct units. NU_over_EV*hplank as only want to divide by eV -> erg (owing to the
-    // definition of Luminosity)
-    // Do the same for Pop III.
-
+    const_zp_prefactor_GAL = xray_heating_prefactor(XRAY_GAL, zp);
 #if USE_MINI_HALOS
-    if (fabs(run_globals.params.physics.SpecIndexXrayIII - 1.0) < REL_TOL) {
-      Luminosity_converstion_factor_III =
-        (run_globals.params.physics.NuXrayThreshold * NU_over_EV) *
-        log(run_globals.params.physics.NuXraySoftCut / run_globals.params.physics.NuXrayThreshold);
-      Luminosity_converstion_factor_III = 1. / Luminosity_converstion_factor_III;
-    } else {
-      Luminosity_converstion_factor_III =
-        pow(run_globals.params.physics.NuXraySoftCut * NU_over_EV, 1. - run_globals.params.physics.SpecIndexXrayIII) -
-        pow(run_globals.params.physics.NuXrayThreshold * NU_over_EV, 1. - run_globals.params.physics.SpecIndexXrayIII);
-      Luminosity_converstion_factor_III = 1. / Luminosity_converstion_factor_III;
-      Luminosity_converstion_factor_III *=
-        pow(run_globals.params.physics.NuXrayThreshold * NU_over_EV, -run_globals.params.physics.SpecIndexXrayIII) *
-        (1 - run_globals.params.physics.SpecIndexXrayIII);
-    }
-    Luminosity_converstion_factor_III *= (SEC_PER_YEAR) / (PLANCK);
+    const_zp_prefactor_III = xray_heating_prefactor(XRAY_GAL_III, zp);
 #endif
+    const_zp_prefactor_AGN_soft = xray_heating_prefactor(XRAY_AGN_SOFT, zp);
+    const_zp_prefactor_AGN_hard = xray_heating_prefactor(XRAY_AGN_HARD, zp);
 
-    // Leave the original 21cmFAST code for reference. Refer to Greig & Mesinger (2017) for the new parameterisation.
-    //        const_zp_prefactor_GAL = (1.0/0.59)*( run_globals.params.physics.LXrayGal *
-    //        Luminosity_converstion_factor_GAL ) / (run_globals.params.physics.NuXrayThreshold*NU_over_EV) *
-    //        SPEED_OF_LIGHT * pow(1+zp, run_globals.params.physics.SpecIndexXrayGal+3);
-    const_zp_prefactor_GAL = (run_globals.params.physics.LXrayGal * SEC_PER_YEAR * Luminosity_converstion_factor_GAL) /
-                             (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
-                             pow(1 + zp, run_globals.params.physics.SpecIndexXrayGal + 3);
+    if (!isfinite(const_zp_prefactor_GAL) ||
+        !isfinite(const_zp_prefactor_AGN_soft) ||
+        !isfinite(const_zp_prefactor_AGN_hard)
 #if USE_MINI_HALOS
-    const_zp_prefactor_III = (run_globals.params.physics.LXrayGalIII * Luminosity_converstion_factor_III) /
-                             (run_globals.params.physics.NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT *
-                             pow(1 + zp, run_globals.params.physics.SpecIndexXrayIII + 3);
+        || !isfinite(const_zp_prefactor_III)
 #endif
-
-    /* A_b(zp) = (C_b / nu_th) * c * (1+zp)^(alpha_b + 3) */
-    const_zp_prefactor_AGN_soft = agn_xray_heating_prefactor(false, zp);
-    if (!isfinite(const_zp_prefactor_AGN_soft)) {
+    ) {
       mlog_error(
-        "const_zp_prefactor_AGN_soft is not finite — check NuXrayThreshold/NuXraySoftCut/SpecIndexXrayAGNSoft.");
+        "Invalid X-ray heating prefactor: check enabled source normalizations, "
+        "energy bands and spectral indices.");
       ABORT(EXIT_FAILURE);
     }
 
-    const_zp_prefactor_AGN_hard = agn_xray_heating_prefactor(true, zp);
-    if (!isfinite(const_zp_prefactor_AGN_hard)) {
-      mlog_error("const_zp_prefactor_AGN_hard is not finite — check NuXrayThreshold/NuXrayMax/SpecIndexXrayAGNHard.");
-      ABORT(EXIT_FAILURE);
-    }
-    // Note the factor of 0.59 appears to be required to match 21cmFAST
-
+    // Note the factor of 0.59 appears to be required to match 21cmFAST.
     // I believe it arises from differing definitions of a stellar baryon mass
     // 21cmFAST appears to define a stellar baryon as 0.59*m_p, whereas Meraxes defines it as m_p
     // Had issues with normalisation factors comparing the codes, adding 0.59 here rectified the normalisation somewhat

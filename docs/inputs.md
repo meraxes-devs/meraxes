@@ -150,7 +150,7 @@ are given in parentheses. Omit the parentheses in parameter files.
 | `Flag_UseXrayMetallicity` | `0` | 0: constant galaxy Lx/SFR; 1: the Fragos/Kaur metallicity shape with a low-metallicity plateau. |
 | `XrayMetallicityExponent` | `0.3` | Positive metallicity-shape exponent, distinct from the spectral index. |
 | `XrayMetallicityTurnover` | `0.008` | Positive metallicity scale in absolute metal mass fraction, not solar units. |
-| `XrayScatterDex` | `0.0` | Gaussian scatter in log10 galaxy luminosity, dex; requires `USE_STOCHASTICITY=ON`. |
+| `XrayScatterDex` | `0.0` | Empirical Gaussian scatter in log10 galaxy luminosity, dex; requires `USE_STOCHASTICITY=ON` and `Flag_UseXrayMetallicity=0`. |
 | `SpecIndexXrayGal` / `SpecIndexXrayIII` | `1.` | Pop. II / optional Pop. III X-ray spectral index. |
 | `NuXrayThreshold` | `500.` | Lower escaping X-ray photon energy, eV. |
 | `NuXraySoftCut` | `2000.` | Soft/hard X-ray break or upper soft-band energy, eV. |
@@ -188,14 +188,13 @@ default). `NuXrayMax` sets the upper limit of the subsequent X-ray frequency
 integration. Meraxes does not convert a calibration from another energy band:
 supply `LXrayGal` for the configured normalization band and adopted spectrum.
 Enabling the metallicity option prints a reminder of this requirement and the
-selected band. When migrating older parameter files, replace
-`XrayMetallicityNorm` with the appropriate `LXrayGal` and remove
-`XrayCalibrationBandMin/Max`.
+selected band.
 
 The metallicity is recorded from the gas that forms the stars, before the
 associated stellar feedback changes the gas reservoirs. Instantaneous-SFR
 sources use `StarFormingGasMetallicity`, the SFR-weighted birth metallicity of
-the current star-formation events. Sources based on `GrossStellarMass` use
+the current star-formation events. When `Flag_InstantaneousSFR=0`, sources
+based on `GrossStellarMass` use
 `GrossStellarMetals / GrossStellarMass`, the cumulative formed-mass-weighted
 birth metallicity. These histories retain the abundance when cold gas is
 exhausted and are combined during mergers. The model applies the relation to
@@ -205,15 +204,21 @@ In mini-halo builds, the galaxy relation tracks Pop. II star formation; Pop. III
 retains its separate `LXrayGalIII` prescription.
 
 The no-SFR-scatter option changes source strengths while preserving the
-recorded birth abundance. If it assigns an instantaneous source to a galaxy
-with no current star formation, the cumulative birth abundance is used when
-available; without a recorded abundance, the source uses the constant
-`LXrayGal` relation.
+abundance selected from the original galaxy. In instantaneous mode, a galaxy
+with zero physical SFR uses $Z=0$, including when the no-SFR treatment assigns a
+positive source. Cumulative birth abundance is used only when
+`Flag_InstantaneousSFR=0`; without a recorded cumulative abundance, the source
+uses the constant `LXrayGal` normalization.
 
-Scatter adds a zero-mean Gaussian residual in log10 luminosity. Without
-source recalibration, it increases the arithmetic mean by
-$\exp[(\ln 10)^2\texttt{XrayScatterDex}^2/2]$. A requested scatter larger than
-`ABS_TOL` in a build with `USE_STOCHASTICITY=OFF` is an error.
+`XrayScatterDex` applies only to the empirical, metallicity-independent
+X-ray-SFR relation (`Flag_UseXrayMetallicity=0`) and requires
+`USE_STOCHASTICITY=ON`. Setting it above `ABS_TOL` together with
+`Flag_UseXrayMetallicity=1` is an error. The metallicity-dependent model adds
+no random luminosity residual.
+
+Empirical scatter is a zero-mean Gaussian residual in log10 luminosity.
+Without source recalibration, it increases the arithmetic mean by
+$\exp[(\ln 10)^2\texttt{XrayScatterDex}^2/2]$.
 
 </details>
 
@@ -365,11 +370,13 @@ Enable `USE_STOCHASTICITY` at compilation to modify stellar radiation sources.
 |---|---|---|
 | `EscapeFracScatterDex` | `0.0` | Scatter in log10 stellar escape fraction, dex. |
 | `Flag_RemoveSFRScatter` | `0` | Remove SFR scatter from radiation sources at fixed halo mass. |
-| `XrayScatterDex` | `0.0` | Gaussian scatter in log10 galaxy X-ray luminosity, dex; requires `USE_STOCHASTICITY=ON`. |
+| `XrayScatterDex` | `0.0` | Empirical Gaussian scatter in log10 galaxy X-ray luminosity, dex; requires `Flag_UseXrayMetallicity=0`. |
 | `Flag_SourceRecalibration` | `0` | Match modified source budgets to the untreated galaxy population in the same run. |
 
 Escape-fraction scatter and median-SFR sources are mutually exclusive.
-X-ray scatter can accompany either and requires `Flag_IncludeSpinTemp=1`.
+X-ray scatter can accompany either when `Flag_UseXrayMetallicity=0` and requires
+`Flag_IncludeSpinTemp=1`. It cannot be combined with the metallicity-dependent
+X-ray luminosity model.
 Recalibration requires an active treatment and restores the corresponding
 untreated source budgets. `RandomSeed` sets the random generator.
 

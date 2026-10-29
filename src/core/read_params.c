@@ -10,7 +10,11 @@ static void check_problem_params(run_params_t* run_params)
     mlog_error("The current version of the code only works if NSteps = 1. Sorry! Exiting...");
     ABORT(EXIT_FAILURE);
   }
-
+  if (run_params->physics.Flag_UseXrayMetallicity &&
+      run_params->physics.XrayScatterDex > ABS_TOL) {
+    mlog_error("Flag_UseXrayMetallicity and XrayScatterDex cannot be enabled together.");
+    ABORT(EXIT_FAILURE);
+  }
 #if USE_STOCHASTICITY
   if (run_params->physics.EscapeFracScatterDex > ABS_TOL && run_params->physics.Flag_RemoveSFRScatter != 0) {
     mlog_error("Both EscapeFracScatterDex and Flag_RemoveSFRScatter are set. "

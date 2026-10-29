@@ -25,26 +25,26 @@ Test(agn_xray_heating, disabled_agn_ignores_empty_hard_band)
 {
   run_globals.params.physics.Flag_IncludeAGNXray = 0;
   run_globals.params.physics.NuXrayMax = run_globals.params.physics.NuXraySoftCut;
-  cr_expect_eq(agn_xray_heating_prefactor(false, 10.0), 0.0);
-  cr_expect_eq(agn_xray_heating_prefactor(true, 10.0), 0.0);
+  cr_expect_eq(xray_heating_prefactor(XRAY_AGN_SOFT, 10.0), 0.0);
+  cr_expect_eq(xray_heating_prefactor(XRAY_AGN_HARD, 10.0), 0.0);
 }
 
 Test(agn_xray_heating, soft_only_ignores_empty_hard_band)
 {
   run_globals.params.physics.Flag_IncludeAGNXray = 3;
   run_globals.params.physics.NuXrayMax = run_globals.params.physics.NuXraySoftCut;
-  double soft = agn_xray_heating_prefactor(false, 10.0);
+  double soft = xray_heating_prefactor(XRAY_AGN_SOFT, 10.0);
   cr_assert(isfinite(soft));
   cr_expect_gt(soft, 0.0);
-  cr_expect_eq(agn_xray_heating_prefactor(true, 10.0), 0.0);
+  cr_expect_eq(xray_heating_prefactor(XRAY_AGN_HARD, 10.0), 0.0);
 }
 
 Test(agn_xray_heating, hard_only_ignores_disabled_soft_spectral_index)
 {
   run_globals.params.physics.Flag_IncludeAGNXray = 2;
   run_globals.params.physics.SpecIndexXrayAGNSoft = NAN;
-  cr_expect_eq(agn_xray_heating_prefactor(false, 10.0), 0.0);
-  double hard = agn_xray_heating_prefactor(true, 10.0);
+  cr_expect_eq(xray_heating_prefactor(XRAY_AGN_SOFT, 10.0), 0.0);
+  double hard = xray_heating_prefactor(XRAY_AGN_HARD, 10.0);
   cr_assert(isfinite(hard));
   cr_expect_gt(hard, 0.0);
 }
@@ -54,9 +54,9 @@ Test(agn_xray_heating, enabled_hard_band_rejects_empty_or_reversed_interval)
   for (int flag = 1; flag <= 2; flag++) {
     run_globals.params.physics.Flag_IncludeAGNXray = flag;
     run_globals.params.physics.NuXrayMax = 2000.0;
-    cr_expect(isnan(agn_xray_heating_prefactor(true, 10.0)));
+    cr_expect(isnan(xray_heating_prefactor(XRAY_AGN_HARD, 10.0)));
     run_globals.params.physics.NuXrayMax = 1000.0;
-    cr_expect(isnan(agn_xray_heating_prefactor(true, 10.0)));
+    cr_expect(isnan(xray_heating_prefactor(XRAY_AGN_HARD, 10.0)));
   }
 }
 
@@ -64,12 +64,12 @@ Test(agn_xray_heating, enabled_bands_reject_nonfinite_parameters)
 {
   run_globals.params.physics.Flag_IncludeAGNXray = 1;
   run_globals.params.physics.SpecIndexXrayAGNSoft = NAN;
-  cr_expect(isnan(agn_xray_heating_prefactor(false, 10.0)));
+  cr_expect(isnan(xray_heating_prefactor(XRAY_AGN_SOFT, 10.0)));
   run_globals.params.physics.SpecIndexXrayAGNHard = INFINITY;
-  cr_expect(isnan(agn_xray_heating_prefactor(true, 10.0)));
+  cr_expect(isnan(xray_heating_prefactor(XRAY_AGN_HARD, 10.0)));
   run_globals.params.physics.SpecIndexXrayAGNHard = 1.7;
   run_globals.params.physics.NuXrayMax = INFINITY;
-  cr_expect(isnan(agn_xray_heating_prefactor(true, 10.0)));
+  cr_expect(isnan(xray_heating_prefactor(XRAY_AGN_HARD, 10.0)));
 }
 
 // Independently integrate the adopted spectrum with Simpson's rule in energy space.
@@ -99,7 +99,7 @@ Test(agn_xray_heating, enabled_prefactors_normalize_the_integrated_spectrum)
       run_globals.params.physics.SpecIndexXrayAGNHard = alphas[i];
       double integral = spectral_integral(energy_lo, energy_hi, alphas[i]);
       for (int j = 0; j < 2; j++) {
-        double prefactor = agn_xray_heating_prefactor((bool)band, redshifts[j]);
+        double prefactor = xray_heating_prefactor(band ? XRAY_AGN_HARD : XRAY_AGN_SOFT, redshifts[j]);
         cr_assert(isfinite(prefactor));
         cr_assert_gt(prefactor, 0.0);
         double normalization = prefactor * PLANCK * (500.0 * NU_over_EV) * integral /
@@ -108,4 +108,37 @@ Test(agn_xray_heating, enabled_prefactors_normalize_the_integrated_spectrum)
       }
     }
   }
+}
+
+Test(agn_xray_heating, galaxy_prefactors_preserve_sfr_units)
+{
+  physics_params_t* params = &run_globals.params.physics;
+  params->LXrayGal = 3.16e40;
+  params->LXrayGalIII = 8.0e40;
+  const double alphas[] = { 1.0, 1.7, 2.2 };
+
+  for (int source = XRAY_GAL; source <= XRAY_GAL_III; source++) {
+#if !USE_MINI_HALOS
+    if (source == XRAY_GAL_III) {
+      cr_expect_eq(xray_heating_prefactor(XRAY_GAL_III, 10.0), 0.0);
+      continue;
+    }
+#endif
+    double norm = source == XRAY_GAL ? params->LXrayGal : params->LXrayGalIII;
+    for (int i = 0; i < 3; i++) {
+      params->SpecIndexXrayGal = params->SpecIndexXrayIII = alphas[i];
+      double integral = spectral_integral(500.0, 2000.0, alphas[i]);
+      double prefactor = xray_heating_prefactor((xray_source_t)source, 10.0);
+      double ratio =
+        prefactor * PLANCK * (500.0 * NU_over_EV) * integral /
+        (norm * SEC_PER_YEAR * SPEED_OF_LIGHT * pow(11.0, alphas[i] + 3.0));
+
+      cr_assert(isfinite(prefactor));
+      cr_expect_float_eq(ratio, 1.0, 1e-9);
+    }
+  }
+
+  params->LXrayGal = params->LXrayGalIII = 0.0;
+  cr_expect_eq(xray_heating_prefactor(XRAY_GAL, 10.0), 0.0);
+  cr_expect_eq(xray_heating_prefactor(XRAY_GAL_III, 10.0), 0.0);
 }

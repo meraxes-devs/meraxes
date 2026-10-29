@@ -19,7 +19,6 @@
 #include "virial_properties.h"
 #if USE_STOCHASTICITY
 #include "Stochasticity.h"
-#include <gsl/gsl_cdf.h>
 #endif
 
 static hid_t create_reion_grid(const int snapshot, const bool parallel);
@@ -1983,13 +1982,15 @@ void assign_Mvir_crit_to_galaxies(int ngals_in_slabs, int flag_feed)
 
 static double galaxy_xray_metallicity(const galaxy_t* source_view)
 {
-  // Use the birth abundance of the same population that supplies the source SFR.
-  if (run_globals.params.Flag_InstantaneousSFR && source_view->Sfr > 0.0)
-    return source_view->StarFormingGasMetallicity;
+  // Instantaneous sources use this snapshot's birth abundance.
+  if (run_globals.params.Flag_InstantaneousSFR)
+    return source_view->Sfr > 0.0 ? source_view->StarFormingGasMetallicity : 0.0;
+
+  // Cumulative sources use the formed-mass-weighted birth abundance.
   if (source_view->GrossStellarMass > 0.0 && source_view->GrossStellarMetals >= 0.0)
     return calc_metallicity(source_view->GrossStellarMass, source_view->GrossStellarMetals);
 
-  // A no-SFR prescription can assign luminosity to a galaxy with no recorded births.
+  // No recorded cumulative birth abundance.
   return -1.0;
 }
 
@@ -2007,12 +2008,14 @@ static galaxy_t xray_no_sfr_source_view(const galaxy_t* gal)
 }
 #endif
 
-static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, double sfr_timescale, double scatter_dex)
+static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view,
+                                             double sfr_timescale,
+                                             double scatter_dex)
 {
-  double source_sfr;
-
-  source_sfr =
-    run_globals.params.Flag_InstantaneousSFR ? source_view->Sfr : source_view->GrossStellarMass / sfr_timescale;
+  double source_sfr =
+    run_globals.params.Flag_InstantaneousSFR
+      ? source_view->Sfr
+      : source_view->GrossStellarMass / sfr_timescale;
 
   source_sfr *= run_globals.units.UnitMass_in_g / SOLAR_MASS;
   source_sfr *= SEC_PER_YEAR / run_globals.units.UnitTime_in_s;
@@ -2020,9 +2023,11 @@ static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, doub
   if (run_globals.params.physics.LXrayGal == 0.0)
     return 0.0;
 
-  double metallicity = run_globals.params.physics.Flag_UseXrayMetallicity ? galaxy_xray_metallicity(source_view) : -1.0;
-  if (metallicity < 0.0) {
-    double luminosity = run_globals.params.physics.LXrayGal * source_sfr / XRAY_LUMINOSITY_UNIT;
+  double luminosity =
+    run_globals.params.physics.LXrayGal * source_sfr / XRAY_LUMINOSITY_UNIT;
+
+  // Empirical X-ray-SFR relation: retain the original scatter prescription.
+  if (!run_globals.params.physics.Flag_UseXrayMetallicity) {
 #if USE_STOCHASTICITY
     if (scatter_dex > 0.0)
       luminosity = apply_lognormal_scatter(luminosity, scatter_dex);
@@ -2032,26 +2037,23 @@ static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, doub
     return luminosity;
   }
 
+  // Metallicity-dependent relation: no additional random luminosity residual.
   if (source_sfr <= 0.0)
     return 0.0;
 
-  // Fragos model 265: use the shape and low-Z plateau of Kaur et al. (2022), Eq. (2).
-  // Z is the absolute metal mass fraction.
-  // LXrayGal specifies the low-Z plateau in the selected heating normalization band.
+  double metallicity = galaxy_xray_metallicity(source_view);
+  if (metallicity < 0.0)
+    return luminosity;
+
+  // Fragos/Kaur shape in absolute metal mass fraction.
+  // LXrayGal is the low-Z plateau in the selected normalization band.
   double exponent = run_globals.params.physics.XrayMetallicityExponent;
   double q_peak = exponent / log(10.0);
-  double q = fmax(metallicity / (run_globals.params.physics.XrayMetallicityTurnover * q_peak), 1.0);
-  double log_lx_sfr = log10(run_globals.params.physics.LXrayGal) + exponent * log10(q) - q_peak * (q - 1.0);
-
-#if USE_STOCHASTICITY
-  // A zero-mean Gaussian residual in dex.
-  if (scatter_dex > 0.0) {
-    double u = gsl_rng_uniform(run_globals.random_generator);
-    log_lx_sfr += scatter_dex * gsl_cdf_ugaussian_Pinv(u);
-  }
-#else
-  (void)scatter_dex;
-#endif
+  double q =
+    fmax(metallicity / (run_globals.params.physics.XrayMetallicityTurnover * q_peak), 1.0);
+  double log_lx_sfr =
+    log10(run_globals.params.physics.LXrayGal)
+    + exponent * log10(q) - q_peak * (q - 1.0);
 
   return pow(10.0, log_lx_sfr) * source_sfr / XRAY_LUMINOSITY_UNIT;
 }
