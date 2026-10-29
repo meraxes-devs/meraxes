@@ -2008,14 +2008,10 @@ static galaxy_t xray_no_sfr_source_view(const galaxy_t* gal)
 }
 #endif
 
-static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view,
-                                             double sfr_timescale,
-                                             double scatter_dex)
+static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, double sfr_timescale, double scatter_dex)
 {
   double source_sfr =
-    run_globals.params.Flag_InstantaneousSFR
-      ? source_view->Sfr
-      : source_view->GrossStellarMass / sfr_timescale;
+    run_globals.params.Flag_InstantaneousSFR ? source_view->Sfr : source_view->GrossStellarMass / sfr_timescale;
 
   source_sfr *= run_globals.units.UnitMass_in_g / SOLAR_MASS;
   source_sfr *= SEC_PER_YEAR / run_globals.units.UnitTime_in_s;
@@ -2023,8 +2019,7 @@ static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view,
   if (run_globals.params.physics.LXrayGal == 0.0)
     return 0.0;
 
-  double luminosity =
-    run_globals.params.physics.LXrayGal * source_sfr / XRAY_LUMINOSITY_UNIT;
+  double luminosity = run_globals.params.physics.LXrayGal * source_sfr / XRAY_LUMINOSITY_UNIT;
 
   // Empirical X-ray-SFR relation: retain the original scatter prescription.
   if (!run_globals.params.physics.Flag_UseXrayMetallicity) {
@@ -2049,11 +2044,8 @@ static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view,
   // LXrayGal is the low-Z plateau in the selected normalization band.
   double exponent = run_globals.params.physics.XrayMetallicityExponent;
   double q_peak = exponent / log(10.0);
-  double q =
-    fmax(metallicity / (run_globals.params.physics.XrayMetallicityTurnover * q_peak), 1.0);
-  double log_lx_sfr =
-    log10(run_globals.params.physics.LXrayGal)
-    + exponent * log10(q) - q_peak * (q - 1.0);
+  double q = fmax(metallicity / (run_globals.params.physics.XrayMetallicityTurnover * q_peak), 1.0);
+  double log_lx_sfr = log10(run_globals.params.physics.LXrayGal) + exponent * log10(q) - q_peak * (q - 1.0);
 
   return pow(10.0, log_lx_sfr) * source_sfr / XRAY_LUMINOSITY_UNIT;
 }

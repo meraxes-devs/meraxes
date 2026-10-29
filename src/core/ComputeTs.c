@@ -29,7 +29,8 @@
  * III)
  */
 
-typedef enum {
+typedef enum
+{
   XRAY_GAL = 0,
   XRAY_GAL_III = 1,
   XRAY_AGN_HARD = 2,
@@ -82,24 +83,18 @@ static double xray_heating_prefactor(xray_source_t source, double zp)
   if (lx_per_sfr == 0.0)
     return 0.0;
 
-  if (!isfinite(energy_lo) || !isfinite(energy_hi) ||
-      !isfinite(params->NuXrayThreshold) || !isfinite(alpha) ||
-      energy_lo <= 0.0 || energy_hi <= energy_lo ||
-      params->NuXrayThreshold <= 0.0)
+  if (!isfinite(energy_lo) || !isfinite(energy_hi) || !isfinite(params->NuXrayThreshold) || !isfinite(alpha) ||
+      energy_lo <= 0.0 || energy_hi <= energy_lo || params->NuXrayThreshold <= 0.0)
     return NAN;
 
   double luminosity_conversion;
   if (fabs(alpha - 1.0) < REL_TOL) {
-    luminosity_conversion =
-      (params->NuXrayThreshold * NU_over_EV) * log(energy_hi / energy_lo);
+    luminosity_conversion = (params->NuXrayThreshold * NU_over_EV) * log(energy_hi / energy_lo);
     luminosity_conversion = 1.0 / luminosity_conversion;
   } else {
-    luminosity_conversion =
-      pow(energy_hi * NU_over_EV, 1.0 - alpha)
-      - pow(energy_lo * NU_over_EV, 1.0 - alpha);
+    luminosity_conversion = pow(energy_hi * NU_over_EV, 1.0 - alpha) - pow(energy_lo * NU_over_EV, 1.0 - alpha);
     luminosity_conversion = 1.0 / luminosity_conversion;
-    luminosity_conversion *=
-      pow(params->NuXrayThreshold * NU_over_EV, -alpha) * (1.0 - alpha);
+    luminosity_conversion *= pow(params->NuXrayThreshold * NU_over_EV, -alpha) * (1.0 - alpha);
   }
 
   // Galaxy inputs are SFR densities; AGN inputs are luminosity densities.
@@ -113,8 +108,7 @@ static double xray_heating_prefactor(xray_source_t source, double zp)
     luminosity_conversion /= PLANCK;
   }
 
-  return luminosity_conversion / (params->NuXrayThreshold * NU_over_EV)
-         * SPEED_OF_LIGHT * pow(1.0 + zp, alpha + 3.0);
+  return luminosity_conversion / (params->NuXrayThreshold * NU_over_EV) * SPEED_OF_LIGHT * pow(1.0 + zp, alpha + 3.0);
 }
 
 int set_sfr_history()
@@ -1127,16 +1121,14 @@ void _ComputeTs(int snapshot)
     const_zp_prefactor_AGN_soft = xray_heating_prefactor(XRAY_AGN_SOFT, zp);
     const_zp_prefactor_AGN_hard = xray_heating_prefactor(XRAY_AGN_HARD, zp);
 
-    if (!isfinite(const_zp_prefactor_GAL) ||
-        !isfinite(const_zp_prefactor_AGN_soft) ||
+    if (!isfinite(const_zp_prefactor_GAL) || !isfinite(const_zp_prefactor_AGN_soft) ||
         !isfinite(const_zp_prefactor_AGN_hard)
 #if USE_MINI_HALOS
         || !isfinite(const_zp_prefactor_III)
 #endif
     ) {
-      mlog_error(
-        "Invalid X-ray heating prefactor: check enabled source normalizations, "
-        "energy bands and spectral indices.");
+      mlog_error("Invalid X-ray heating prefactor: check enabled source normalizations, "
+                 "energy bands and spectral indices.");
       ABORT(EXIT_FAILURE);
     }
 

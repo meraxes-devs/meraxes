@@ -129,9 +129,8 @@ Test(agn_xray_heating, galaxy_prefactors_preserve_sfr_units)
       params->SpecIndexXrayGal = params->SpecIndexXrayIII = alphas[i];
       double integral = spectral_integral(500.0, 2000.0, alphas[i]);
       double prefactor = xray_heating_prefactor((xray_source_t)source, 10.0);
-      double ratio =
-        prefactor * PLANCK * (500.0 * NU_over_EV) * integral /
-        (norm * SEC_PER_YEAR * SPEED_OF_LIGHT * pow(11.0, alphas[i] + 3.0));
+      double ratio = prefactor * PLANCK * (500.0 * NU_over_EV) * integral /
+                     (norm * SEC_PER_YEAR * SPEED_OF_LIGHT * pow(11.0, alphas[i] + 3.0));
 
       cr_assert(isfinite(prefactor));
       cr_expect_float_eq(ratio, 1.0, 1e-9);
