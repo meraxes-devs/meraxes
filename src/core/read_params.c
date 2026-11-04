@@ -79,6 +79,39 @@ static void check_problem_params(run_params_t* run_params)
                "the broad Lya line is added to the AGN UV Lya pumping, which is switched off.");
     ABORT(EXIT_FAILURE);
   }
+
+  /* Range checks on the AGN Lya parameters. An equivalent width is a physical
+   * length and cannot be negative: a negative AGNLyaLineEW would flip the sign
+   * of the line term, and a negative AGNBandLineEW would drive lya_band_boost
+   * below 1, or negative. */
+  if (run_params->physics.AGNLyaLineEW < 0.0) {
+    mlog_error("AGNLyaLineEW = %g is negative, but an equivalent width cannot be.", run_params->physics.AGNLyaLineEW);
+    ABORT(EXIT_FAILURE);
+  }
+  if (run_params->physics.AGNBandLineEW < 0.0) {
+    mlog_error("AGNBandLineEW = %g is negative, but an equivalent width cannot be.", run_params->physics.AGNBandLineEW);
+    ABORT(EXIT_FAILURE);
+  }
+
+  /* The band-2 boost integrates the continuum photon count over the band and
+   * divides by the spectral index (n_cont in ComputeTs.c), so a zero index is
+   * 0/0 there and lya_band_boost comes out NaN. */
+  if (run_params->physics.AGNBandLineEW > 0.0 && run_params->physics.SpecIndexUVAGNSoft > -ABS_TOL &&
+      run_params->physics.SpecIndexUVAGNSoft < ABS_TOL) {
+    mlog_error("AGNBandLineEW = %g requires SpecIndexUVAGNSoft != 0, but it is %g: "
+               "the band-2 continuum photon count divides by the spectral index.",
+               run_params->physics.AGNBandLineEW,
+               run_params->physics.SpecIndexUVAGNSoft);
+    ABORT(EXIT_FAILURE);
+  }
+
+  /* AGNBandLineEW is only read inside the AGN UV Lya path, so say so rather
+   * than silently ignoring a value that was set on purpose. */
+  if (run_params->physics.AGNBandLineEW > 0.0 && !run_params->physics.Flag_IncludeAGNLyAlpha) {
+    mlog("<WARNING> AGNBandLineEW is set but Flag_IncludeAGNLyAlpha = 0, so the band-2 "
+         "boost will not be applied.",
+         MLOG_MESG);
+  }
 }
 
 static void store_params(entry_t entry[123],
