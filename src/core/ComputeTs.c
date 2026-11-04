@@ -179,9 +179,10 @@ void _ComputeTs(int snapshot)
   double lw_term_stellar, lw_term_III, lw_term_AGN;
   int i_spec;
 #endif
-  double AGN_eps1450[TsNumFilterSteps]; /* AGN UV emissivity at 1450A, per shell */
-  double nu_emit;                       /* emitted-frame frequency, for the AGN Lya weight */
-  double lya_band_boost;                /* band-2 BLR multiplier, derived below */
+  double AGN_eps1450[TsNumFilterSteps];      /* AGN UV emissivity at 1450A, per shell */
+  double nu_emit;                            /* emitted-frame frequency, for the AGN Lya weight */
+  double lya_band_boost;                     /* band-2 BLR multiplier, derived below */
+  static bool lya_band_boost_logged = false; /* the boost is constant for a run: log it once */
   double a_uv, nu_lo, nu_hi, nu_L, n_cont, n_line;
 
 #if USE_MINI_HALOS
@@ -515,7 +516,7 @@ void _ComputeTs(int snapshot)
         for (int ii = 0; ii < slab_n_complex; ii++)
           BHXrayEmissivity_soft_unfiltered[ii] /= (float)total_n_cells;
       }
-      if ((run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)) {
+      if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha) {
         fftwf_execute(run_globals.reion_grids.BHUVEmissivity_forward_plan);
         for (int ii = 0; ii < slab_n_complex; ii++)
           BHUVEmissivity_unfiltered[ii] /= (float)total_n_cells;
@@ -588,7 +589,7 @@ void _ComputeTs(int snapshot)
         fftwf_execute(run_globals.reion_grids.BHXrayEmissivity_hard_filtered_reverse_plan);
       if (agn_soft_needed)
         fftwf_execute(run_globals.reion_grids.BHXrayEmissivity_soft_filtered_reverse_plan);
-      if ((run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha))
+      if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)
         fftwf_execute(run_globals.reion_grids.BHUVEmissivity_filtered_reverse_plan);
 
       // Compute and store the collapse fraction and average electron fraction. Necessary for evaluating the integrals
@@ -645,7 +646,7 @@ void _ComputeTs(int snapshot)
                   (double)bh_soft * 1e10 * SOLAR_LUM / pixel_volume * pow(units->UnitLength_in_cm, -3.0);
                 agn_xray_soft_ave += SMOOTHED_AGN_soft[i_smoothed_heating];
               }
-              if ((run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)) {
+              if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha) {
                 ((float*)BHUVEmissivity_filtered)[i_padded] = fmaxf(((float*)BHUVEmissivity_filtered)[i_padded], 0.0);
 
                 bh_uv = ((float*)BHUVEmissivity_filtered)[i_padded];
@@ -748,7 +749,7 @@ void _ComputeTs(int snapshot)
                 SMOOTHED_AGN_soft[i_smoothed_heating] =
                   (double)bh_soft * 1e10 * SOLAR_LUM / pixel_volume * pow(units->UnitLength_in_cm, -3.0);
               }
-              if ((run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)) {
+              if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha) {
                 ((float*)BHUVEmissivity_filtered)[i_padded] = fmaxf(((float*)BHUVEmissivity_filtered)[i_padded], 0.0);
 
                 bh_uv = ((float*)BHUVEmissivity_filtered)[i_padded];
@@ -784,12 +785,15 @@ void _ComputeTs(int snapshot)
       n_line = (run_globals.params.physics.AGNBandLineEW * 1e-8) * pow(nu_L / NU_1450, -a_uv) * nu_L /
                (SPEED_OF_LIGHT * PLANCK);
       lya_band_boost = 1.0 + n_line / n_cont;
-      mlog("AGN band-2 BLR line: EW = %.2f A at %.1f A, alpha = %.3f -> boost = %.6f",
-           MLOG_MESG,
-           run_globals.params.physics.AGNBandLineEW,
-           AGN_BAND_LINE_LAMBDA,
-           a_uv,
-           lya_band_boost);
+      if (!lya_band_boost_logged) {
+        mlog("AGN band-2 BLR line: EW = %.2f A at %.1f A, alpha = %.3f -> boost = %.6f",
+             MLOG_MESG,
+             run_globals.params.physics.AGNBandLineEW,
+             AGN_BAND_LINE_LAMBDA,
+             a_uv,
+             lya_band_boost);
+        lya_band_boost_logged = true;
+      }
     }
 
     // Populate the initial ionisation/heating tables

@@ -1479,7 +1479,7 @@ void free_reionization_grids()
     free(grids->SMOOTHED_SFR_III);
 #endif
 
-    if ((run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)) {
+    if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha) {
       free(grids->SMOOTHED_AGN_UV);
       fftwf_destroy_plan(grids->BHUVEmissivity_filtered_reverse_plan);
       fftwf_destroy_plan(grids->BHUVEmissivity_forward_plan);
@@ -2104,7 +2104,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
           bh_xray_hist_grid_soft[(snap + 1) * local_n_complex * 2 + ii] =
             bh_xray_hist_grid_soft[snap * local_n_complex * 2 + ii];
       }
-      if ((run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)) {
+      if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha) {
         bh_uv_grid[ii] = 0.0f;
         for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
           bh_uv_hist_grid[(snap + 1) * local_n_complex * 2 + ii] = bh_uv_hist_grid[snap * local_n_complex * 2 + ii];
@@ -2162,7 +2162,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
 
     // AGN UV feeds both the LW and the Lya channels, so it is needed if either is on.
     if (prop == prop_bh_uv_emissivity &&
-        (!(run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)))
+        !(run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha))
       continue;
     // no need to bh grids if not using BHFeedback
     if ((!run_globals.params.physics.Flag_BHFeedback) &&
@@ -3238,6 +3238,10 @@ void save_reion_output_attributes(int snapshot)
     H5LTset_attribute_double(file_id, "TS_box", "volume_ave_xalpha", &(grids->volume_ave_xalpha), 1);
     H5LTset_attribute_double(file_id, "TS_box", "volume_ave_Xheat", &(grids->volume_ave_Xheat), 1);
     H5LTset_attribute_double(file_id, "TS_box", "volume_ave_Xion", &(grids->volume_ave_Xion), 1);
+    /* These two are cell averages of the Lya SOURCE TERMS handed to the ODE integrator
+     * (deriv[DERIV_JA_AGN_UV], deriv[DERIV_JA_AGN_XRAY]), not a mean specific intensity.
+     * They are the AGN split of volume_ave_J_alpha above, which is deriv[2] and the same
+     * kind of quantity, so compare them with that rather than with a literature J_alpha. */
     H5LTset_attribute_double(file_id, "TS_box", "volume_ave_J_alpha_AGN_UV", &(grids->volume_ave_J_alpha_AGN_UV), 1);
     H5LTset_attribute_double(
       file_id, "TS_box", "volume_ave_J_alpha_AGN_Xray", &(grids->volume_ave_J_alpha_AGN_Xray), 1);

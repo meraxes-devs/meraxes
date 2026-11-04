@@ -1495,6 +1495,9 @@ void evolveInt(float zp,
       lya_line_ew_cm = run_globals.params.physics.AGNLyaLineEW * 1e-8; /* Angstrom -> cm */
       lya_line_nphot = lya_line_ew_cm * pow(NU_LA / NU_1450, -run_globals.params.physics.SpecIndexUVAGNSoft) * NU_LA /
                        (SPEED_OF_LIGHT * PLANCK);
+      /* AGN_eps1450[0] is the R_ct = 0 shell, i.e. the local unsmoothed cell (the zpp_ct == 0
+       * branch above sets zpp = zp). The delta-function collapse assumes zpp == zp, so this
+       * term must read shell 0 and no other. */
       duvlya_dt_AGN += AGN_eps1450[0] * pow(1 + zp, 4) * lya_line_nphot * fabs(dtdz(zp)) / NU_LA;
     }
 

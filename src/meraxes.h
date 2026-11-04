@@ -181,8 +181,8 @@ typedef struct physics_params_t
   int Flag_IncludeAGNXray; /* 0=no AGN, 1=soft+hard, 2=hard only, 3=soft only */
   double SpecIndexXrayAGNSoft;
   double SpecIndexXrayAGNHard;
-  double SpecIndexUVAGNSoft;  /* lambda > 912A (redward of/at the break) — LW band amplitude/shape */
-  double SpecIndexUVAGNHard;  /* lambda <= 912A (shortward of the break) — ionizing photon rate only */
+  double SpecIndexUVAGNSoft;  /* lambda > 912A (redward of/at the break) - LW band amplitude/shape */
+  double SpecIndexUVAGNHard;  /* lambda <= 912A (shortward of the break) - ionizing photon rate only */
   double AGNLWEfficiency;     /* scale factor on the AGN LW amplitude */
   int Flag_IncludeAGNLyAlpha; /* 0=off, 1=direct AGN UV continuum Lya pumping */
   int Flag_IncludeAGNLyaLine; /* 0=off, 1=also add the AGN broad Lya EMISSION LINE. Those photons
@@ -659,6 +659,11 @@ typedef struct reion_grids_t
   double volume_ave_xalpha;
   double volume_ave_Xheat;
   double volume_ave_Xion;
+  /* Cell averages of the Lya SOURCE TERMS that evolveInt() hands the ODE integrator
+   * (deriv[DERIV_JA_AGN_UV] and deriv[DERIV_JA_AGN_XRAY]), NOT a mean specific intensity
+   * J_alpha. They are the AGN split of volume_ave_J_alpha above, which is deriv[2] and the
+   * same kind of quantity, so the name follows the existing convention. Compare them with
+   * volume_ave_J_alpha, not with a J_alpha quoted in the literature. */
   double volume_ave_J_alpha_AGN_UV;   /* direct AGN UV continuum Lya pumping */
   double volume_ave_J_alpha_AGN_Xray; /* Lya from AGN X-ray secondary excitation */
   double volume_ave_Xheat_AGN_soft;
