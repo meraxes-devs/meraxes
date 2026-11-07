@@ -238,6 +238,8 @@ void _ComputeTs(int snapshot)
     (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 3);
   bool agn_hard_needed =
     (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 2);
+  bool agn_uv_needed =
+    (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha);
 
   double R_values[TsNumFilterSteps];
   int snapshot_counter_backwards[TsNumFilterSteps];
@@ -587,7 +589,7 @@ void _ComputeTs(int snapshot)
         for (int ii = 0; ii < slab_n_complex; ii++)
           BHXrayEmissivity_soft_unfiltered[ii] /= (float)total_n_cells;
       }
-      if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha) {
+      if (agn_uv_needed) {
         fftwf_execute(run_globals.reion_grids.BHUVEmissivity_forward_plan);
         for (int ii = 0; ii < slab_n_complex; ii++)
           BHUVEmissivity_unfiltered[ii] /= (float)total_n_cells;
@@ -605,7 +607,7 @@ void _ComputeTs(int snapshot)
       if (agn_soft_needed)
         memcpy(
           BHXrayEmissivity_soft_filtered, BHXrayEmissivity_soft_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
-      if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)
+      if (agn_uv_needed)
         memcpy(BHUVEmissivity_filtered, BHUVEmissivity_unfiltered, sizeof(fftwf_complex) * slab_n_complex);
 
       if (R_ct > 0) {
@@ -637,7 +639,7 @@ void _ComputeTs(int snapshot)
                  ReionGridDim,
                  (float)R,
                  run_globals.params.TsHeatingFilterType);
-        if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)
+        if (agn_uv_needed)
           filter(BHUVEmissivity_filtered,
                  local_ix_start,
                  local_nix,
@@ -657,7 +659,7 @@ void _ComputeTs(int snapshot)
         fftwf_execute(run_globals.reion_grids.BHXrayEmissivity_hard_filtered_reverse_plan);
       if (agn_soft_needed)
         fftwf_execute(run_globals.reion_grids.BHXrayEmissivity_soft_filtered_reverse_plan);
-      if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)
+      if (agn_uv_needed)
         fftwf_execute(run_globals.reion_grids.BHUVEmissivity_filtered_reverse_plan);
 
       // Compute and store the collapse fraction and average electron fraction. Necessary for evaluating the integrals
@@ -717,7 +719,7 @@ void _ComputeTs(int snapshot)
                   (double)bh_soft * 1e10 * SOLAR_LUM / pixel_volume * pow(units->UnitLength_in_cm, -3.0);
                 agn_xray_soft_ave += SMOOTHED_AGN_soft[i_smoothed_heating];
               }
-              if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha) {
+              if (agn_uv_needed) {
                 ((float*)BHUVEmissivity_filtered)[i_padded] = fmaxf(((float*)BHUVEmissivity_filtered)[i_padded], 0.0);
 
                 bh_uv = ((float*)BHUVEmissivity_filtered)[i_padded];
@@ -819,7 +821,7 @@ void _ComputeTs(int snapshot)
                 SMOOTHED_AGN_soft[i_smoothed_heating] =
                   (double)bh_soft * 1e10 * SOLAR_LUM / pixel_volume * pow(units->UnitLength_in_cm, -3.0);
               }
-              if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha) {
+              if (agn_uv_needed) {
                 ((float*)BHUVEmissivity_filtered)[i_padded] = fmaxf(((float*)BHUVEmissivity_filtered)[i_padded], 0.0);
 
                 bh_uv = ((float*)BHUVEmissivity_filtered)[i_padded];
