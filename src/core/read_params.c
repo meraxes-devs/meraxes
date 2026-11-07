@@ -90,6 +90,60 @@ static void check_problem_params(run_params_t* run_params)
     mlog_error("SnMetalRetentionFraction must be between 0 and 1.");
     ABORT(EXIT_FAILURE);
   }
+
+  /* The AGN UV grids (BHUVEmissivity, bh_uv_histories and their FFT plans) are
+   * only allocated inside the Flag_IncludeSpinTemp branch of
+   * malloc_reionization_grids(). construct_baryon_grids() writes to them
+   * whenever LymanWerner or AGNLyAlpha is on, so running with AGNLyAlpha set
+   * but SpinTemp off would dereference NULL. Reject that combination here
+   * rather than crash later. */
+  if (run_params->physics.Flag_IncludeAGNLyAlpha && !run_params->Flag_IncludeSpinTemp) {
+    mlog_error("Flag_IncludeAGNLyAlpha = 1 requires Flag_IncludeSpinTemp = 1: "
+               "the AGN UV grids it writes to are only allocated in the spin-temperature path.");
+    ABORT(EXIT_FAILURE);
+  }
+
+  /* The broad Lya line is added on top of the AGN UV continuum pumping, so it
+   * has no meaning on its own. defaults.par says "Needs Flag_IncludeAGNLyAlpha
+   * = 1"; enforce it instead of silently ignoring the flag. */
+  if (run_params->physics.Flag_IncludeAGNLyaLine && !run_params->physics.Flag_IncludeAGNLyAlpha) {
+    mlog_error("Flag_IncludeAGNLyaLine = 1 requires Flag_IncludeAGNLyAlpha = 1: "
+               "the broad Lya line is added to the AGN UV Lya pumping, which is switched off.");
+    ABORT(EXIT_FAILURE);
+  }
+
+  /* Range checks on the AGN Lya parameters. An equivalent width is a physical
+   * length and cannot be negative: a negative AGNLyaLineEW would flip the sign
+   * of the line term, and a negative AGNBandLineEW would drive lya_band_boost
+   * below 1, or negative. */
+  if (run_params->physics.AGNLyaLineEW < 0.0) {
+    mlog_error("AGNLyaLineEW = %g is negative, but an equivalent width cannot be.", run_params->physics.AGNLyaLineEW);
+    ABORT(EXIT_FAILURE);
+  }
+  if (run_params->physics.AGNBandLineEW < 0.0) {
+    mlog_error("AGNBandLineEW = %g is negative, but an equivalent width cannot be.", run_params->physics.AGNBandLineEW);
+    ABORT(EXIT_FAILURE);
+  }
+
+  /* The band-2 boost integrates the continuum photon count over the band and
+   * divides by the spectral index (n_cont in ComputeTs.c), so a zero index is
+   * 0/0 there and lya_band_boost comes out NaN. */
+  if (run_params->physics.AGNBandLineEW > 0.0 && run_params->physics.SpecIndexUVAGNSoft > -ABS_TOL &&
+      run_params->physics.SpecIndexUVAGNSoft < ABS_TOL) {
+    mlog_error("AGNBandLineEW = %g requires SpecIndexUVAGNSoft != 0, but it is %g: "
+               "the band-2 continuum photon count divides by the spectral index.",
+               run_params->physics.AGNBandLineEW,
+               run_params->physics.SpecIndexUVAGNSoft);
+    ABORT(EXIT_FAILURE);
+  }
+
+  /* AGNBandLineEW is only read inside the AGN UV Lya path, so say so rather
+   * than silently ignoring a value that was set on purpose. */
+  if (run_params->physics.AGNBandLineEW > 0.0 && !run_params->physics.Flag_IncludeAGNLyAlpha) {
+    mlog("<WARNING> AGNBandLineEW is set but Flag_IncludeAGNLyAlpha = 0, so the band-2 "
+         "boost will not be applied.",
+         MLOG_MESG);
+  }
 }
 
 static void store_params(entry_t entry[123],
@@ -519,6 +573,24 @@ void read_parameter_file(char* fname, int mode)
       params_addr[n_param] = &(run_params->physics.Flag_IncludeAGNXray);
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "Flag_IncludeAGNLyAlpha", tag_length);
+      params_addr[n_param] = &(run_params->physics.Flag_IncludeAGNLyAlpha);
+      required_tag[n_param] = 0; /* optional: absent -> 0 (channel off) */
+      params_type[n_param++] = PARAM_TYPE_INT;
+      (run_params->physics).Flag_IncludeAGNLyAlpha = 0;
+
+      strncpy(params_tag[n_param], "Flag_IncludeAGNLyaLine", tag_length);
+      params_addr[n_param] = &(run_params->physics.Flag_IncludeAGNLyaLine);
+      required_tag[n_param] = 0; /* optional: absent -> 0 (line channel off) */
+      params_type[n_param++] = PARAM_TYPE_INT;
+      (run_params->physics).Flag_IncludeAGNLyaLine = 0;
+
+      strncpy(params_tag[n_param], "Flag_IncludeStarLya", tag_length);
+      params_addr[n_param] = &(run_params->physics.Flag_IncludeStarLya);
+      required_tag[n_param] = 0; /* optional: absent -> 1 (previous behaviour) */
+      params_type[n_param++] = PARAM_TYPE_INT;
+      (run_params->physics).Flag_IncludeStarLya = 1;
 
       strncpy(params_tag[n_param], "FlagMCMC", tag_length);
       params_addr[n_param] = &(run_params->FlagMCMC);
@@ -1294,6 +1366,18 @@ void read_parameter_file(char* fname, int mode)
       params_addr[n_param] = &(run_params->physics).SpecIndexUVAGNSoft;
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strcpy(params_tag[n_param], "AGNLyaLineEW");
+      params_addr[n_param] = &(run_params->physics).AGNLyaLineEW;
+      required_tag[n_param] = 0; /* optional: absent -> 74.0 A (Lusso+15 Table 2) */
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      (run_params->physics).AGNLyaLineEW = 74.0;
+
+      strcpy(params_tag[n_param], "AGNBandLineEW");
+      params_addr[n_param] = &(run_params->physics).AGNBandLineEW;
+      required_tag[n_param] = 0; /* optional: absent -> 0.0 (pure power law) */
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      (run_params->physics).AGNBandLineEW = 0.0;
 
       strcpy(params_tag[n_param], "SpecIndexUVAGNHard");
       params_addr[n_param] = &(run_params->physics).SpecIndexUVAGNHard;

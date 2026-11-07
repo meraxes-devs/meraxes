@@ -536,6 +536,8 @@ void init_reion_grids()
   grids->volume_ave_xalpha = 0.0;
   grids->volume_ave_Xheat = 0.0;
   grids->volume_ave_Xion = 0.0;
+  grids->volume_ave_J_alpha_AGN_UV = 0.0;
+  grids->volume_ave_J_alpha_AGN_Xray = 0.0;
   grids->volume_ave_Xheat_AGN_soft = 0.0;
   grids->volume_ave_Xheat_AGN_hard = 0.0;
   grids->volume_ave_TS = 0.0;
@@ -726,6 +728,8 @@ void malloc_reionization_grids()
 
   reion_grids_t* grids = &(run_globals.reion_grids);
   bool xray_luminosity_needed = USE_STOCHASTICITY || run_globals.params.physics.Flag_UseXrayMetallicity;
+  bool agn_uv_needed =
+    (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha);
 
   fftwf_mpi_init();
 
@@ -831,11 +835,11 @@ void malloc_reionization_grids()
   grids->bh_xray_histories_soft = NULL;
   grids->SMOOTHED_AGN_soft = NULL;
 
-#if USE_MINI_HALOS
   grids->BHUVEmissivity = NULL;
   grids->bh_uv_histories = NULL;
   grids->SMOOTHED_AGN_UV = NULL;
 
+#if USE_MINI_HALOS
   grids->Tk_boxII = NULL;
   grids->TS_boxII = NULL;
 
@@ -1184,8 +1188,7 @@ void malloc_reionization_grids()
         }
       }
 
-#if USE_MINI_HALOS
-      if (run_globals.params.Flag_IncludeLymanWerner) {
+      if (agn_uv_needed) {
         grids->BHUVEmissivity = fftwf_alloc_real((size_t)slab_n_complex * 2);
         grids->bh_uv_histories = fftwf_alloc_real((size_t)slab_n_complex * 2 * run_globals.NstoreSnapshots_Heating);
 
@@ -1218,8 +1221,6 @@ void malloc_reionization_grids()
 
         grids->SMOOTHED_AGN_UV = calloc((size_t)slab_n_real_smoothedHeating, sizeof(double));
       }
-#endif
-
       grids->x_e_box = fftwf_alloc_real((size_t)slab_n_complex * 2);
       grids->x_e_unfiltered = fftwf_alloc_complex((size_t)slab_n_complex);
       grids->x_e_filtered = fftwf_alloc_complex((size_t)slab_n_complex);
@@ -1379,6 +1380,8 @@ void free_reionization_grids()
 
   reion_grids_t* grids = &(run_globals.reion_grids);
   bool xray_luminosity_needed = USE_STOCHASTICITY || run_globals.params.physics.Flag_UseXrayMetallicity;
+  bool agn_uv_needed =
+    (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha);
 
   free(run_globals.reion_grids.slab_n_complex);
   free(run_globals.reion_grids.slab_ix_start);
@@ -1475,8 +1478,9 @@ void free_reionization_grids()
 
 #if USE_MINI_HALOS
     free(grids->SMOOTHED_SFR_III);
+#endif
 
-    if (run_globals.params.Flag_IncludeLymanWerner) {
+    if (agn_uv_needed) {
       free(grids->SMOOTHED_AGN_UV);
       fftwf_destroy_plan(grids->BHUVEmissivity_filtered_reverse_plan);
       fftwf_destroy_plan(grids->BHUVEmissivity_forward_plan);
@@ -1485,7 +1489,6 @@ void free_reionization_grids()
       fftwf_free(grids->BHUVEmissivity);
       fftwf_free(grids->bh_uv_histories);
     }
-#endif
 
     fftwf_free(grids->Tk_box);
     fftwf_free(grids->TS_box);
@@ -2084,10 +2087,8 @@ void construct_baryon_grids(int snapshot, int local_ngals)
   float* bh_xray_hist_grid_hard = run_globals.reion_grids.bh_xray_histories_hard;
   float* bh_xray_grid_soft = run_globals.reion_grids.BHXrayEmissivity_soft;
   float* bh_xray_hist_grid_soft = run_globals.reion_grids.bh_xray_histories_soft;
-#if USE_MINI_HALOS
   float* bh_uv_grid = run_globals.reion_grids.BHUVEmissivity;
   float* bh_uv_hist_grid = run_globals.reion_grids.bh_uv_histories;
-#endif
 
   gal_to_slab_t* galaxy_to_slab_map = run_globals.reion_grids.galaxy_to_slab_map;
   ptrdiff_t* slab_ix_start = run_globals.reion_grids.slab_ix_start;
@@ -2130,6 +2131,8 @@ void construct_baryon_grids(int snapshot, int local_ngals)
     (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 2);
   bool agn_soft_needed =
     (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 3);
+  bool agn_uv_needed =
+    (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha);
 
   if (run_globals.params.Flag_IncludeSpinTemp) { // For this duplicate the background
     for (int ii = 0; ii < local_n_complex * 2; ii++) {
@@ -2160,13 +2163,11 @@ void construct_baryon_grids(int snapshot, int local_ngals)
           bh_xray_hist_grid_soft[(snap + 1) * local_n_complex * 2 + ii] =
             bh_xray_hist_grid_soft[snap * local_n_complex * 2 + ii];
       }
-#if USE_MINI_HALOS
-      if (run_globals.params.Flag_IncludeLymanWerner) {
+      if (agn_uv_needed) {
         bh_uv_grid[ii] = 0.0f;
         for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
           bh_uv_hist_grid[(snap + 1) * local_n_complex * 2 + ii] = bh_uv_hist_grid[snap * local_n_complex * 2 + ii];
       }
-#endif
     }
   }
 
@@ -2193,15 +2194,9 @@ void construct_baryon_grids(int snapshot, int local_ngals)
     prop_sfr,
     prop_bh_xray_emissivity_hard,
     prop_bh_xray_emissivity_soft,
-#if USE_MINI_HALOS
     prop_bh_uv_emissivity
-#endif
   };
-#if USE_MINI_HALOS
   for (int prop = prop_stellar; prop <= prop_bh_uv_emissivity; prop++) {
-#else
-  for (int prop = prop_stellar; prop <= prop_bh_xray_emissivity_soft; prop++) {
-#endif
 
     // no need for sfr or sfrIII grid is not using SpinTemp
 #if USE_MINI_HALOS
@@ -2220,13 +2215,9 @@ void construct_baryon_grids(int snapshot, int local_ngals)
     if (prop == prop_bh_xray_emissivity_soft && (!run_globals.params.Flag_IncludeSpinTemp || !agn_soft_needed))
       continue;
 
-#if USE_MINI_HALOS
-    // AGN UV: independent of Flag_IncludeAGNXray, gated on Flag_IncludeLymanWerner instead.
-    if (prop == prop_bh_uv_emissivity &&
-        (!run_globals.params.Flag_IncludeSpinTemp || !run_globals.params.Flag_IncludeLymanWerner))
+    // AGN UV feeds both the LW and the Lya channels, so it is needed if either is on.
+    if (prop == prop_bh_uv_emissivity && !agn_uv_needed)
       continue;
-#endif
-
     // no need to bh grids if not using BHFeedback
     if ((!run_globals.params.physics.Flag_BHFeedback) &&
         ((prop == prop_effective_bhm) || (prop == prop_effective_bhar)))
@@ -2423,12 +2414,10 @@ void construct_baryon_grids(int snapshot, int local_ngals)
                 buffer[ind] += gal->BHXrayEmissivity_soft;
               break;
 
-#if USE_MINI_HALOS
             case prop_bh_uv_emissivity:
               if (gal->BlackHoleMass >= run_globals.params.physics.BlackHoleMassLimitReion)
                 buffer[ind] += gal->QuasarLuv;
               break;
-#endif
 
             default:
               mlog_error("Unrecognised property in slab creation.");
@@ -2539,7 +2528,6 @@ void construct_baryon_grids(int snapshot, int local_ngals)
                 }
             break;
 
-#if USE_MINI_HALOS
           case prop_bh_uv_emissivity:
             for (int ix = 0; ix < slab_nix[i_r]; ix++)
               for (int iy = 0; iy < ReionGridDim; iy++)
@@ -2550,8 +2538,6 @@ void construct_baryon_grids(int snapshot, int local_ngals)
                   bh_uv_hist_grid[grid_index(ix, iy, iz, ReionGridDim, INDEX_PADDED)] = val;
                 }
             break;
-#endif
-
           case prop_stellar:
             for (int ix = 0; ix < slab_nix[i_r]; ix++)
               for (int iy = 0; iy < ReionGridDim; iy++)
@@ -2841,6 +2827,8 @@ void load_reion_bh_grids(int snapshot_counter_backwards, float weight, const int
     (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 2);
   bool agn_soft_needed =
     (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 3);
+  bool agn_uv_needed =
+    (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha);
 
   if (new_load) {
     if (agn_hard_needed)
@@ -2861,9 +2849,8 @@ void load_reion_bh_grids(int snapshot_counter_backwards, float weight, const int
                                             grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
               weight;
           }
-#if USE_MINI_HALOS
     /* AGN Lyman-Werner, independent of Flag_IncludeAGNXray. */
-    if (run_globals.params.Flag_IncludeLymanWerner)
+    if (agn_uv_needed)
       for (int ii = 0; ii < local_nix; ii++)
         for (int jj = 0; jj < ReionGridDim; jj++)
           for (int kk = 0; kk < ReionGridDim; kk++) {
@@ -2872,7 +2859,6 @@ void load_reion_bh_grids(int snapshot_counter_backwards, float weight, const int
                                      grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
               weight;
           }
-#endif
   } else {
     if (agn_hard_needed)
       for (int ii = 0; ii < local_nix; ii++)
@@ -2892,9 +2878,8 @@ void load_reion_bh_grids(int snapshot_counter_backwards, float weight, const int
                                             grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
               weight;
           }
-#if USE_MINI_HALOS
     /* AGN Lyman-Werner, independent of Flag_IncludeAGNXray. */
-    if (run_globals.params.Flag_IncludeLymanWerner)
+    if (agn_uv_needed)
       for (int ii = 0; ii < local_nix; ii++)
         for (int jj = 0; jj < ReionGridDim; jj++)
           for (int kk = 0; kk < ReionGridDim; kk++) {
@@ -2903,7 +2888,6 @@ void load_reion_bh_grids(int snapshot_counter_backwards, float weight, const int
                                      grid_index(ii, jj, kk, ReionGridDim, INDEX_PADDED)] *
               weight;
           }
-#endif
   }
 }
 
@@ -3304,6 +3288,13 @@ void save_reion_output_attributes(int snapshot)
     H5LTset_attribute_double(file_id, "TS_box", "volume_ave_xalpha", &(grids->volume_ave_xalpha), 1);
     H5LTset_attribute_double(file_id, "TS_box", "volume_ave_Xheat", &(grids->volume_ave_Xheat), 1);
     H5LTset_attribute_double(file_id, "TS_box", "volume_ave_Xion", &(grids->volume_ave_Xion), 1);
+    /* These two are cell averages of the Lya SOURCE TERMS handed to the ODE integrator
+     * (deriv[DERIV_JA_AGN_UV], deriv[DERIV_JA_AGN_XRAY]), not a mean specific intensity.
+     * They are the AGN split of volume_ave_J_alpha above, which is deriv[2] and the same
+     * kind of quantity, so compare them with that rather than with a literature J_alpha. */
+    H5LTset_attribute_double(file_id, "TS_box", "volume_ave_J_alpha_AGN_UV", &(grids->volume_ave_J_alpha_AGN_UV), 1);
+    H5LTset_attribute_double(
+      file_id, "TS_box", "volume_ave_J_alpha_AGN_Xray", &(grids->volume_ave_J_alpha_AGN_Xray), 1);
     H5LTset_attribute_double(file_id, "TS_box", "volume_ave_Xheat_AGN_soft", &(grids->volume_ave_Xheat_AGN_soft), 1);
     H5LTset_attribute_double(file_id, "TS_box", "volume_ave_Xheat_AGN_hard", &(grids->volume_ave_Xheat_AGN_hard), 1);
 
