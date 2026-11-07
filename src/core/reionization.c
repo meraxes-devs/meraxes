@@ -728,6 +728,8 @@ void malloc_reionization_grids()
 
   reion_grids_t* grids = &(run_globals.reion_grids);
   bool xray_luminosity_needed = USE_STOCHASTICITY || run_globals.params.physics.Flag_UseXrayMetallicity;
+  bool agn_uv_needed =
+    (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha);
 
   fftwf_mpi_init();
 
@@ -1186,7 +1188,7 @@ void malloc_reionization_grids()
         }
       }
 
-      if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha) {
+      if (agn_uv_needed) {
         grids->BHUVEmissivity = fftwf_alloc_real((size_t)slab_n_complex * 2);
         grids->bh_uv_histories = fftwf_alloc_real((size_t)slab_n_complex * 2 * run_globals.NstoreSnapshots_Heating);
 
@@ -1378,6 +1380,8 @@ void free_reionization_grids()
 
   reion_grids_t* grids = &(run_globals.reion_grids);
   bool xray_luminosity_needed = USE_STOCHASTICITY || run_globals.params.physics.Flag_UseXrayMetallicity;
+  bool agn_uv_needed =
+    (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha);
 
   free(run_globals.reion_grids.slab_n_complex);
   free(run_globals.reion_grids.slab_ix_start);
@@ -1476,7 +1480,7 @@ void free_reionization_grids()
     free(grids->SMOOTHED_SFR_III);
 #endif
 
-    if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha) {
+    if (agn_uv_needed) {
       free(grids->SMOOTHED_AGN_UV);
       fftwf_destroy_plan(grids->BHUVEmissivity_filtered_reverse_plan);
       fftwf_destroy_plan(grids->BHUVEmissivity_forward_plan);
@@ -2127,6 +2131,8 @@ void construct_baryon_grids(int snapshot, int local_ngals)
     (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 2);
   bool agn_soft_needed =
     (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 3);
+  bool agn_uv_needed =
+    (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha);
 
   if (run_globals.params.Flag_IncludeSpinTemp) { // For this duplicate the background
     for (int ii = 0; ii < local_n_complex * 2; ii++) {
@@ -2157,7 +2163,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
           bh_xray_hist_grid_soft[(snap + 1) * local_n_complex * 2 + ii] =
             bh_xray_hist_grid_soft[snap * local_n_complex * 2 + ii];
       }
-      if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha) {
+      if (agn_uv_needed) {
         bh_uv_grid[ii] = 0.0f;
         for (int snap = run_globals.NstoreSnapshots_Heating - 2; snap >= 0; snap--)
           bh_uv_hist_grid[(snap + 1) * local_n_complex * 2 + ii] = bh_uv_hist_grid[snap * local_n_complex * 2 + ii];
@@ -2210,8 +2216,7 @@ void construct_baryon_grids(int snapshot, int local_ngals)
       continue;
 
     // AGN UV feeds both the LW and the Lya channels, so it is needed if either is on.
-    if (prop == prop_bh_uv_emissivity &&
-        !(run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha))
+    if (prop == prop_bh_uv_emissivity && !agn_uv_needed)
       continue;
     // no need to bh grids if not using BHFeedback
     if ((!run_globals.params.physics.Flag_BHFeedback) &&
@@ -2822,6 +2827,8 @@ void load_reion_bh_grids(int snapshot_counter_backwards, float weight, const int
     (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 2);
   bool agn_soft_needed =
     (run_globals.params.physics.Flag_IncludeAGNXray == 1 || run_globals.params.physics.Flag_IncludeAGNXray == 3);
+  bool agn_uv_needed =
+    (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha);
 
   if (new_load) {
     if (agn_hard_needed)
@@ -2843,7 +2850,7 @@ void load_reion_bh_grids(int snapshot_counter_backwards, float weight, const int
               weight;
           }
     /* AGN Lyman-Werner, independent of Flag_IncludeAGNXray. */
-    if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)
+    if (agn_uv_needed)
       for (int ii = 0; ii < local_nix; ii++)
         for (int jj = 0; jj < ReionGridDim; jj++)
           for (int kk = 0; kk < ReionGridDim; kk++) {
@@ -2872,7 +2879,7 @@ void load_reion_bh_grids(int snapshot_counter_backwards, float weight, const int
               weight;
           }
     /* AGN Lyman-Werner, independent of Flag_IncludeAGNXray. */
-    if (run_globals.params.Flag_IncludeLymanWerner || run_globals.params.physics.Flag_IncludeAGNLyAlpha)
+    if (agn_uv_needed)
       for (int ii = 0; ii < local_nix; ii++)
         for (int jj = 0; jj < ReionGridDim; jj++)
           for (int kk = 0; kk < ReionGridDim; kk++) {
