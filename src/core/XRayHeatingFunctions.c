@@ -693,7 +693,7 @@ double spectral_emissivity(double nu_norm, int flag, int flag_Pop)
 
         for (i = 1; i < (NSPEC_MAX - 1); i++) {
           n0_fac = (pow(nu_n[i + 1], alpha_S_2[i] + 1) - pow(nu_n[i], alpha_S_2[i] + 1));
-          N0_2[i] *= (alpha_S_2[i] + 1) / n0_fac * Pop2_ion; //photons · baryon⁻¹
+          N0_2[i] *= (alpha_S_2[i] + 1) / n0_fac * Pop2_ion; // photons · baryon⁻¹
           n0_fac = (pow(nu_n[i + 1], alpha_S_3[i] + 1) - pow(nu_n[i], alpha_S_3[i] + 1));
           N0_3[i] *= (alpha_S_3[i] + 1) / n0_fac * Pop3_ion;
         }
@@ -717,7 +717,7 @@ double spectral_emissivity(double nu_norm, int flag, int flag_Pop)
           else
             ans = N0_3[i] * pow(nu_norm, alpha_S_3[i]);
 
-          return ans / NU_LA;    //	Hz
+          return ans / NU_LA; //	Hz
         }
       }
 
