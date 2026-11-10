@@ -1289,8 +1289,7 @@ void evolveInt(float zp,
                const double SFR_III[],
                const double XAGN_soft[],
                const double XAGN_hard[],
-               const double AGN_LW[],
-               const double AGN_eps1450[],
+               const double AGN_UV[],
                const double freq_int_heat_GAL[],
                const double freq_int_ion_GAL[],
                const double freq_int_lya_GAL[],
@@ -1314,7 +1313,7 @@ void evolveInt(float zp,
                const double XRAY_SFR_GAL[],
                const double XAGN_soft[],
                const double XAGN_hard[],
-               const double AGN_eps1450[],
+               const double AGN_UV[],
                const double freq_int_heat_GAL[],
                const double freq_int_ion_GAL[],
                const double freq_int_lya_GAL[],
@@ -1425,13 +1424,18 @@ void evolveInt(float zp,
       if (run_globals.params.Flag_IncludeLymanWerner) {
         dstarlyLW_dt_GAL += SFR_GAL[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW[zpp_ct] * dt_dzpp * dzpp;
         dstarlyLW_dt_III += SFR_III[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW_III[zpp_ct] * dt_dzpp * dzpp;
-        duvlyLW_dt_AGN += AGN_LW[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_LW_AGN[zpp_ct] * dt_dzpp * dzpp;
+        /* AGNLWEfficiency is the tunable scale on the AGN LW channel only (1.0 for physical
+         * models); it is applied here rather than baked into AGN_UV[], which both channels share. */
+        duvlyLW_dt_AGN += AGN_UV[zpp_ct] * run_globals.params.physics.AGNLWEfficiency * pow(1 + zp, 2) * (1 + zpp) *
+                          sum_lyn_LW_AGN[zpp_ct] * dt_dzpp * dzpp;
       }
 #endif
 
-      // AGN UV continuum Lya pumping; sum_lyn_AGN already carries 1/(h nu).
+      /* AGN UV continuum Lya pumping; sum_lyn_AGN already carries 1/(h nu). AGN_UV[] holds the
+       * raw 1450A emissivity in erg/s/Hz/cm^3; the 1e21 puts this term in the units J_alpha is
+       * accumulated in, and was previously folded into the array itself. */
       if (run_globals.params.physics.Flag_IncludeAGNLyAlpha)
-        duvlya_dt_AGN += AGN_eps1450[zpp_ct] * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_AGN[zpp_ct] * dt_dzpp * dzpp;
+        duvlya_dt_AGN += AGN_UV[zpp_ct] * 1e21 * pow(1 + zp, 2) * (1 + zpp) * sum_lyn_AGN[zpp_ct] * dt_dzpp * dzpp;
 
       /* dX_AGN_soft/dt += (dt/dz'')dz'' × XAGN_soft[zpp_ct] × (1+z'')^-alpha_soft × freq_int_X_AGN_soft[zpp_ct]
        * dX_AGN_hard/dt += (dt/dz'')dz'' × XAGN_hard[zpp_ct] × (1+z'')^-alpha_hard × freq_int_X_AGN_hard[zpp_ct] */
@@ -1486,10 +1490,10 @@ void evolveInt(float zp,
       lya_line_ew_cm = run_globals.params.physics.AGNLyaLineEW * 1e-8; /* Angstrom -> cm */
       lya_line_nphot = lya_line_ew_cm * pow(NU_LA / NU_1450, -run_globals.params.physics.SpecIndexUVAGNSoft) * NU_LA /
                        (SPEED_OF_LIGHT * PLANCK);
-      /* AGN_eps1450[0] is the R_ct = 0 shell, i.e. the local unsmoothed cell (the zpp_ct == 0
+      /* AGN_UV[0] is the R_ct = 0 shell, i.e. the local unsmoothed cell (the zpp_ct == 0
        * branch above sets zpp = zp). The delta-function collapse assumes zpp == zp, so this
-       * term must read shell 0 and no other. */
-      duvlya_dt_AGN += AGN_eps1450[0] * pow(1 + zp, 4) * lya_line_nphot * fabs(dtdz(zp)) / NU_LA;
+       * term must read shell 0 and no other. The 1e21 matches the continuum term above. */
+      duvlya_dt_AGN += AGN_UV[0] * 1e21 * pow(1 + zp, 4) * lya_line_nphot * fabs(dtdz(zp)) / NU_LA;
     }
 
     if (run_globals.params.physics.Flag_IncludeAGNLyAlpha)

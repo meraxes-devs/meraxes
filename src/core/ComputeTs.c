@@ -255,11 +255,10 @@ void _ComputeTs(int snapshot)
   double XAGN_soft[TsNumFilterSteps];
   double XAGN_hard[TsNumFilterSteps];
 #if USE_MINI_HALOS
-  double AGN_LW[TsNumFilterSteps];
   double lw_term_stellar, lw_term_III, lw_term_AGN;
   int i_spec;
 #endif
-  double AGN_eps1450[TsNumFilterSteps];      /* AGN UV emissivity at 1450A, per shell */
+  double AGN_UV[TsNumFilterSteps];           /* AGN UV emissivity at 1450A, per shell [erg/s/Hz/cm^3] */
   double nu_emit;                            /* emitted-frame frequency, for the AGN Lya weight */
   double lya_band_boost;                     /* band-2 BLR multiplier, derived below */
   static bool lya_band_boost_logged = false; /* the boost is constant for a run: log it once */
@@ -1189,7 +1188,7 @@ void _ComputeTs(int snapshot)
         MPI_Allreduce(MPI_IN_PLACE, &sum_agn, 1, MPI_DOUBLE, MPI_SUM, run_globals.mpi_comm);
         LW_emissivity_stellar[R_ct] = sum_gal / total_n_cells;
         LW_emissivity_III[R_ct] = sum_III / total_n_cells;
-        // carry AGNLWEfficiency so 0 zeroes the AGN LW output, matching AGN_LW[] below
+        // carry AGNLWEfficiency so 0 zeroes the AGN LW output, matching the LW term in evolveInt()
         LW_emissivity_AGN[R_ct] = run_globals.params.physics.AGNLWEfficiency * sum_agn / total_n_cells;
       }
     }
@@ -1224,12 +1223,11 @@ void _ComputeTs(int snapshot)
             }
 #if USE_MINI_HALOS
             SFR_III[R_ct] = SMOOTHED_SFR_III[i_smoothed_heating];
-            AGN_LW[R_ct] = run_globals.params.Flag_IncludeLymanWerner
-                             ? run_globals.params.physics.AGNLWEfficiency * SMOOTHED_AGN_UV[i_smoothed_heating]
-                             : 0.0;
 #endif
-            AGN_eps1450[R_ct] =
-              run_globals.params.physics.Flag_IncludeAGNLyAlpha ? SMOOTHED_AGN_UV[i_smoothed_heating] * 1e21 : 0.0;
+            /* One array feeds both AGN UV consumers in evolveInt(): the Lyman-Werner term scales it
+             * by AGNLWEfficiency, the Lyman-alpha term by 1e21. Both consumers are already guarded
+             * by their own flag, so agn_uv_needed here only skips the copy when neither is on. */
+            AGN_UV[R_ct] = agn_uv_needed ? SMOOTHED_AGN_UV[i_smoothed_heating] : 0.0;
             xHII_call = x_e_box_prev[i_padded];
 
             // Check if ionized fraction is within boundaries; if not, adjust to be within
@@ -1343,8 +1341,7 @@ void _ComputeTs(int snapshot)
                     SFR_III,
                     XAGN_soft,
                     XAGN_hard,
-                    AGN_LW,
-                    AGN_eps1450,
+                    AGN_UV,
                     freq_int_heat_GAL,
                     freq_int_ion_GAL,
                     freq_int_lya_GAL,
@@ -1367,7 +1364,7 @@ void _ComputeTs(int snapshot)
                     XRAY_SFR_GAL,
                     XAGN_soft,
                     XAGN_hard,
-                    AGN_eps1450,
+                    AGN_UV,
                     freq_int_heat_GAL,
                     freq_int_ion_GAL,
                     freq_int_lya_GAL,
