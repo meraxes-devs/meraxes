@@ -1188,7 +1188,7 @@ void _ComputeTs(int snapshot)
         MPI_Allreduce(MPI_IN_PLACE, &sum_agn, 1, MPI_DOUBLE, MPI_SUM, run_globals.mpi_comm);
         LW_emissivity_stellar[R_ct] = sum_gal / total_n_cells;
         LW_emissivity_III[R_ct] = sum_III / total_n_cells;
-        // carry AGNLWEfficiency so 0 zeroes the AGN LW output, matching the LW term in evolveInt()
+        // carry AGNLWEfficiency so 0 zeroes the AGN LW output, matching AGN_UV[] * AGNLWEfficiency in evolveInt()
         LW_emissivity_AGN[R_ct] = run_globals.params.physics.AGNLWEfficiency * sum_agn / total_n_cells;
       }
     }
