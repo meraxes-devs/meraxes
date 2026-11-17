@@ -689,6 +689,9 @@ void init_magnitudes(void)
   }
 
   MPI_Bcast(mag_params, sizeof(mag_params_t), MPI_BYTE, MASTER, mpi_comm);
+  // Set above on the master only. Without this the other ranks keep 0 and attenuate
+  // LOIII_dusty with the first band (the UV one) instead of the 5008A band.
+  MPI_Bcast(&run_globals.loiii_rest_band_mag_index, 1, MPI_INT, MASTER, mpi_comm);
   MPI_Bcast(&offset_inBC, sizeof(ptrdiff_t), MPI_BYTE, MASTER, mpi_comm);
   MPI_Bcast(&offset_outBC, sizeof(ptrdiff_t), MPI_BYTE, MASTER, mpi_comm);
   MPI_Bcast(&offset_waves, sizeof(ptrdiff_t), MPI_BYTE, MASTER, mpi_comm);
