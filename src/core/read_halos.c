@@ -123,6 +123,7 @@ static void select_forests()
 
   int* rank_n_assigned = NULL;
   long* assigned_ids = NULL;
+  int* displs = NULL; // offset of each rank's ids in assigned_ids (rank 0 only)
   int* rank_max_contemp_halo = 0;
   int* rank_max_contemp_fof = 0;
   int n_forests = 0;
@@ -252,11 +253,18 @@ static void select_forests()
       mlog_error("Failed to allocate rank_n_assigned array.");
       ABORT(EXIT_FAILURE);
     }
-    assigned_ids = calloc(max_rank_n_forests * run_globals.mpi_size, sizeof(long));
-    if (assigned_ids == NULL) {
-      mlog_error("Failed to allocate assigned_ids array.");
+    // The forest ids in the order they are assigned, and the rank each one goes to. They
+    // are packed rank by rank after the loop below, so the scatter's send buffer holds at
+    // most n_forests ids. Reserving max_rank_n_forests slots per rank instead needed
+    // 0.75 * n_forests * mpi_size of them, which overflows int (and MPI's int
+    // displacements) on big trees: 29.1M forests on 104 ranks.
+    long* order_ids = malloc(sizeof(long) * n_forests);
+    int* order_rank = malloc(sizeof(int) * n_forests);
+    if ((order_ids == NULL) || (order_rank == NULL)) {
+      mlog_error("Failed to allocate the forest assignment arrays.");
       ABORT(EXIT_FAILURE);
     }
+    int n_assigned = 0;
     rank_max_contemp_halo = calloc(run_globals.mpi_size, sizeof(int));
     if (rank_max_contemp_halo == NULL) {
       mlog_error("Failed to allocate rank_max_contemp_halo array.");
@@ -314,7 +322,9 @@ static void select_forests()
           // first appearance!
           int rank = rank_argsort_ind[0];
           rank_counts[rank] += final_counts[jj];
-          assigned_ids[rank * max_rank_n_forests + rank_n_assigned[rank]] = forest_ids[jj];
+          order_ids[n_assigned] = forest_ids[jj];
+          order_rank[n_assigned] = rank;
+          n_assigned++;
           rank_n_assigned[rank]++;
           if (rank_n_assigned[rank] >= max_rank_n_forests) {
             mlog_error("Forest load-imbalance is above currently allowed threshold.");
@@ -339,6 +349,26 @@ static void select_forests()
 
     // Restore previous hdf5 error handler
     H5Eset_auto(estack_id, old_func, old_client_data);
+
+    // Pack the ids rank by rank, each rank's in the order they were assigned
+    displs = calloc(run_globals.mpi_size, sizeof(int));
+    assigned_ids = malloc(sizeof(long) * (n_assigned > 0 ? n_assigned : 1));
+    int* rank_filled = calloc(run_globals.mpi_size, sizeof(int));
+    if ((displs == NULL) || (assigned_ids == NULL) || (rank_filled == NULL)) {
+      mlog_error("Failed to allocate assigned_ids array.");
+      ABORT(EXIT_FAILURE);
+    }
+    for (int ii = 1; ii < run_globals.mpi_size; ++ii) {
+      displs[ii] = displs[ii - 1] + rank_n_assigned[ii - 1];
+    }
+    for (int ii = 0; ii < n_assigned; ++ii) {
+      int rank = order_rank[ii];
+      assigned_ids[displs[rank] + rank_filled[rank]] = order_ids[ii];
+      rank_filled[rank]++;
+    }
+    free(rank_filled);
+    free(order_rank);
+    free(order_ids);
 
     // Do a quick sanity check
     unsigned long total = 0;
@@ -367,11 +397,7 @@ static void select_forests()
   else
     run_globals.RequestedForestId = (long*)malloc(sizeof(long) * run_globals.NRequestedForests);
 
-  // NB: displs only valid on rank 0
-  int* displs = calloc(run_globals.mpi_size, sizeof(int));
-  for (int ii = 0; ii < run_globals.mpi_size; ++ii) {
-    displs[ii] = ii * max_rank_n_forests;
-  }
+  // assigned_ids, rank_n_assigned and displs are only read on rank 0 (the root)
   MPI_Scatterv(assigned_ids,
                rank_n_assigned,
                displs,
