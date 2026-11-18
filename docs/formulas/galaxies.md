@@ -1215,13 +1215,24 @@ Here $\rho_{\rm eff}$ is a mass-density proxy used directly in the ionization ex
 ```{math}
 :label: opt-oiii-luminosity
 \begin{gathered}
-L_{5008}=\left[\frac{10^{8.69-12}}{0.0134}Z_{\rm cold}\right]
+L_{5008}=\left[\frac{10^{8.69-12}}{0.0134}Z_{\rm SF}\right]
 k_{\rm exc}b_{32}
 \frac{\dot N_{\gamma,b}N_b}{\alpha_B}
 h_P\nu_{32}\,f_{\rm OIII},
 \\ \nu_{32}=\frac{c}{5008\ {\rm \mathring A}},\quad f_{\rm OIII}=0.8.
 \end{gathered}
 ```
+
+Each star-formation event, in situ or merger-driven, adds its own $L_{5008}$,
+with $\dot M_*$ the event's SFR and $Z_{\rm SF}$ the cold-gas metallicity when
+the stars form. Star formation leaves the gas metallicity unchanged, so
+$Z_{\rm SF}$ is also the metallicity after star formation and before that
+event's supernova feedback recycles, enriches or reheats the gas. Because
+$\dot N_{\gamma,b}N_b=4000\dot M_*/m_p$, $L_{5008}$ does not depend on the disc
+structure. The disc state at the event, before the reservoirs are updated, sets
+$q_{\rm ion}$, which is 0 when that state is invalid. Luminosities add over the
+snapshot's events and in mergers; the galaxy's $q_{\rm ion}$ is the
+$L_{5008}$-weighted mean over its events.
 
 *References:* {ref}`Yang & Lidz (2020), §§3.3 and 5.2 <ref-yang2020>`; {ref}`Pathak et al. (2025), §4 <ref-pathak2025>`; [Meraxes line-luminosity implementation](https://github.com/meraxes-devs/meraxes/blob/master/src/physics/emission_lines.c).
 

@@ -7,6 +7,7 @@
 #include "core/galaxies.h"
 #include "core/reionization.h"
 #include "meraxes.h"
+#include "physics/emission_lines.h"
 #include "physics/mergers.h"
 #include "physics/star_formation.h"
 #include "physics/supernova_feedback.h"
@@ -27,6 +28,10 @@ static void setup(void)
   run_globals.params.physics.Flag_UseXrayMetallicity = 1;
   run_globals.params.physics.XrayMetallicityExponent = 0.3;
   run_globals.params.physics.XrayMetallicityTurnover = 0.008;
+  // Units and coefficients for the per-event [O III] luminosity.
+  run_globals.units.UnitMass_in_g = 1e10 * SOLAR_MASS;
+  run_globals.units.UnitTime_in_s = 1e8 * SEC_PER_YEAR;
+  set_OIII_coeffs(1e4);
   run_globals.random_generator = gsl_rng_alloc(gsl_rng_mt19937);
   cr_assert_not_null(run_globals.random_generator);
 #ifdef CALC_MAGS
@@ -65,12 +70,28 @@ static double g(double metallicity)
   return xray_metallicity_factor(metallicity);
 }
 
+// [O III] luminosity of one event with this SFR and gas metallicity (its form is
+// tested in test_emission_lines).
+static double loiii_of(double sfr, double metallicity)
+{
+  galaxy_t gal = { 0 };
+  compute_LOIII(&gal, sfr, metallicity, 1);
+  return gal.LOIII;
+}
+
+static void expect_loiii(double loiii, double expected)
+{
+  cr_assert_gt(expected, 0.0);
+  cr_expect_float_eq(loiii, expected, 1e-12 * expected);
+}
+
 TestSuite(star_forming_metallicity, .init = setup, .fini = teardown);
 
 Test(star_forming_metallicity, new_galaxy_initializes_birth_abundances)
 {
   galaxy_t* gal = new_galaxy(0, 1);
   cr_assert_not_null(gal);
+  cr_expect_eq(gal->LOIII, 0.0);
   cr_expect_eq(gal->XrayWeightedSfr, 0.0);
   cr_expect_eq(gal->XrayWeightedGSM, 0.0);
   free(gal);
@@ -81,12 +102,14 @@ Test(star_forming_metallicity, exhausted_gas_retains_birth_abundance_through_fee
   galaxy_t gal = make_galaxy(1.0, 0.01, 1.0);
   update_reservoirs_from_sf(&gal, 1.0, 1, INSITU);
   cr_expect_eq(gal.ColdGas, 0.0);
+  expect_loiii(gal.LOIII, loiii_of(1.0, 0.01));
   cr_expect_float_eq(gal.XrayWeightedSfr, g(0.01), 1e-14);
   cr_expect_float_eq(gal.XrayWeightedGSM, g(0.01), 1e-14);
 
   // Recycled gas and new metals change the gas abundance, not the recorded birth Z.
   update_reservoirs_from_sn_feedback(&gal, 0.0, 0.0, 0.2, 0.0, 0.2, 0.0, 0.004);
   cr_expect_float_eq(gal.MetalsColdGas / gal.ColdGas, 0.02, 1e-14);
+  expect_loiii(gal.LOIII, loiii_of(1.0, 0.01));
   cr_expect_float_eq(gal.XrayWeightedSfr, g(0.01), 1e-14);
   cr_expect_float_eq(gal.XrayWeightedGSM, g(0.01), 1e-14);
 }
@@ -100,6 +123,7 @@ Test(star_forming_metallicity, multiple_episodes_follow_instantaneous_and_cumula
   update_reservoirs_from_sf(&gal, 1.0, 1, MERGER);
 
   cr_expect_float_eq(gal.Sfr, 3.0, 1e-14);
+  expect_loiii(gal.LOIII, loiii_of(1.0, 0.01) + loiii_of(2.0, 0.03));
   cr_expect_float_eq(gal.XrayWeightedSfr, g(0.01) + 2.0 * g(0.03), 1e-14);
   cr_expect_float_eq(gal.XrayWeightedGSM, g(0.01) + g(0.03), 1e-14);
 
@@ -114,12 +138,14 @@ Test(star_forming_metallicity, snapshot_reset_preserves_cumulative_xray_weights)
   update_reservoirs_from_sf(&gal, 1.0, 1, INSITU);
   reset_galaxy_properties(&gal, 2);
   cr_expect_eq(gal.Sfr, 0.0);
+  cr_expect_eq(gal.LOIII, 0.0);
   cr_expect_eq(gal.XrayWeightedSfr, 0.0);
   cr_expect_float_eq(gal.XrayWeightedGSM, g(0.01), 1e-14);
   cr_expect_float_eq(gal.GrossStellarMass, 1.0, 1e-14);
 
   gal.MetalsColdGas = gal.ColdGas * 0.03;
   update_reservoirs_from_sf(&gal, 1.0, 2, INSITU);
+  expect_loiii(gal.LOIII, loiii_of(1.0, 0.03));
   cr_expect_float_eq(gal.XrayWeightedSfr, g(0.03), 1e-14);
   cr_expect_float_eq(gal.XrayWeightedGSM, g(0.01) + g(0.03), 1e-14);
 }
@@ -136,6 +162,7 @@ Test(star_forming_metallicity, mergers_combine_birth_abundances_with_source_weig
 
   cr_expect_eq(dead, 1);
   cr_expect_float_eq(parent.Sfr, 3.0, 1e-14);
+  expect_loiii(parent.LOIII, loiii_of(1.0, 0.01) + loiii_of(2.0, 0.03));
   cr_expect_float_eq(parent.XrayWeightedSfr, g(0.01) + 2.0 * g(0.03), 1e-14);
   cr_expect_float_eq(parent.XrayWeightedGSM, g(0.01) + g(0.03), 1e-14);
 }
@@ -149,6 +176,7 @@ Test(star_forming_metallicity, reidentified_ghost_records_birth_metals_independe
 
   cr_expect_eq(gal.NewStars[0], 0.0);
   cr_expect_float_eq(gal.NewStars[1], 1.0, 1e-14);
+  expect_loiii(gal.LOIII, loiii_of(1.0 / 3.0, 0.01));
   cr_expect_float_eq(gal.XrayWeightedSfr, g(0.01) / 3.0, 1e-14);
   cr_expect_float_eq(gal.XrayWeightedGSM, g(0.01), 1e-14);
 }
@@ -160,6 +188,7 @@ Test(star_forming_metallicity, merger_without_current_star_formation_has_finite_
   satellite.MergerTarget = &parent;
   int dead = 0;
   merge_with_target(&satellite, &dead, 1);
+  cr_expect_eq(parent.LOIII, 0.0);
   cr_expect_eq(parent.XrayWeightedSfr, 0.0);
   cr_expect_eq(parent.XrayWeightedGSM, 0.0);
 }
@@ -175,6 +204,7 @@ Test(star_forming_metallicity, popiii_episodes_do_not_change_popii_birth_abundan
 
   cr_expect_float_eq(gal.Sfr, 1.0, 1e-14);
   cr_expect_float_eq(gal.SfrIII, 1.0, 1e-14);
+  expect_loiii(gal.LOIII, loiii_of(1.0, 0.01));
   cr_expect_float_eq(gal.GrossStellarMass, 1.0, 1e-14);
   cr_expect_float_eq(gal.XrayWeightedSfr, g(0.01), 1e-14);
   cr_expect_float_eq(gal.XrayWeightedGSM, g(0.01), 1e-14);
@@ -218,6 +248,7 @@ Test(star_forming_metallicity, merger_starburst_records_birth_abundance_before_f
   cr_expect_float_eq(parent.Sfr, 4.0, 1e-14);
   cr_expect_float_eq(parent.GrossStellarMass, 3.0, 1e-14);
   // The burst forms from the merged gas at Z = 0.02, before its feedback enriches it.
+  expect_loiii(parent.LOIII, loiii_of(1.0, 0.01) + loiii_of(2.0, 0.03) + loiii_of(1.0, 0.02));
   cr_expect_float_eq(parent.XrayWeightedSfr, g(0.01) + 2.0 * g(0.03) + g(0.02), 1e-14);
   cr_expect_float_eq(parent.XrayWeightedGSM, g(0.01) + g(0.03) + g(0.02), 1e-14);
   cr_expect_float_eq(parent.MetalsColdGas / parent.ColdGas, 0.025, 1e-14);

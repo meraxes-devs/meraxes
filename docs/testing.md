@@ -36,9 +36,9 @@ Without Criterion, only the two standalone drivers are built. Without Python, th
 | `test_parse_snaplist` | Parsing of snapshot lists such as `OutputSnapshots`. |
 | `test_cooling` | Cooling tables, cooling rates and the streaming-velocity cooling mass. |
 | `test_blackhole_feedback` | Black-hole emissivity, accretion time and luminosities. |
-| `test_emission_lines` | [O III] coefficients and luminosities. |
+| `test_emission_lines` | [O III] coefficients, per-event luminosities and the LOIII-weighted ionization parameter. |
 | `test_xray_luminosity` | Deterministic metallicity-dependent luminosities, normalization, source units, metallicity-weighted sources and empirical scatter with metallicity disabled. |
-| `test_star_forming_metallicity` | Per-event X-ray weights from the star-forming gas metallicity through star formation, feedback, mergers and snapshot reset. |
+| `test_star_forming_metallicity` | Per-event X-ray weights and [O III] luminosities from the star-forming gas metallicity through star formation, feedback, mergers and snapshot reset. |
 | `test_agn_xray_heating` | GAL, Pop. III and AGN spectral normalization, and disabled-band boundaries. |
 | `test_xray_params` | Rejecting mixed metallicity/scatter parameters and accepting separate modes. |
 | `main_cooling`, `main_blackhole_feedback` | Standalone drivers that print the same quantities for given inputs. |
@@ -62,7 +62,7 @@ exit while retaining the production parameter validation.
 
 `test_agn_xray_heating` checks spectral normalization for GAL, Pop. III and both
 AGN bands, including disabled and zero-width bands. `test_star_forming_metallicity`
-checks the per-event X-ray weights, including
+checks the per-event X-ray weights and [O III] luminosities, including
 a merger-induced burst and subsequent feedback with synthetic energy tables, and
 that the weights equal `Sfr` and `GrossStellarMass` exactly when the
 metallicity dependence is disabled.

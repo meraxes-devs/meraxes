@@ -45,6 +45,16 @@ static galaxy_t make_valid_test_galaxy(void)
   return gal;
 }
 
+static void setup_loiii(void)
+{
+  reset_run_globals();
+  configure_default_units_and_params();
+  set_OIII_coeffs(1e4);
+
+  static double zz[] = { 7.0 };
+  run_globals.ZZ = zz;
+}
+
 TestSuite(emission_lines);
 
 Test(emission_lines, set_OIII_coeffs_generates_finite_coefficients)
@@ -75,17 +85,21 @@ Test(emission_lines, set_OIII_coeffs_non_positive_temperature_falls_back_to_1e4)
   cr_expect_float_eq(run_globals.loiii_params.branching_ratio, ref.branching_ratio, 1e-15);
 }
 
-Test(emission_lines, compute_LOIII_valid_inputs_give_finite_positive_outputs)
+static const double event_sfr = 0.5;
+static const double event_metallicity = 0.01 / 0.7;
+
+// One event on a galaxy with no earlier [O III] this snapshot.
+static galaxy_t single_event(double sfr, double metallicity)
 {
-  reset_run_globals();
-  configure_default_units_and_params();
-  set_OIII_coeffs(1e4);
-
-  double zz[] = { 7.0 };
-  run_globals.ZZ = zz;
-
   galaxy_t gal = make_valid_test_galaxy();
-  compute_LOIII(&gal, 0);
+  compute_LOIII(&gal, sfr, metallicity, 0);
+  return gal;
+}
+
+Test(emission_lines, compute_LOIII_valid_event_gives_finite_positive_outputs)
+{
+  setup_loiii();
+  galaxy_t gal = single_event(event_sfr, event_metallicity);
 
   cr_expect(isfinite(gal.LOIII));
   cr_expect_gt(gal.LOIII, 0.0);
@@ -93,47 +107,76 @@ Test(emission_lines, compute_LOIII_valid_inputs_give_finite_positive_outputs)
   cr_expect_gt(gal.ionization_param, 0.0);
 }
 
-// compute_LOIII sets the snapshot value rather than accumulating, so a
-// second call on the same galaxy must not change it.
-Test(emission_lines, compute_LOIII_does_not_accumulate)
+// Events add their luminosities; the ionization parameter is LOIII-weighted.
+Test(emission_lines, compute_LOIII_adds_events_and_weights_ionization_param)
 {
-  reset_run_globals();
-  configure_default_units_and_params();
-  set_OIII_coeffs(1e4);
-
-  double zz[] = { 7.0 };
-  run_globals.ZZ = zz;
+  setup_loiii();
+  const galaxy_t first = single_event(event_sfr, event_metallicity);
+  const galaxy_t second = single_event(3.0 * event_sfr, 0.5 * event_metallicity);
 
   galaxy_t gal = make_valid_test_galaxy();
-  compute_LOIII(&gal, 0);
-  const double loiii = gal.LOIII;
-  const double ionization_param = gal.ionization_param;
+  compute_LOIII(&gal, event_sfr, event_metallicity, 0);
+  compute_LOIII(&gal, 3.0 * event_sfr, 0.5 * event_metallicity, 0);
 
-  compute_LOIII(&gal, 0);
-  cr_expect_float_eq(gal.LOIII, loiii, 1e-12 * loiii);
-  cr_expect_float_eq(gal.ionization_param, ionization_param, 1e-12 * ionization_param);
+  const double total = first.LOIII + second.LOIII;
+  const double weighted_u = (first.LOIII * first.ionization_param + second.LOIII * second.ionization_param) / total;
+  cr_expect_float_eq(gal.LOIII, total, 1e-12 * total);
+  cr_expect_float_eq(gal.ionization_param, weighted_u, 1e-12 * weighted_u);
+  cr_expect_gt(fabs(second.ionization_param / first.ionization_param - 1.0), 1e-3);
 }
 
-Test(emission_lines, compute_LOIII_invalid_inputs_set_zero)
+Test(emission_lines, compute_LOIII_is_linear_in_metallicity_and_sfr)
 {
-  reset_run_globals();
-  configure_default_units_and_params();
-  set_OIII_coeffs(1e4);
+  setup_loiii();
+  const double reference = single_event(event_sfr, event_metallicity).LOIII;
 
-  double zz[] = { 7.0 };
-  run_globals.ZZ = zz;
+  const double doubled_z = single_event(event_sfr, 2.0 * event_metallicity).LOIII;
+  const double tripled_sfr = single_event(3.0 * event_sfr, event_metallicity).LOIII;
+  cr_expect_float_eq(doubled_z, 2.0 * reference, 1e-12 * reference);
+  cr_expect_float_eq(tripled_sfr, 3.0 * reference, 1e-12 * reference);
+}
+
+// The bubble count cancels in LOIII, so the disc state (including the cold gas
+// metals, which the event metallicity replaces) only sets the ionization parameter.
+Test(emission_lines, compute_LOIII_luminosity_is_independent_of_disc_state)
+{
+  setup_loiii();
+  const galaxy_t reference = single_event(event_sfr, event_metallicity);
 
   galaxy_t gal = make_valid_test_galaxy();
+  gal.MetalsColdGas = 0.03;
+  gal.DiskScaleLength *= 2.0;
+  gal.StellarMass *= 3.0;
+  gal.Mcool *= 0.5;
+  gal.Spin *= 1.5;
+  compute_LOIII(&gal, event_sfr, event_metallicity, 0);
 
-  gal.LOIII = 123.0;
+  cr_expect_float_eq(gal.LOIII, reference.LOIII, 1e-12 * reference.LOIII);
+  cr_expect_gt(fabs(gal.ionization_param / reference.ionization_param - 1.0), 1e-3);
+}
 
-  gal.ColdGas = 0.0;
-  compute_LOIII(&gal, 0);
-  cr_expect_float_eq(gal.LOIII, 0.0, 0.0);
+// An invalid disc state gives the event no ionization parameter but keeps its luminosity.
+Test(emission_lines, compute_LOIII_invalid_disc_state_zeroes_only_ionization_param)
+{
+  setup_loiii();
+  const double reference = single_event(event_sfr, event_metallicity).LOIII;
 
-  gal = make_valid_test_galaxy();
-  gal.LOIII = 456.0;
+  galaxy_t gal = make_valid_test_galaxy();
   gal.Mvir = 0.0;
-  compute_LOIII(&gal, 0);
-  cr_expect_float_eq(gal.LOIII, 0.0, 0.0);
+  compute_LOIII(&gal, event_sfr, event_metallicity, 0);
+  cr_expect_float_eq(gal.LOIII, reference, 1e-12 * reference);
+  cr_expect_eq(gal.ionization_param, 0.0);
+}
+
+Test(emission_lines, compute_LOIII_without_sfr_or_metals_adds_nothing)
+{
+  setup_loiii();
+  galaxy_t gal = make_valid_test_galaxy();
+  gal.LOIII = 123.0;
+  gal.ionization_param = 4.0;
+
+  compute_LOIII(&gal, 0.0, event_metallicity, 0);
+  compute_LOIII(&gal, event_sfr, 0.0, 0);
+  cr_expect_eq(gal.LOIII, 123.0);
+  cr_expect_eq(gal.ionization_param, 4.0);
 }

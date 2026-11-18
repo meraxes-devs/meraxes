@@ -16,7 +16,7 @@ extern "C"
 #endif
 
   void set_OIII_coeffs(double T);
-  void compute_LOIII(struct galaxy_t* gal, int snapshot);
+  void compute_LOIII(struct galaxy_t* gal, double sfr, double metallicity, int snapshot);
 
 #ifdef __cplusplus
 }

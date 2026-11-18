@@ -4,6 +4,7 @@
 #include "core/magnitudes.h"
 #include "core/misc_tools.h"
 #include "core/reionization.h"
+#include "emission_lines.h"
 #include "meraxes.h"
 #include "star_formation.h"
 #include "supernova_feedback.h"
@@ -48,11 +49,11 @@ void update_reservoirs_from_sf(galaxy_t* gal, double new_stars, int snapshot, SF
     // update the galaxy's SFR value
     double sfr = new_stars / gal->dt;
 
-    // X-ray sources of this event, from its own SFR and the gas metallicity before
-    // the reservoirs are updated. Star formation removes gas at this Z, so it is
-    // also the cold-gas Z after star formation and before this event's SN feedback
-    // recycles, enriches or reheats the gas. L_X/SFR is nonlinear in Z, so each
-    // event contributes its own factor and the sums add in mergers.
+    // X-ray and [O III] emission of this event, from its own SFR and the gas
+    // metallicity before the reservoirs are updated. Star formation removes gas at
+    // this Z, so it is also the cold-gas Z after star formation and before this
+    // event's SN feedback recycles, enriches or reheats the gas. Both sources add
+    // over events and in mergers, so no mean metallicity is needed.
 #if USE_MINI_HALOS
     if (gal->Galaxy_Population == 2)
 #endif
@@ -60,6 +61,7 @@ void update_reservoirs_from_sf(galaxy_t* gal, double new_stars, int snapshot, SF
       double xray_factor = xray_metallicity_factor(metallicity);
       gal->XrayWeightedSfr += sfr * xray_factor;
       gal->XrayWeightedGSM += new_stars * xray_factor;
+      compute_LOIII(gal, sfr, metallicity, snapshot);
     }
 
 #if USE_MINI_HALOS

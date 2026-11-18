@@ -1,11 +1,11 @@
 #include "emission_lines.h"
 #include <math.h>
 
-static bool has_valid_loiii_inputs(const galaxy_t* gal)
+// Disc state needed by the ionization parameter (not by the luminosity).
+static bool has_valid_disc_state(const galaxy_t* gal)
 {
-  return gal->Sfr > 0.0 && gal->MetalsColdGas > 0.0 && gal->ColdGas > 0.0 && gal->Mvir > 0.0 &&
-         gal->DiskScaleLength > 0.0 && gal->Rvir > 0.0 && gal->dt > 0.0 && gal->Vmax > 0.0 && gal->StellarMass >= 0.0 &&
-         gal->Mcool >= 0.0 && gal->Spin > 0.0;
+  return gal->ColdGas > 0.0 && gal->Mvir > 0.0 && gal->DiskScaleLength > 0.0 && gal->Rvir > 0.0 && gal->dt > 0.0 &&
+         gal->Vmax > 0.0 && gal->StellarMass >= 0.0 && gal->Mcool >= 0.0 && gal->Spin > 0.0;
 }
 
 static double clamp_non_finite(double value)
@@ -32,22 +32,18 @@ void set_OIII_coeffs(double T)
   run_globals.loiii_params.branching_ratio = LOIII_A32 / (LOIII_A32 + LOIII_A31);
 }
 
-// Sets (does not accumulate) the galaxy's snapshot LOIII and ionization_param;
-// call once per snapshot after all star formation and mergers.
-void compute_LOIII(galaxy_t* gal, int snapshot)
+// Ionization parameter of the HII regions of one star-formation event with rate
+// sfr_gs [g/s], from the disc state at that event; 0 if the disc state is invalid.
+static double event_ionization_param(const galaxy_t* gal, double sfr_gs, int snapshot)
 {
-  if (!has_valid_loiii_inputs(gal)) {
-    gal->LOIII = 0.0;
-    gal->ionization_param = 0.0;
-    return;
-  }
+  if (!has_valid_disc_state(gal))
+    return 0.0;
 
   double density, bubble_count, ionizing_photon_rate, ionization_param;
 
   const run_units_t* units = &run_globals.units;
-
-  const double mass_unit_g = units->UnitMass_in_g / run_globals.params.Hubble_h;
   const double rate_unit_gs = units->UnitMass_in_g / units->UnitTime_in_s;
+  const double mass_unit_g = units->UnitMass_in_g / run_globals.params.Hubble_h;
   const double length_unit_cm = units->UnitLength_in_cm / run_globals.params.Hubble_h;
 
   const double disk_mass_fraction = (gal->StellarMass + gal->ColdGas) / gal->Mvir;
@@ -61,7 +57,6 @@ void compute_LOIII(galaxy_t* gal, int snapshot)
   density = (GRAVITY * cold_gas_mass_g * total_mass_g) /
             (58.7528 * M_PI * COLD_GAS_SOUND_SPEED_CMS_SQ * disk_radius_cm_sq * disk_radius_cm_sq);
 
-  const double sfr_gs = gal->Sfr * rate_unit_gs;
   const double sn_rate_surface_density =
     (0.156 * sfr_gs) / (SN_PROGENITOR_MASS_MSUN * SOLAR_MASS * M_PI * disk_radius_cm_sq);
   const double sn_velocity_cms_sq_norm =
@@ -85,15 +80,36 @@ void compute_LOIII(galaxy_t* gal, int snapshot)
   const double stromgren_radius_sq = pow(3.0 * ionizing_photon_rate / (4.0 * M_PI * ALPHA_HII * n_H * n_H), 2.0 / 3.0);
   ionization_param = 1.5874 * ionizing_photon_rate / (4.0 * M_PI * stromgren_radius_sq * n_H);
 
-  gal->ionization_param = clamp_non_finite(ionization_param);
+  return clamp_non_finite(ionization_param);
+}
 
-  double metallicity = gal->MetalsColdGas / gal->ColdGas;
-  double oiii_volume_fraction = 0.8;
-  // Scaled by 1e-40 so gal->LOIII is stored in units of 1e40 erg/s (matches
-  // galaxy_output_t.LOIII).
-  double loiii = run_globals.loiii_params.oxygen_abundance_over_z_sun * metallicity *
-                 run_globals.loiii_params.excitation_rate * run_globals.loiii_params.branching_ratio *
-                 (ionizing_photon_rate * bubble_count / ALPHA_HII) * PLANCK * nu32 * oiii_volume_fraction * 1e-40;
+// Adds one star-formation event (in situ or merger-driven) to the galaxy's snapshot
+// LOIII and folds its ionization parameter into the LOIII-weighted mean. Call from
+// update_reservoirs_from_sf with the event's SFR and the metallicity of the gas that
+// forms the stars, before ColdGas, MetalsColdGas and StellarMass are updated. Star
+// formation leaves the gas Z unchanged, so this is the Z after star formation and
+// before the event's SN feedback.
+void compute_LOIII(galaxy_t* gal, double sfr, double metallicity, int snapshot)
+{
+  if (!(sfr > 0.0))
+    return;
 
-  gal->LOIII = clamp_non_finite(loiii);
+  const double sfr_gs = sfr * run_globals.units.UnitMass_in_g / run_globals.units.UnitTime_in_s;
+
+  // Photon rate per bubble times the number of bubbles is 4000 SFR / m_p, so the
+  // luminosity does not depend on the disc state. Scaled by 1e-40 so gal->LOIII is
+  // stored in units of 1e40 erg/s (matches galaxy_output_t.LOIII).
+  const double total_ionizing_photon_rate = sfr_gs / PROTONMASS * 4000.0;
+  const double oiii_volume_fraction = 0.8;
+  const double loiii =
+    clamp_non_finite(run_globals.loiii_params.oxygen_abundance_over_z_sun * metallicity *
+                     run_globals.loiii_params.excitation_rate * run_globals.loiii_params.branching_ratio *
+                     (total_ionizing_photon_rate / ALPHA_HII) * PLANCK * nu32 * oiii_volume_fraction * 1e-40);
+  if (loiii <= 0.0)
+    return;
+
+  const double total_loiii = gal->LOIII + loiii;
+  gal->ionization_param =
+    (gal->LOIII * gal->ionization_param + loiii * event_ionization_param(gal, sfr_gs, snapshot)) / total_loiii;
+  gal->LOIII = total_loiii;
 }
