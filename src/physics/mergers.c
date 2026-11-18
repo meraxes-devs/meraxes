@@ -177,12 +177,6 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   min_stellar_mass = (gal->StellarMass <= parent->StellarMass) ? gal->StellarMass : parent->StellarMass;
 
   // Add galaxies together
-  double combined_sfr = parent->Sfr + gal->Sfr;
-  if (combined_sfr > 0.0)
-    parent->StarFormingGasMetallicity =
-      (parent->Sfr * parent->StarFormingGasMetallicity + gal->Sfr * gal->StarFormingGasMetallicity) / combined_sfr;
-  else
-    parent->StarFormingGasMetallicity = 0.0;
   parent->StellarMass += gal->StellarMass;
 #if USE_MINI_HALOS
   parent->SfrIII += gal->SfrIII;
@@ -200,7 +194,7 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
 #endif
 #endif
   parent->GrossStellarMass += gal->GrossStellarMass;
-  parent->GrossStellarMetals += gal->GrossStellarMetals;
+  parent->XrayWeightedGSM += gal->XrayWeightedGSM;
   parent->FescWeightedGSM += gal->FescWeightedGSM;
 #if USE_STOCHASTICITY
   // Cumulative no-scatter source histories.
@@ -211,6 +205,7 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
 #endif
   parent->MetalsStellarMass += gal->MetalsStellarMass;
   parent->Sfr += gal->Sfr;
+  parent->XrayWeightedSfr += gal->XrayWeightedSfr;
   parent->FescWeightedSfr += gal->FescWeightedSfr;
 
   // take the CGM tau, and the accumulated ionization CGM suppression mode 2

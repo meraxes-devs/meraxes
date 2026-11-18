@@ -727,15 +727,15 @@ typedef struct galaxy_t
   double Mcool;
   double StellarMass;
   double GrossStellarMass;
-  double GrossStellarMetals; //!< Cumulative birth metal mass, unrecycled; Pop II only with mini-halos.
+  double XrayWeightedGSM; //!< GrossStellarMass with each event weighted by its birth-Z X-ray factor; Pop II only.
   double Fesc;
   double FescWeightedGSM;
   double FescWeightedSfr;
   double MetalsStellarMass;
   double DiskScaleLength;
   double Sfr;
-  double StarFormingGasMetallicity; //!< Birth gas Z weighted by this snapshot's Sfr contributions; 0 if Sfr is 0.
-  double LOIII;                     //!< [O III] luminosity [1e40 erg/s]
+  double XrayWeightedSfr; //!< Sfr with each event weighted by its birth-Z X-ray factor; Pop II only.
+  double LOIII;           //!< [O III] luminosity [1e40 erg/s]
   double ionization_param;
   double EjectedGas;
   double MetalsEjectedGas;
