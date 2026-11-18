@@ -167,6 +167,89 @@ Test(star_forming_metallicity, mergers_combine_birth_abundances_with_source_weig
   cr_expect_float_eq(parent.XrayWeightedGSM, g(0.01) + g(0.03), 1e-14);
 }
 
+// Merges a satellite carrying this snapshot's [O III] state into a parent and returns
+// the parent. Neither galaxy forms stars in the merger, so only the inputs combine.
+static galaxy_t merge_loiii(double parent_loiii, double parent_u, double satellite_loiii, double satellite_u)
+{
+  galaxy_t parent = make_galaxy(1.0, 0.01, 1.0);
+  galaxy_t satellite = make_galaxy(1.0, 0.03, 1.0);
+  parent.LOIII = parent_loiii;
+  parent.ionization_param = parent_u;
+  satellite.LOIII = satellite_loiii;
+  satellite.ionization_param = satellite_u;
+  satellite.MergerTarget = &parent;
+  int dead = 0;
+  merge_with_target(&satellite, &dead, 1);
+  cr_assert_eq(dead, 1);
+  cr_assert_eq(parent.Sfr, 0.0);
+  return parent;
+}
+
+// Luminosities add and the ionization parameter is their LOIII-weighted mean; a
+// galaxy without [O III] this snapshot leaves the other's parameter unchanged.
+Test(star_forming_metallicity, mergers_weight_ionization_param_by_loiii)
+{
+  galaxy_t merged = merge_loiii(2.0, 3e9, 6.0, 1e9);
+  cr_expect_float_eq(merged.LOIII, 8.0, 1e-14);
+  cr_expect_float_eq(merged.ionization_param, 1.5e9, 1e-14 * 1.5e9);
+
+  merged = merge_loiii(2.0, 3e9, 0.0, 0.0);
+  cr_expect_eq(merged.LOIII, 2.0);
+  cr_expect_eq(merged.ionization_param, 3e9);
+
+  merged = merge_loiii(0.0, 0.0, 6.0, 1e9);
+  cr_expect_eq(merged.LOIII, 6.0);
+  cr_expect_eq(merged.ionization_param, 1e9);
+
+  merged = merge_loiii(0.0, 0.0, 0.0, 0.0);
+  cr_expect_eq(merged.LOIII, 0.0);
+  cr_expect_eq(merged.ionization_param, 0.0);
+}
+
+// Gives the galaxy a disc state for which its events have a positive ionization
+// parameter (the galaxies above leave it zero).
+static void give_valid_disc(galaxy_t* gal, double disk_scale_length)
+{
+  run_globals.units.UnitLength_in_cm = 3.085678e24;
+  run_globals.units.UnitVelocity_in_cm_per_s = 1e5;
+  run_globals.params.physics.Y_He = 0.24;
+  gal->Mvir = 10.0;
+  gal->Rvir = 0.08;
+  gal->Vmax = 150.0;
+  gal->Spin = 0.04;
+  gal->StellarMass = 0.5;
+  gal->Mcool = 0.2;
+  gal->DiskScaleLength = disk_scale_length;
+}
+
+// The ionization parameters that in-situ events give the parent and the satellite
+// reach the merged galaxy weighted by their [O III] luminosities.
+Test(star_forming_metallicity, mergers_combine_event_ionization_params)
+{
+  galaxy_t parent = make_galaxy(2.0, 0.01, 1.0);
+  galaxy_t satellite = make_galaxy(2.0, 0.03, 0.5);
+  give_valid_disc(&parent, 0.003);
+  give_valid_disc(&satellite, 0.006);
+  update_reservoirs_from_sf(&parent, 1.0, 1, INSITU);
+  update_reservoirs_from_sf(&satellite, 1.0, 1, INSITU);
+
+  const double parent_loiii = parent.LOIII, parent_u = parent.ionization_param;
+  const double satellite_loiii = satellite.LOIII, satellite_u = satellite.ionization_param;
+  cr_assert_gt(parent_u, 0.0);
+  cr_assert_gt(satellite_u, 0.0);
+  cr_assert_gt(fabs(satellite_u / parent_u - 1.0), 1e-3);
+  cr_assert_gt(fabs(satellite_loiii / parent_loiii - 1.0), 1e-3);
+
+  satellite.MergerTarget = &parent;
+  int dead = 0;
+  merge_with_target(&satellite, &dead, 1);
+
+  const double expected_u =
+    (parent_loiii * parent_u + satellite_loiii * satellite_u) / (parent_loiii + satellite_loiii);
+  expect_loiii(parent.LOIII, parent_loiii + satellite_loiii);
+  cr_expect_float_eq(parent.ionization_param, expected_u, 1e-12 * expected_u);
+}
+
 Test(star_forming_metallicity, reidentified_ghost_records_birth_metals_independently_of_history_bin)
 {
   galaxy_t gal = make_galaxy(2.0, 0.01, 3.0);

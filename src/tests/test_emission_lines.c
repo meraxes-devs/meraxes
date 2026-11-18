@@ -107,6 +107,42 @@ Test(emission_lines, compute_LOIII_valid_event_gives_finite_positive_outputs)
   cr_expect_gt(gal.ionization_param, 0.0);
 }
 
+// The normalization written out with textbook constants rather than the code's
+// macros: 1 Msun/yr forming stars from solar-metallicity gas at T = 1e4 K gives
+// L[O III] 5007 = 9.09e41 erg/s. The constants differ from the code's in the 4th
+// digit, so this pins every factor but not their rounding.
+Test(emission_lines, compute_LOIII_matches_independent_normalization)
+{
+  setup_loiii();
+
+  // 1 Msun/yr in g/s, then in code units (1.989e43 g per (3.085678e24 cm / 1e5 cm/s)).
+  const double sfr_gs = 1.98847e33 / 3.15576e7;
+  const double sfr = sfr_gs / (1.989e43 / (3.085678e24 / 1.0e5));
+  const double metallicity = 0.0134;
+
+  galaxy_t gal = make_valid_test_galaxy();
+  compute_LOIII(&gal, sfr, metallicity, 0);
+
+  // 4000 ionizing photons per baryon, all absorbed in case-B HII regions:
+  // recombinations balance ionizations, so n_e n_H V = Q / alpha_B.
+  const double photon_rate = 4000.0 * sfr_gs / 1.67262e-24;
+  const double emission_measure = photon_rate / 2.6e-13;
+  // 12 + log(O/H) = 8.69 at Z_sun = 0.0134.
+  const double oxygen_over_hydrogen = pow(10.0, 8.69 - 12.0);
+  // Collisional excitation of 1D2 from the ground term, directly and via 1S0 -> 1D2:
+  // q = 8.629e-6 / sqrt(T) * gamma * exp(-E / kT) [cm^3/s], with the code's
+  // collision-strength fits at 1e4 K (gamma = 0.243 and 0.0321).
+  const double q_1d2 = 8.629e-6 / 100.0 * 0.243 * exp(-29169.0 / 1e4);
+  const double q_1s0 = 8.629e-6 / 100.0 * 0.0321 * exp(-61207.0 / 1e4) * 1.7 / (1.7 + 0.215);
+  const double branching_5007 = 3.52e-5 / (3.52e-5 + 4.57e-6);
+  const double photon_energy = 6.62607e-27 * 2.99792458e10 / 5008e-8; // [erg]
+  const double expected_erg_s = oxygen_over_hydrogen * emission_measure * (q_1d2 + q_1s0) * branching_5007 *
+                                photon_energy * 0.8; // [O III] fills 80% of the HII volume
+
+  cr_expect_float_eq(gal.LOIII, expected_erg_s / 1e40, 1e-3 * expected_erg_s / 1e40);
+  cr_expect_float_eq(gal.LOIII, 90.9, 0.1);
+}
+
 // Events add their luminosities; the ionization parameter is LOIII-weighted.
 Test(emission_lines, compute_LOIII_adds_events_and_weights_ionization_param)
 {
