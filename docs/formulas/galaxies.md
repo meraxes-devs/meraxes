@@ -1249,7 +1249,30 @@ $\dot N_{\gamma,b}N_b=N_\gamma\dot M_*/m_p$, $L_{5008}$ does not depend on the
 disc structure. The disc state at the event, before the reservoirs are updated, sets
 $q_{\rm ion}$, which is 0 when that state is invalid. Luminosities add over the
 snapshot's events and in mergers; the galaxy's $q_{\rm ion}$ is the
-$L_{5008}$-weighted mean over its events.
+$L_{5008}$-weighted mean over its events:
+
+```{math}
+:label: opt-oiii-ionization-mean
+q_{\rm ion}=\frac{\sum_i L_{5008,i}\,q_{{\rm ion},i}}{\sum_i L_{5008,i}},
+```
+
+summed over every event this snapshot whose stars end up in the galaxy, including
+the events of satellites that merge into it.
+
+- **Why a mean.** $q_{\rm ion}$ is intensive. Each event's HII regions are
+  treated as a population of their own, because they form from gas of their own
+  metallicity, which sets their temperature and $\alpha_B$.
+- **Why $L_{5008}$.** The ionization parameter is measured from [O III]-based
+  line ratios (such as [O III]/[O II]) in the integrated spectrum, which the
+  brightest [O III] regions dominate.
+- **Consequences.** The weight is additive, so the result does not depend on the
+  order of events or mergers. Events in metal-free gas carry no weight, so a
+  galaxy has $q_{\rm ion}>0$ exactly when $L_{5008}>0$; one whose stars all formed
+  from metal-free gas this snapshot has $q_{\rm ion}=0$.
+- **Caveat.** At a fixed disc state $q_{\rm ion}\propto\dot M_*^{1/3}$. Events
+  that share a disc in one snapshot, such as an in-situ event and a merger burst,
+  power the same bubbles together, so the mean lies below the $q_{\rm ion}$ of
+  their combined SFR, by up to $2^{1/3}$ (0.1 dex) for equal SFRs.
 
 *References:* {ref}`Yang & Lidz (2020), §§3.3 and 5.2 <ref-yang2020>`; {ref}`Pathak et al. (2025), §4 <ref-pathak2025>`; [Meraxes line-luminosity implementation](https://github.com/meraxes-devs/meraxes/blob/master/src/physics/emission_lines.c).
 

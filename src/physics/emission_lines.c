@@ -145,6 +145,18 @@ void compute_LOIII(galaxy_t* gal, double sfr, double metallicity, int snapshot)
   if (loiii <= 0.0)
     return;
 
+  // The ionization parameter is intensive, so the galaxy's value is the mean over its
+  // events weighted by their [O III] luminosities; mergers combine galaxies the same
+  // way (merge_with_target). Each event's HII regions are a population of their own:
+  // they form from gas of their own metallicity, which sets their temperature and
+  // recombination rate. LOIII is the weight because q is measured from [O III]-based
+  // line ratios of the integrated spectrum, which the brightest [O III] regions
+  // dominate. Since the weight is additive, the result does not depend on the order
+  // of events or mergers, and a galaxy has q > 0 exactly when LOIII > 0 (events in
+  // metal-free gas carry no weight).
+  // Caveat: at a fixed disc state q scales as SFR^(1/3), so for events sharing a disc
+  // in one snapshot (an in-situ event and a merger burst) the mean lies below the q
+  // of their combined SFR, by up to 2^(1/3) (0.1 dex) for equal SFRs.
   const double total_loiii = gal->LOIII + loiii;
   gal->ionization_param =
     (gal->LOIII * gal->ionization_param + loiii * event_ionization_param(gal, sfr_gs, photon_rate, alpha_b, snapshot)) /

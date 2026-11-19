@@ -735,7 +735,7 @@ typedef struct galaxy_t
   double Sfr;
   double XrayWeightedSfr;  //!< Sfr with each event weighted by its birth-Z X-ray factor; Pop II only.
   double LOIII;            //!< [O III] luminosity of this snapshot's star-formation events [1e40 erg/s]
-  double ionization_param; //!< LOIII-weighted ionization parameter of those events
+  double ionization_param; //!< Mean ionization parameter of those events, weighted by their LOIII [cm/s]
   double EjectedGas;
   double MetalsEjectedGas;
   double BlackHoleMass;

@@ -177,7 +177,9 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
   min_stellar_mass = (gal->StellarMass <= parent->StellarMass) ? gal->StellarMass : parent->StellarMass;
 
   // Add galaxies together
-  // This snapshot's [O III] luminosities add; the ionization parameter is LOIII-weighted.
+  // This snapshot's [O III] luminosities add. The ionization parameter is the
+  // LOIII-weighted mean over both galaxies' events, as in compute_LOIII; a galaxy
+  // without [O III] this snapshot leaves the other's value unchanged.
   double combined_loiii = parent->LOIII + gal->LOIII;
   if (combined_loiii > 0.0)
     parent->ionization_param =
