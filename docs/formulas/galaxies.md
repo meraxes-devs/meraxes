@@ -1150,7 +1150,23 @@ M_b=-2.5\log_{10}F_b^{\rm num}+8.9
 
 ### [O III] 5008 Å
 
-Collision strengths use $u=T/(10^4\,\mathrm{K})$; rates are evaluated at $10^4$ K. Transition rates $(A_{31},A_{32},A_{41},A_{43})=(4.57\times10^{-6},3.52\times10^{-5},0.215,1.7)\,\mathrm{s^{-1}}$.
+The HII regions of each star-formation event have the electron temperature $T$ of
+the Yang et al. (2023) fit to the metallicity $Z_{\rm SF}$ of the gas the stars form
+from, held at its values at the ends of the fitted range. The case-B recombination
+coefficient follows this temperature.
+
+```{math}
+:label: opt-oiii-temperature
+\begin{gathered}
+T=10^4\,{\rm K}\,\left(0.824x^2+0.101x+1.08\right),\qquad
+x=\log_{10}\left[\min\!\left(\max\!\left(\frac{Z_{\rm SF}}{Z_\odot},0.016\right),1.6\right)\right],
+\\ \alpha_B=2.59\times10^{-13}\left(\frac{T}{10^4\,{\rm K}}\right)^{-0.7}\ {\rm cm^3\,s^{-1}}.
+\end{gathered}
+```
+
+*References:* {ref}`Yang et al. (2023) <ref-yang2023>`; {ref}`Osterbrock (1989) <ref-osterbrock1989>`.
+
+Collision strengths use $u=T/(10^4\,\mathrm{K})$. The Einstein coefficients of [O III] λ4959, λ5007, λ2321 and λ4363 are $(A_{31},A_{32},A_{41},A_{43})=(6.21\times10^{-3},1.81\times10^{-2},0.215,1.71)\,\mathrm{s^{-1}}$.
 
 ```{math}
 :label: opt-oiii-collision
@@ -1159,15 +1175,15 @@ Collision strengths use $u=T/(10^4\,\mathrm{K})$; rates are evaluated at $10^4$ 
 \Omega_{40}=0.0321\,u^{0.118+0.057\ln u},\\
 \beta_q&=10^6\sqrt{\frac{2\pi\hbar^4}{k_Bm_e^3}},\\
 k_{03}&=\beta_q T^{-1/2}\Omega_{30}e^{-29169/T},\qquad
-k_{04}=\beta_q T^{-1/2}\Omega_{40}e^{-61207/T},\\
+k_{04}=\beta_q T^{-1/2}\Omega_{40}e^{-62134/T},\\
 k_{\rm exc}&=k_{03}+k_{04}\frac{A_{43}}{A_{43}+A_{41}},\qquad
 b_{32}=\frac{A_{32}}{A_{32}+A_{31}}.
 \end{aligned}
 ```
 
-*References:* {ref}`Draine (2011), §2.3 and Table F.2 <ref-draine2011>`; [Meraxes atomic-rate implementation](https://github.com/meraxes-devs/meraxes/blob/e0a73833d180264711c40ab70abaec2320e3c2bd/src/physics/emission_lines.c#L19-L33).
+*References:* {ref}`Draine (2011), §2.3 and Table F.2 <ref-draine2011>`; {ref}`NIST Atomic Spectra Database <ref-kramida2024>`; [Meraxes atomic-rate implementation](https://github.com/meraxes-devs/meraxes/blob/master/src/physics/emission_lines.c).
 
-$M_d=M_*+M_{\rm cold}$, $m_d=M_d/M_{\rm vir}$, $c_s^2=10^{12}\,\mathrm{cm^2\,s^{-2}}$, $E_{\rm SN}=10^{51}$ erg and $\dot M_{\rm cool}=\Delta M_{\rm cool}/\Delta t$.
+$M_d=M_*+M_{\rm cold}$, $m_d=M_d/M_{\rm vir}$, $c_s^2=10^{12}\,\mathrm{cm^2\,s^{-2}}$, $E_{\rm SN}=10^{51}$ erg, $\dot M_{\rm cool}=\Delta M_{\rm cool}/\Delta t$, and $N_\gamma$ is `ReionNionPhotPerBary`, the Pop. II ionizing photons per stellar baryon that reionization also uses.
 
 ```{math}
 :label: opt-oiii-bubble-radius
@@ -1190,8 +1206,8 @@ s_{\rm SN}=\frac{(2\dot\Sigma_{\rm SN}\,0.03E_{\rm SN}/\rho_0)^{2/3}}{c_s^2},\\
 Q^2&=0.98\delta^{-2}\frac{c_s^2}{(1.4V_{\max})^2},\qquad
 s_{\rm acc}=\frac{(0.6G\dot M_{\rm cool}Q^2/2.94)^{2/3}}{c_s^2},\\
 \rho_{\rm eff}&=\frac{\rho_0}{1+s_{\rm SN}+s_{\rm acc}},\qquad
-N_b=\frac{3M_d}{4\pi\rho_{\rm eff}r_b^3},\qquad
-\dot N_{\gamma,b}=\frac{4000\dot M_*}{m_pN_b}.
+N_b=\frac{3M_{\rm cold}}{4\pi\rho_{\rm eff}r_b^3},\qquad
+\dot N_{\gamma,b}=\frac{N_\gamma\dot M_*}{m_pN_b}.
 \end{aligned}
 ```
 
@@ -1200,23 +1216,23 @@ N_b=\frac{3M_d}{4\pi\rho_{\rm eff}r_b^3},\qquad
 ```{math}
 :label: opt-oiii-stromgren
 \begin{gathered}
-r_S^2=\left[\frac{3\dot N_{\gamma,b}}{4\pi\alpha_B\rho_{\rm eff}^2}\right]^{2/3},
+n_{\rm H}=\frac{(1-Y_{\rm He})\rho_{\rm eff}}{m_p},\qquad
+r_S^2=\left[\frac{3\dot N_{\gamma,b}}{4\pi\alpha_Bn_{\rm H}^2}\right]^{2/3},
 \\
 \Delta q_{\rm ion}=
-\frac{1.5874\dot N_{\gamma,b}}{4\pi r_S^2\rho_{\rm eff}},
-\\ \alpha_B=2.6\times10^{-13}\ {\rm cm^3\ s^{-1}}.
+\frac{1.5874\dot N_{\gamma,b}}{4\pi r_S^2n_{\rm H}}.
 \end{gathered}
 ```
 
-*References:* [Meraxes ionization-parameter implementation](https://github.com/meraxes-devs/meraxes/blob/e0a73833d180264711c40ab70abaec2320e3c2bd/src/physics/emission_lines.c#L85-L88).
+*References:* [Meraxes ionization-parameter implementation](https://github.com/meraxes-devs/meraxes/blob/master/src/physics/emission_lines.c).
 
-Here $\rho_{\rm eff}$ is a mass-density proxy used directly in the ionization expressions. A physical Strömgren radius requires number density; dimensionless ionization parameter additionally requires division by $c$. Thus $q_{\rm ion}$ is an uncalibrated proxy.
+$\alpha_B$ is the coefficient of Eq. {eq}`opt-oiii-temperature`, and $q_{\rm ion}$ is in cm s⁻¹; dividing by $c$ gives the dimensionless ionization parameter.
 
 ```{math}
 :label: opt-oiii-luminosity
 \begin{gathered}
 L_{5008}=\left[\frac{10^{8.69-12}}{0.0134}Z_{\rm SF}\right]
-k_{\rm exc}b_{32}
+k_{\rm exc}(T)\,b_{32}
 \frac{\dot N_{\gamma,b}N_b}{\alpha_B}
 h_P\nu_{32}\,f_{\rm OIII},
 \\ \nu_{32}=\frac{c}{5008\ {\rm \mathring A}},\quad f_{\rm OIII}=0.8.
@@ -1227,9 +1243,10 @@ Each star-formation event, in situ or merger-driven, adds its own $L_{5008}$,
 with $\dot M_*$ the event's SFR and $Z_{\rm SF}$ the cold-gas metallicity when
 the stars form. Star formation leaves the gas metallicity unchanged, so
 $Z_{\rm SF}$ is also the metallicity after star formation and before that
-event's supernova feedback recycles, enriches or reheats the gas. Because
-$\dot N_{\gamma,b}N_b=4000\dot M_*/m_p$, $L_{5008}$ does not depend on the disc
-structure. The disc state at the event, before the reservoirs are updated, sets
+event's supernova feedback recycles, enriches or reheats the gas. The same
+$Z_{\rm SF}$ sets $T$, and with it $k_{\rm exc}$ and $\alpha_B$. Because
+$\dot N_{\gamma,b}N_b=N_\gamma\dot M_*/m_p$, $L_{5008}$ does not depend on the
+disc structure. The disc state at the event, before the reservoirs are updated, sets
 $q_{\rm ion}$, which is 0 when that state is invalid. Luminosities add over the
 snapshot's events and in mergers; the galaxy's $q_{\rm ion}$ is the
 $L_{5008}$-weighted mean over its events.

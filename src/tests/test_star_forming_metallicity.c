@@ -31,7 +31,8 @@ static void setup(void)
   // Units and coefficients for the per-event [O III] luminosity.
   run_globals.units.UnitMass_in_g = 1e10 * SOLAR_MASS;
   run_globals.units.UnitTime_in_s = 1e8 * SEC_PER_YEAR;
-  set_OIII_coeffs(1e4);
+  set_OIII_coeffs();
+  run_globals.params.physics.ReionNionPhotPerBary = 4000.0;
   run_globals.random_generator = gsl_rng_alloc(gsl_rng_mt19937);
   cr_assert_not_null(run_globals.random_generator);
 #ifdef CALC_MAGS

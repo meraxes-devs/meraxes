@@ -352,7 +352,7 @@ $\exp[(\ln 10)^2\texttt{XrayScatterDex}^2/2]$.
 | `ReionSMParam_c` | `2.0` | Sobacchi ionization-history exponent. |
 | `ReionSMParam_d` | `2.5` | Sobacchi ionization-history exponent. |
 | `ReionTcool` | `1.0e4` | Atomic-cooling virial-temperature threshold, K. |
-| `ReionNionPhotPerBary` | `4000` | Ionizing photons per stellar baryon. |
+| `ReionNionPhotPerBary` | `4000` | Ionizing photons per stellar baryon (Pop. II); also sets the [O III] ionizing photon rate. |
 | `ReionSfrTimescale` | `0.5` | SFR-averaging interval in Hubble-time units when `Flag_InstantaneousSFR=0`. |
 | `TsHeatingFilterType` | `1` | Thermal-history filter selector: 0 real-space top-hat; 1 sharp-k; 2 Gaussian. |
 | `TsNumFilterSteps` | `40` | Number of thermal-history filtering steps. |

@@ -36,7 +36,7 @@ Without Criterion, only the two standalone drivers are built. Without Python, th
 | `test_parse_snaplist` | Parsing of snapshot lists such as `OutputSnapshots`. |
 | `test_cooling` | Cooling tables, cooling rates and the streaming-velocity cooling mass. |
 | `test_blackhole_feedback` | Black-hole emissivity, accretion time and luminosities. |
-| `test_emission_lines` | [O III] coefficients, per-event luminosities and the LOIII-weighted ionization parameter. |
+| `test_emission_lines` | [O III] coefficients, the metallicity-dependent temperature and recombination coefficient, the luminosity normalization, per-event luminosities and the LOIII-weighted ionization parameter. |
 | `test_xray_luminosity` | Deterministic metallicity-dependent luminosities, normalization, source units, metallicity-weighted sources and empirical scatter with metallicity disabled. |
 | `test_star_forming_metallicity` | Per-event X-ray weights and [O III] luminosities from the star-forming gas metallicity through star formation, feedback, mergers and snapshot reset. |
 | `test_agn_xray_heating` | GAL, Pop. III and AGN spectral normalization, and disabled-band boundaries. |

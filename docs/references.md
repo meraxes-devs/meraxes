@@ -190,6 +190,12 @@
 (ref-yang2020)=
 **Yang & Lidz (2020).** *An analytic model for [O III] fine structure emission from high redshift galaxies.* MNRAS, 499, 3417–3433. [doi:10.1093/mnras/staa3000](https://doi.org/10.1093/mnras/staa3000).
 
+(ref-yang2023)=
+**Yang, Lidz, Smith, Benson & Li (2023).** MNRAS, 525, 5989. [ADS](https://ui.adsabs.harvard.edu/abs/2023MNRAS.525.5989Y/abstract).
+
+(ref-kramida2024)=
+**Kramida, Ralchenko, Reader & NIST ASD Team (2024).** *NIST Atomic Spectra Database* (ver. 5.12). [doi:10.18434/T4W30F](https://doi.org/10.18434/T4W30F).
+
 ## Numerical methods
 
 (ref-fftw)=

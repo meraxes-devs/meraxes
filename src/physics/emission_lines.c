@@ -16,25 +16,56 @@ static double clamp_non_finite(double value)
   return value;
 }
 
-void set_OIII_coeffs(double T)
+// Metallicity range [Z_sun] of the Yang et al. (2023) electron-temperature fit.
+// Outside it the temperature stays at its value at the nearest end.
+#define OIII_TEMPERATURE_FIT_Z_MIN 0.016
+#define OIII_TEMPERATURE_FIT_Z_MAX 1.6
+
+void set_OIII_coeffs(void)
 {
-  if (T <= 0.0)
-    T = 1e4;
-
-  const double beta_q = sqrt(2.0 * M_PI * pow(HBAR_SI, 4) / (BOLTZMANN_SI * pow(ELECTRON_MASS_SI, 3))) * 1e6;
-  const double o30 = 0.243 * pow(T / 1e4, 0.120 + 0.031 * log(T / 1e4));
-  const double o40 = 0.0321 * pow(T / 1e4, 0.118 + 0.057 * log(T / 1e4));
-  const double k03 = (beta_q / sqrt(T)) * o30 * exp(-29169.0 / T);
-  const double k04 = (beta_q / sqrt(T)) * o40 * exp(-61207.0 / T);
-
+  // sqrt(2 pi hbar^4 / (k m_e^3)) = 8.63e-6 cm^3 s^-1 K^1/2
+  run_globals.loiii_params.excitation_prefactor =
+    sqrt(2.0 * M_PI * pow(HBAR_SI, 4) / (BOLTZMANN_SI * pow(ELECTRON_MASS_SI, 3))) * 1e6;
   run_globals.loiii_params.oxygen_abundance_over_z_sun = (pow(10.0, 8.69) / 1e12) / Z_SUN;
-  run_globals.loiii_params.excitation_rate = k03 + k04 * (LOIII_A43 / (LOIII_A43 + LOIII_A41));
   run_globals.loiii_params.branching_ratio = LOIII_A32 / (LOIII_A32 + LOIII_A31);
 }
 
+// Electron temperature [K] of HII regions in gas of this metallicity, from the
+// Yang et al. (2023) fit T4 = 0.824 x^2 + 0.101 x + 1.08 with x = log10(Z / Z_sun).
+double oiii_electron_temperature(double metallicity)
+{
+  // fmax also takes a zero, negative or NaN metallicity to the low end of the fit.
+  const double z_ratio = fmin(fmax(metallicity / Z_SUN, OIII_TEMPERATURE_FIT_Z_MIN), OIII_TEMPERATURE_FIT_Z_MAX);
+  const double x = log10(z_ratio);
+  return 1e4 * (0.824 * x * x + 0.101 * x + 1.08);
+}
+
+// Case-B hydrogen recombination coefficient [cm^3/s] (Osterbrock 1989).
+double case_b_recombination_coefficient(double temperature)
+{
+  return 2.59e-13 * pow(temperature / 1e4, -0.7);
+}
+
+// Rate coefficient [cm^3/s] for electrons exciting O++ into 1D2, directly from the
+// ground term and through 1S0 -> 1D2 cascades; collision strengths from Draine (2011).
+double oiii_excitation_rate(double temperature)
+{
+  const double t4 = temperature / 1e4;
+  const double prefactor = run_globals.loiii_params.excitation_prefactor / sqrt(temperature);
+  const double k03 = prefactor * 0.243 * pow(t4, 0.120 + 0.031 * log(t4)) * exp(-29169.0 / temperature);
+  const double k04 = prefactor * 0.0321 * pow(t4, 0.118 + 0.057 * log(t4)) * exp(-62134.0 / temperature);
+  return k03 + k04 * (LOIII_A43 / (LOIII_A43 + LOIII_A41));
+}
+
 // Ionization parameter of the HII regions of one star-formation event with rate
-// sfr_gs [g/s], from the disc state at that event; 0 if the disc state is invalid.
-static double event_ionization_param(const galaxy_t* gal, double sfr_gs, int snapshot)
+// sfr_gs [g/s], total ionizing photon rate photon_rate [1/s] and case-B
+// recombination coefficient alpha_b, from the disc state at that event; 0 if the
+// disc state is invalid.
+static double event_ionization_param(const galaxy_t* gal,
+                                     double sfr_gs,
+                                     double photon_rate,
+                                     double alpha_b,
+                                     int snapshot)
 {
   if (!has_valid_disc_state(gal))
     return 0.0;
@@ -71,13 +102,14 @@ static double event_ionization_param(const galaxy_t* gal, double sfr_gs, int sna
     pow((0.6 * GRAVITY * cooling_rate_gs * toomre_q_sq) / 2.94, 2.0 / 3.0) / COLD_GAS_SOUND_SPEED_CMS_SQ;
 
   density /= (1 + sn_velocity_cms_sq_norm + accretion_velocity_cms_sq_norm);
-  bubble_count = total_mass_g / density / 4.0 * 3.0 / M_PI / starburst_radius_cm_cb;
-  ionizing_photon_rate = (sfr_gs / bubble_count / PROTONMASS) * 4000.0;
+  // The superbubbles hold the disc's cold gas (ISM porosity 1).
+  bubble_count = cold_gas_mass_g / density / 4.0 * 3.0 / M_PI / starburst_radius_cm_cb;
+  ionizing_photon_rate = photon_rate / bubble_count;
 
   // density is a mass density (g/cm^3); the Stromgren radius and the
   // ionization parameter (cm/s) need the hydrogen number density (cm^-3).
   const double n_H = (1.0 - run_globals.params.physics.Y_He) * density / PROTONMASS;
-  const double stromgren_radius_sq = pow(3.0 * ionizing_photon_rate / (4.0 * M_PI * ALPHA_HII * n_H * n_H), 2.0 / 3.0);
+  const double stromgren_radius_sq = pow(3.0 * ionizing_photon_rate / (4.0 * M_PI * alpha_b * n_H * n_H), 2.0 / 3.0);
   ionization_param = 1.5874 * ionizing_photon_rate / (4.0 * M_PI * stromgren_radius_sq * n_H);
 
   return clamp_non_finite(ionization_param);
@@ -96,20 +128,26 @@ void compute_LOIII(galaxy_t* gal, double sfr, double metallicity, int snapshot)
 
   const double sfr_gs = sfr * run_globals.units.UnitMass_in_g / run_globals.units.UnitTime_in_s;
 
-  // Photon rate per bubble times the number of bubbles is 4000 SFR / m_p, so the
-  // luminosity does not depend on the disc state. Scaled by 1e-40 so gal->LOIII is
-  // stored in units of 1e40 erg/s (matches galaxy_output_t.LOIII).
-  const double total_ionizing_photon_rate = sfr_gs / PROTONMASS * 4000.0;
+  // Ionizing photons per stellar baryon as in reionization (Pop. II). The photon
+  // rate per bubble times the number of bubbles is this total, so the luminosity
+  // does not depend on the disc state.
+  const double photon_rate = sfr_gs / PROTONMASS * run_globals.params.physics.ReionNionPhotPerBary;
+  // The HII regions' temperature, and with it the excitation and recombination
+  // rates, follows the metallicity of the gas the stars form from.
+  const double temperature = oiii_electron_temperature(metallicity);
+  const double alpha_b = case_b_recombination_coefficient(temperature);
   const double oiii_volume_fraction = 0.8;
-  const double loiii =
-    clamp_non_finite(run_globals.loiii_params.oxygen_abundance_over_z_sun * metallicity *
-                     run_globals.loiii_params.excitation_rate * run_globals.loiii_params.branching_ratio *
-                     (total_ionizing_photon_rate / ALPHA_HII) * PLANCK * nu32 * oiii_volume_fraction * 1e-40);
+  // Scaled by 1e-40 so gal->LOIII is stored in units of 1e40 erg/s (matches
+  // galaxy_output_t.LOIII).
+  const double loiii = clamp_non_finite(run_globals.loiii_params.oxygen_abundance_over_z_sun * metallicity *
+                                        oiii_excitation_rate(temperature) * run_globals.loiii_params.branching_ratio *
+                                        (photon_rate / alpha_b) * PLANCK * nu32 * oiii_volume_fraction * 1e-40);
   if (loiii <= 0.0)
     return;
 
   const double total_loiii = gal->LOIII + loiii;
   gal->ionization_param =
-    (gal->LOIII * gal->ionization_param + loiii * event_ionization_param(gal, sfr_gs, snapshot)) / total_loiii;
+    (gal->LOIII * gal->ionization_param + loiii * event_ionization_param(gal, sfr_gs, photon_rate, alpha_b, snapshot)) /
+    total_loiii;
   gal->LOIII = total_loiii;
 }

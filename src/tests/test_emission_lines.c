@@ -49,7 +49,8 @@ static void setup_loiii(void)
 {
   reset_run_globals();
   configure_default_units_and_params();
-  set_OIII_coeffs(1e4);
+  set_OIII_coeffs();
+  run_globals.params.physics.ReionNionPhotPerBary = 4000.0;
 
   static double zz[] = { 7.0 };
   run_globals.ZZ = zz;
@@ -57,32 +58,42 @@ static void setup_loiii(void)
 
 TestSuite(emission_lines);
 
-Test(emission_lines, set_OIII_coeffs_generates_finite_coefficients)
+Test(emission_lines, set_OIII_coeffs_sets_abundance_branching_ratio_and_prefactor)
 {
   reset_run_globals();
-  set_OIII_coeffs(1e4);
+  set_OIII_coeffs();
 
-  cr_expect(isfinite(run_globals.loiii_params.oxygen_abundance_over_z_sun));
-  cr_expect(isfinite(run_globals.loiii_params.excitation_rate));
-  cr_expect(isfinite(run_globals.loiii_params.branching_ratio));
-
-  cr_expect_gt(run_globals.loiii_params.oxygen_abundance_over_z_sun, 0.0);
-  cr_expect_gt(run_globals.loiii_params.excitation_rate, 0.0);
-  cr_expect_gt(run_globals.loiii_params.branching_ratio, 0.0);
+  const double oxygen_abundance = pow(10.0, 8.69 - 12.0) / 0.0134;
+  cr_expect_float_eq(run_globals.loiii_params.oxygen_abundance_over_z_sun, oxygen_abundance, 1e-12 * oxygen_abundance);
+  // A(5007) / (A(5007) + A(4959)) = 0.745 (NIST)
+  cr_expect_float_eq(run_globals.loiii_params.branching_ratio, 1.81e-2 / (1.81e-2 + 6.21e-3), 1e-14);
+  // h^2 / (2 pi m_e)^(3/2) / sqrt(k) = 8.629e-6 cm^3 s^-1 K^1/2
+  cr_expect_float_eq(run_globals.loiii_params.excitation_prefactor, 8.629e-6, 1e-3 * 8.629e-6);
 }
 
-Test(emission_lines, set_OIII_coeffs_non_positive_temperature_falls_back_to_1e4)
+// The Yang et al. (2023) fit, held at its values at 0.016 and 1.6 Z_sun outside them.
+Test(emission_lines, electron_temperature_follows_metallicity_fit)
 {
   reset_run_globals();
+  cr_expect_float_eq(oiii_electron_temperature(Z_SUN), 1.08e4, 1e-8);
+  cr_expect_float_eq(oiii_electron_temperature(0.1 * Z_SUN), 1.803e4, 1e-8);
 
-  set_OIII_coeffs(1e4);
-  const loiii_params_t ref = run_globals.loiii_params;
+  // Beyond the ends: T4 = 3.556 at 0.016 Z_sun and 1.135 at 1.6 Z_sun.
+  const double low_z_end = oiii_electron_temperature(1e-3 * Z_SUN);
+  const double high_z_end = oiii_electron_temperature(10.0 * Z_SUN);
+  cr_expect_float_eq(low_z_end, 3.5562e4, 1.0);
+  cr_expect_float_eq(high_z_end, 1.1349e4, 1.0);
+  cr_expect_float_eq(oiii_electron_temperature(0.016 * Z_SUN), low_z_end, 1e-8);
+  cr_expect_float_eq(oiii_electron_temperature(1.6 * Z_SUN), high_z_end, 1e-8);
+  cr_expect_eq(oiii_electron_temperature(0.0), low_z_end);
+  cr_expect_eq(oiii_electron_temperature(NAN), low_z_end);
+  cr_expect_eq(oiii_electron_temperature(3.0 * Z_SUN), high_z_end);
+}
 
-  set_OIII_coeffs(0.0);
-
-  cr_expect_float_eq(run_globals.loiii_params.oxygen_abundance_over_z_sun, ref.oxygen_abundance_over_z_sun, 1e-15);
-  cr_expect_float_eq(run_globals.loiii_params.excitation_rate, ref.excitation_rate, 1e-15);
-  cr_expect_float_eq(run_globals.loiii_params.branching_ratio, ref.branching_ratio, 1e-15);
+Test(emission_lines, case_b_recombination_coefficient_scales_as_temperature_to_minus_0p7)
+{
+  cr_expect_float_eq(case_b_recombination_coefficient(1e4), 2.59e-13, 1e-27);
+  cr_expect_float_eq(case_b_recombination_coefficient(3e4), 2.59e-13 * pow(3.0, -0.7), 1e-27);
 }
 
 static const double event_sfr = 0.5;
@@ -108,12 +119,14 @@ Test(emission_lines, compute_LOIII_valid_event_gives_finite_positive_outputs)
 }
 
 // The normalization written out with textbook constants rather than the code's
-// macros: 1 Msun/yr forming stars from solar-metallicity gas at T = 1e4 K gives
-// L[O III] 5007 = 9.09e41 erg/s. The constants differ from the code's in the 4th
-// digit, so this pins every factor but not their rounding.
+// macros: 1 Msun/yr forming stars from solar-metallicity gas (T = 1.08e4 K) with
+// 6000 ionizing photons per stellar baryon gives L[O III] 5007 = 1.466e42 erg/s.
+// The constants differ from the code's in the 4th or 5th digit, so this pins every
+// factor but not their rounding.
 Test(emission_lines, compute_LOIII_matches_independent_normalization)
 {
   setup_loiii();
+  run_globals.params.physics.ReionNionPhotPerBary = 6000.0;
 
   // 1 Msun/yr in g/s, then in code units (1.989e43 g per (3.085678e24 cm / 1e5 cm/s)).
   const double sfr_gs = 1.98847e33 / 3.15576e7;
@@ -123,24 +136,43 @@ Test(emission_lines, compute_LOIII_matches_independent_normalization)
   galaxy_t gal = make_valid_test_galaxy();
   compute_LOIII(&gal, sfr, metallicity, 0);
 
-  // 4000 ionizing photons per baryon, all absorbed in case-B HII regions:
-  // recombinations balance ionizations, so n_e n_H V = Q / alpha_B.
-  const double photon_rate = 4000.0 * sfr_gs / 1.67262e-24;
-  const double emission_measure = photon_rate / 2.6e-13;
+  // At Z_sun the temperature fit gives T4 = 1.08.
+  const double t4 = 1.08;
+  const double temperature = 1.08e4;
+  // All ionizing photons are absorbed in case-B HII regions: recombinations balance
+  // ionizations, so n_e n_H V = Q / alpha_B.
+  const double photon_rate = 6000.0 * sfr_gs / 1.67262e-24;
+  const double emission_measure = photon_rate / (2.59e-13 * pow(t4, -0.7));
   // 12 + log(O/H) = 8.69 at Z_sun = 0.0134.
   const double oxygen_over_hydrogen = pow(10.0, 8.69 - 12.0);
   // Collisional excitation of 1D2 from the ground term, directly and via 1S0 -> 1D2:
-  // q = 8.629e-6 / sqrt(T) * gamma * exp(-E / kT) [cm^3/s], with the code's
-  // collision-strength fits at 1e4 K (gamma = 0.243 and 0.0321).
-  const double q_1d2 = 8.629e-6 / 100.0 * 0.243 * exp(-29169.0 / 1e4);
-  const double q_1s0 = 8.629e-6 / 100.0 * 0.0321 * exp(-61207.0 / 1e4) * 1.7 / (1.7 + 0.215);
-  const double branching_5007 = 3.52e-5 / (3.52e-5 + 4.57e-6);
+  // q = 8.629e-6 / sqrt(T) * Omega(T) * exp(-E / kT) [cm^3/s], with the Draine (2011)
+  // collision-strength fits and 1D2 and 1S0 at 29169 K and 62134 K.
+  const double q_1d2 =
+    8.629e-6 / sqrt(temperature) * 0.243 * pow(t4, 0.120 + 0.031 * log(t4)) * exp(-29169.0 / temperature);
+  const double q_1s0 = 8.629e-6 / sqrt(temperature) * 0.0321 * pow(t4, 0.118 + 0.057 * log(t4)) *
+                       exp(-62134.0 / temperature) * 1.71 / (1.71 + 0.215);
+  const double branching_5007 = 1.81e-2 / (1.81e-2 + 6.21e-3);
   const double photon_energy = 6.62607e-27 * 2.99792458e10 / 5008e-8; // [erg]
   const double expected_erg_s = oxygen_over_hydrogen * emission_measure * (q_1d2 + q_1s0) * branching_5007 *
                                 photon_energy * 0.8; // [O III] fills 80% of the HII volume
 
   cr_expect_float_eq(gal.LOIII, expected_erg_s / 1e40, 1e-3 * expected_erg_s / 1e40);
-  cr_expect_float_eq(gal.LOIII, 90.9, 0.1);
+  cr_expect_float_eq(gal.LOIII, 146.6, 0.1);
+}
+
+// The ionizing photon rate comes from the reionization parameter.
+Test(emission_lines, compute_LOIII_scales_with_photons_per_baryon)
+{
+  setup_loiii();
+  const galaxy_t reference = single_event(event_sfr, event_metallicity);
+
+  run_globals.params.physics.ReionNionPhotPerBary = 6000.0;
+  const galaxy_t more_photons = single_event(event_sfr, event_metallicity);
+  cr_expect_float_eq(more_photons.LOIII, 1.5 * reference.LOIII, 1e-12 * reference.LOIII);
+  // q grows as the cube root of the photon rate per bubble.
+  cr_expect_float_eq(
+    more_photons.ionization_param, cbrt(1.5) * reference.ionization_param, 1e-12 * reference.ionization_param);
 }
 
 // Events add their luminosities; the ionization parameter is LOIII-weighted.
@@ -161,15 +193,37 @@ Test(emission_lines, compute_LOIII_adds_events_and_weights_ionization_param)
   cr_expect_gt(fabs(second.ionization_param / first.ionization_param - 1.0), 1e-3);
 }
 
-Test(emission_lines, compute_LOIII_is_linear_in_metallicity_and_sfr)
+// Linear in the SFR. In metallicity only where the temperature fit is held fixed
+// (Z >= 1.6 Z_sun); below that the gas is hotter, so L/Z rises as Z falls.
+Test(emission_lines, compute_LOIII_is_linear_in_sfr_and_follows_temperature_in_metallicity)
 {
   setup_loiii();
   const double reference = single_event(event_sfr, event_metallicity).LOIII;
-
-  const double doubled_z = single_event(event_sfr, 2.0 * event_metallicity).LOIII;
   const double tripled_sfr = single_event(3.0 * event_sfr, event_metallicity).LOIII;
-  cr_expect_float_eq(doubled_z, 2.0 * reference, 1e-12 * reference);
   cr_expect_float_eq(tripled_sfr, 3.0 * reference, 1e-12 * reference);
+
+  const double high_z = 2.0 * Z_SUN;
+  const double at_high_z = single_event(event_sfr, high_z).LOIII;
+  const double at_double_high_z = single_event(event_sfr, 2.0 * high_z).LOIII;
+  cr_expect_float_eq(at_double_high_z, 2.0 * at_high_z, 1e-12 * at_high_z);
+
+  const double low_z = 0.1 * Z_SUN;
+  cr_expect_gt(single_event(event_sfr, low_z).LOIII / low_z, 2.0 * at_high_z / high_z);
+}
+
+// Through the Stromgren radius, q is proportional to alpha_B^(2/3) at fixed disc
+// state and SFR, so it follows the temperature of the gas the stars form from.
+Test(emission_lines, compute_LOIII_ionization_param_follows_recombination_coefficient)
+{
+  setup_loiii();
+  const double hot_z = 0.1 * Z_SUN;
+  const double cool_z = 2.0 * Z_SUN;
+  const double hot_u = single_event(event_sfr, hot_z).ionization_param;
+  const double cool_u = single_event(event_sfr, cool_z).ionization_param;
+
+  const double alpha_ratio = case_b_recombination_coefficient(oiii_electron_temperature(hot_z)) /
+                             case_b_recombination_coefficient(oiii_electron_temperature(cool_z));
+  cr_expect_float_eq(hot_u / cool_u, pow(alpha_ratio, 2.0 / 3.0), 1e-12);
 }
 
 // The bubble count cancels in LOIII, so the disc state (including the cold gas
