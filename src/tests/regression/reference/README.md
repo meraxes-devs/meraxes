@@ -34,6 +34,20 @@ The active metallicity reference is `xray_metallicity.h5`, used with
 below describe earlier validation, including that retired model. They do not
 report validation of the current model-selection and spectral-helper changes.
 
+### Per-event sources and the [O III] model update (#45)
+
+Since #45 every reference, including `xray_metallicity.h5`, is a CI summary
+(run 44443321681, source `14a9ab30`). That PR:
+- weights each star-formation event's X-ray output by its own birth metallicity;
+- computes [O III] per event from the gas metallicity before feedback;
+- evaluates the [O III] rates at a metallicity-dependent temperature, with NIST
+  Einstein coefficients and `ReionNionPhotPerBary` photons per baryon.
+
+It changed the [O III] quantities in every setup. In `xray_metallicity` it also
+changed the HMXB emissivity by 8.75e-4, and the IGM temperature, ionized
+fraction and 21-cm statistics by at most 1e-4. The default and stochasticity
+builds gave identical `xray_metallicity` summaries in strict mode.
+
 ### Historical review validation on 2026-10-23
 
 The local source used for this validation was based on

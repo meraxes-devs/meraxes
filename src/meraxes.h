@@ -56,7 +56,6 @@
 #define BOLTZMANN_SI (BOLTZMANN * 1e-7)    // [J/K]
 #define ELECTRON_MASS_SI 9.1093837015e-31  // [kg]
 #define PLANCK_SI (PLANCK * 1e-7)          // [J s], converted from PLANCK [erg s]
-#define ALPHA_HII 2.6e-13                  // [cm^3/s]
 #define Z_SUN 0.0134                       // solar metallicity fraction
 #define SN_PROGENITOR_MASS_MSUN 12.26      // [Msun]
 
@@ -727,16 +726,16 @@ typedef struct galaxy_t
   double Mcool;
   double StellarMass;
   double GrossStellarMass;
-  double GrossStellarMetals; //!< Cumulative birth metal mass, unrecycled; Pop II only with mini-halos.
+  double XrayWeightedGSM; //!< GrossStellarMass with each event weighted by its birth-Z X-ray factor; Pop II only.
   double Fesc;
   double FescWeightedGSM;
   double FescWeightedSfr;
   double MetalsStellarMass;
   double DiskScaleLength;
   double Sfr;
-  double StarFormingGasMetallicity; //!< Birth gas Z weighted by this snapshot's Sfr contributions; 0 if Sfr is 0.
-  double LOIII;                     //!< [O III] luminosity [1e40 erg/s]
-  double ionization_param;
+  double XrayWeightedSfr;  //!< Sfr with each event weighted by its birth-Z X-ray factor; Pop II only.
+  double LOIII;            //!< [O III] luminosity of this snapshot's star-formation events [1e40 erg/s]
+  double ionization_param; //!< Mean ionization parameter of those events, weighted by their LOIII [cm/s]
   double EjectedGas;
   double MetalsEjectedGas;
   double BlackHoleMass;
@@ -935,7 +934,7 @@ typedef struct mag_params_t
 typedef struct loiii_params_t
 {
   double oxygen_abundance_over_z_sun;
-  double excitation_rate;
+  double excitation_prefactor; //!< sqrt(2 pi hbar^4 / (k m_e^3)) [cm^3 s^-1 K^1/2]
   double branching_ratio;
 } loiii_params_t;
 

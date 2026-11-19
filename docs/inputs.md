@@ -190,25 +190,27 @@ supply `LXrayGal` for the configured normalization band and adopted spectrum.
 Enabling the metallicity option prints a reminder of this requirement and the
 selected band.
 
-The metallicity is recorded from the gas that forms the stars, before the
-associated stellar feedback changes the gas reservoirs. Instantaneous-SFR
-sources use `StarFormingGasMetallicity`, the SFR-weighted birth metallicity of
-the current star-formation events. When `Flag_InstantaneousSFR=0`, sources
-based on `GrossStellarMass` use
-`GrossStellarMetals / GrossStellarMass`, the cumulative formed-mass-weighted
-birth metallicity. These histories retain the abundance when cold gas is
-exhausted and are combined during mergers. The model applies the relation to
-one representative metallicity per galaxy; it does not resolve the age
+The relation is evaluated for each star-formation event, in situ or
+merger-driven, with the metallicity of the gas that forms the stars, before the
+associated stellar feedback changes the gas reservoirs. Each event adds its SFR
+times $q^{\alpha_Z}10^{-q_{\rm peak}(q-1)}$ to `XrayWeightedSfr` and its formed
+stellar mass times the same factor to `XrayWeightedGSM`; mergers add both.
+Instantaneous-SFR sources use `XrayWeightedSfr`. When
+`Flag_InstantaneousSFR=0`, sources based on `GrossStellarMass` use
+`XrayWeightedGSM`, the same sum over the galaxy's whole history. Because the
+relation is nonlinear in $Z$, this differs from applying it to an SFR-weighted
+mean metallicity whenever a galaxy forms stars from gas of different
+metallicities, for example a satellite merging in the
+same snapshot or a merger-driven burst. The model does not resolve the age
 dependence of individual X-ray binaries.
 In mini-halo builds, the galaxy relation tracks Pop. II star formation; Pop. III
 retains its separate `LXrayGalIII` prescription.
 
-The no-SFR-scatter option changes source strengths while preserving the
-abundance selected from the original galaxy. In instantaneous mode, a galaxy
-with zero physical SFR uses $Z=0$, including when the no-SFR treatment assigns a
-positive source. Cumulative birth abundance is used only when
-`Flag_InstantaneousSFR=0`; without a recorded cumulative abundance, the source
-uses the constant `LXrayGal` normalization.
+The no-SFR-scatter option changes source strengths while keeping each galaxy's
+mean metallicity factor, `XrayWeightedSfr / Sfr` or, when
+`Flag_InstantaneousSFR=0`, `XrayWeightedGSM / GrossStellarMass`. A galaxy
+without that physical source uses the plateau value, including when the no-SFR
+treatment assigns a positive source.
 
 `XrayScatterDex` applies only to the empirical, metallicity-independent
 X-ray-SFR relation (`Flag_UseXrayMetallicity=0`) and requires
@@ -350,7 +352,7 @@ $\exp[(\ln 10)^2\texttt{XrayScatterDex}^2/2]$.
 | `ReionSMParam_c` | `2.0` | Sobacchi ionization-history exponent. |
 | `ReionSMParam_d` | `2.5` | Sobacchi ionization-history exponent. |
 | `ReionTcool` | `1.0e4` | Atomic-cooling virial-temperature threshold, K. |
-| `ReionNionPhotPerBary` | `4000` | Ionizing photons per stellar baryon. |
+| `ReionNionPhotPerBary` | `4000` | Ionizing photons per stellar baryon (Pop. II); also sets the [O III] ionizing photon rate. |
 | `ReionSfrTimescale` | `0.5` | SFR-averaging interval in Hubble-time units when `Flag_InstantaneousSFR=0`. |
 | `TsHeatingFilterType` | `1` | Thermal-history filter selector: 0 real-space top-hat; 1 sharp-k; 2 Gaussian. |
 | `TsNumFilterSteps` | `40` | Number of thermal-history filtering steps. |

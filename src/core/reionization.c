@@ -1980,38 +1980,43 @@ void assign_Mvir_crit_to_galaxies(int ngals_in_slabs, int flag_feed)
   mlog("...done.", MLOG_CLOSE);
 }
 
-static double galaxy_xray_metallicity(const galaxy_t* source_view)
+// L_X/SFR of stars born from gas with metal mass fraction Z, in units of LXrayGal.
+// Fragos/Kaur shape in absolute metal mass fraction: 1 on the low-Z plateau, and
+// identically 1 when Flag_UseXrayMetallicity=0 (the empirical relation).
+// update_reservoirs_from_sf applies it to each star-formation event.
+double xray_metallicity_factor(double metallicity)
 {
-  // Instantaneous sources use this snapshot's birth abundance.
-  if (run_globals.params.Flag_InstantaneousSFR)
-    return source_view->Sfr > 0.0 ? source_view->StarFormingGasMetallicity : 0.0;
+  if (!run_globals.params.physics.Flag_UseXrayMetallicity)
+    return 1.0;
 
-  // Cumulative sources use the formed-mass-weighted birth abundance.
-  if (source_view->GrossStellarMass > 0.0 && source_view->GrossStellarMetals >= 0.0)
-    return calc_metallicity(source_view->GrossStellarMass, source_view->GrossStellarMetals);
-
-  // No recorded cumulative birth abundance.
-  return -1.0;
+  double exponent = run_globals.params.physics.XrayMetallicityExponent;
+  double q_peak = exponent / log(10.0);
+  double q = fmax(metallicity / (run_globals.params.physics.XrayMetallicityTurnover * q_peak), 1.0);
+  return pow(10.0, exponent * log10(q) - q_peak * (q - 1.0));
 }
 
 #if USE_STOCHASTICITY
 static galaxy_t xray_no_sfr_source_view(const galaxy_t* gal)
 {
   galaxy_t source_view = *gal;
-  double metallicity = galaxy_xray_metallicity(gal);
+  // Removing SFR scatter changes the source strength, not its mean metallicity factor.
+  // A galaxy without a physical source uses the plateau value.
+  double sfr_factor = gal->Sfr > 0.0 ? gal->XrayWeightedSfr / gal->Sfr : 1.0;
+  double gsm_factor = gal->GrossStellarMass > 0.0 ? gal->XrayWeightedGSM / gal->GrossStellarMass : 1.0;
   source_view.Sfr = gal->SfrNoScatter;
   source_view.GrossStellarMass = gal->GrossStellarMassNoScatter;
-  // Removing SFR scatter must change the source strength without changing its abundance.
-  source_view.StarFormingGasMetallicity = metallicity;
-  source_view.GrossStellarMetals = metallicity * source_view.GrossStellarMass;
+  source_view.XrayWeightedSfr = gal->SfrNoScatter * sfr_factor;
+  source_view.XrayWeightedGSM = gal->GrossStellarMassNoScatter * gsm_factor;
   return source_view;
 }
 #endif
 
 static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, double sfr_timescale, double scatter_dex)
 {
-  double source_sfr =
-    run_globals.params.Flag_InstantaneousSFR ? source_view->Sfr : source_view->GrossStellarMass / sfr_timescale;
+  // The sources already carry each event's metallicity factor, so LXrayGal is the
+  // constant L_X/SFR or, with Flag_UseXrayMetallicity=1, the low-Z plateau.
+  double source_sfr = run_globals.params.Flag_InstantaneousSFR ? source_view->XrayWeightedSfr
+                                                               : source_view->XrayWeightedGSM / sfr_timescale;
 
   source_sfr *= run_globals.units.UnitMass_in_g / SOLAR_MASS;
   source_sfr *= SEC_PER_YEAR / run_globals.units.UnitTime_in_s;
@@ -2021,33 +2026,14 @@ static double calculate_galaxy_xray_luminosity(const galaxy_t* source_view, doub
 
   double luminosity = run_globals.params.physics.LXrayGal * source_sfr / XRAY_LUMINOSITY_UNIT;
 
-  // Empirical X-ray-SFR relation: retain the original scatter prescription.
-  if (!run_globals.params.physics.Flag_UseXrayMetallicity) {
+  // Empirical X-ray-SFR relation only: the metallicity-dependent relation has no random residual.
 #if USE_STOCHASTICITY
-    if (scatter_dex > 0.0)
-      luminosity = apply_lognormal_scatter(luminosity, scatter_dex);
+  if (!run_globals.params.physics.Flag_UseXrayMetallicity && scatter_dex > 0.0)
+    luminosity = apply_lognormal_scatter(luminosity, scatter_dex);
 #else
-    (void)scatter_dex;
+  (void)scatter_dex;
 #endif
-    return luminosity;
-  }
-
-  // Metallicity-dependent relation: no additional random luminosity residual.
-  if (source_sfr <= 0.0)
-    return 0.0;
-
-  double metallicity = galaxy_xray_metallicity(source_view);
-  if (metallicity < 0.0)
-    return luminosity;
-
-  // Fragos/Kaur shape in absolute metal mass fraction.
-  // LXrayGal is the low-Z plateau in the selected normalization band.
-  double exponent = run_globals.params.physics.XrayMetallicityExponent;
-  double q_peak = exponent / log(10.0);
-  double q = fmax(metallicity / (run_globals.params.physics.XrayMetallicityTurnover * q_peak), 1.0);
-  double log_lx_sfr = log10(run_globals.params.physics.LXrayGal) + exponent * log10(q) - q_peak * (q - 1.0);
-
-  return pow(10.0, log_lx_sfr) * source_sfr / XRAY_LUMINOSITY_UNIT;
+  return luminosity;
 }
 
 void construct_baryon_grids(int snapshot, int local_ngals)

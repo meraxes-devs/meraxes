@@ -59,6 +59,7 @@ extern "C"
 #endif
 
   void update_galaxy_fesc_vals(struct galaxy_t* gal, double new_stars, int snapshot);
+  double xray_metallicity_factor(double metallicity);
   void set_quasar_fobs(void);
   void set_ReionEfficiency(void);
   void assign_slabs(void);

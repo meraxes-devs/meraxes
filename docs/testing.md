@@ -36,9 +36,9 @@ Without Criterion, only the two standalone drivers are built. Without Python, th
 | `test_parse_snaplist` | Parsing of snapshot lists such as `OutputSnapshots`. |
 | `test_cooling` | Cooling tables, cooling rates and the streaming-velocity cooling mass. |
 | `test_blackhole_feedback` | Black-hole emissivity, accretion time and luminosities. |
-| `test_emission_lines` | [O III] coefficients and luminosities. |
-| `test_xray_luminosity` | Deterministic metallicity-dependent luminosities, normalization, source units, birth abundances and empirical scatter with metallicity disabled. |
-| `test_star_forming_metallicity` | Birth-metallicity recording through star formation, feedback, mergers and snapshot reset. |
+| `test_emission_lines` | [O III] coefficients, the metallicity-dependent temperature and recombination coefficient, the luminosity normalization, per-event luminosities and the LOIII-weighted ionization parameter. |
+| `test_xray_luminosity` | Deterministic metallicity-dependent luminosities, normalization, source units, metallicity-weighted sources and empirical scatter with metallicity disabled. |
+| `test_star_forming_metallicity` | Per-event X-ray weights and [O III] luminosities from the star-forming gas metallicity through star formation, feedback, mergers and snapshot reset. |
 | `test_agn_xray_heating` | GAL, Pop. III and AGN spectral normalization, and disabled-band boundaries. |
 | `test_xray_params` | Rejecting mixed metallicity/scatter parameters and accepting separate modes. |
 | `main_cooling`, `main_blackhole_feedback` | Standalone drivers that print the same quantities for given inputs. |
@@ -53,16 +53,19 @@ integration for spectral indices 1.0, 1.7 and 2.2.
 ## Metallicity-dependent X-ray luminosity tests
 
 `test_xray_luminosity` covers deterministic metallicity-dependent luminosities,
-source units, the low-metallicity plateau, instantaneous and cumulative birth
-abundances, and the unchanged empirical scatter path with metallicity disabled.
+source units, the low-metallicity plateau, instantaneous and cumulative
+metallicity-weighted sources, and the unchanged empirical scatter path with
+metallicity disabled.
 `test_xray_params` checks that the mixed model is rejected and the separate
 models are accepted. The rejection test replaces MPI termination with process
 exit while retaining the production parameter validation.
 
 `test_agn_xray_heating` checks spectral normalization for GAL, Pop. III and both
 AGN bands, including disabled and zero-width bands. `test_star_forming_metallicity`
-checks the birth-abundance lifecycle, including a merger-induced burst and
-subsequent feedback with synthetic energy tables.
+checks the per-event X-ray weights and [O III] luminosities, including
+a merger-induced burst and subsequent feedback with synthetic energy tables, and
+that the weights equal `Sfr` and `GrossStellarMass` exactly when the
+metallicity dependence is disabled.
 
 Build and run these tests in all four combinations of `USE_STOCHASTICITY` and
 `USE_MINI_HALOS`:

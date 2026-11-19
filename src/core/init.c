@@ -266,8 +266,8 @@ void init_meraxes()
   // set the units
   set_units();
 
-  // Right now we assume T=1e4 K for collisional rate coefficients in LOIII.
-  set_OIII_coeffs(1e4);
+  // [O III] coefficients that do not depend on the HII-region temperature.
+  set_OIII_coeffs();
 
   // init the stdlib random number generator (for CN exceptions only)
   srand((unsigned)time(NULL));
