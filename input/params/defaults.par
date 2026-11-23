@@ -73,6 +73,8 @@ Flag_IncludeAGNLyAlpha     : 0               # if 1, add direct AGN UV continuum
 Flag_IncludeStarLya        : 1               # if 0, turn off direct stellar UV continuum Lya pumping -- default 1 preserves existing behaviour
 Flag_IncludeAGNLyaLine     : 0               # if 1, also add the AGN broad Lya emission line (emitted at resonance, absorbed locally). Needs Flag_IncludeAGNLyAlpha = 1
 AGNLyaLineEW               : 74.0            # rest-frame EW (Angstrom) of that Lya line; Lusso+15 Table 2 gives 74.0 A at 1216.1 A
+Flag_ShenBCScatter         : 0               # Shen+20 Table 1 1-sigma uncertainty of the bolometric corrections, applied as random per-AGN scatter: 0 off, 1 independent deviate per band, 2 one deviate shared by UV/hard/soft
+ShenBCScatterScale         : 1.0             # multiplier on that sigma; 1.0 = Shen+20 as published, 2.0 = a 2-sigma sensitivity test, 0 = off
 Flag_OutputXrayLF          : 0               # 0=off, 1=output X-ray luminosity function histograms
 XrayLF_MinLogL             : 38.0            # minimum log10(LX/erg/s) for X-ray LF histogram
 XrayLF_MaxLogL             : 46.0            # maximum log10(LX/erg/s) for X-ray LF histogram
@@ -328,6 +330,7 @@ Flag_OutputDustyLF         : 1      # Enable DustyLF calculation and output (0=d
 
 # Quasar UV Luminosity Function (QuasarLF) - uses QuasarMag weighted by DutyCycleAGN
 Flag_OutputQuasarLF        : 1      # Enable QuasarLF calculation and output (0=disabled, 1=enabled)
+QuasarLFBCNSigma           : 1.0    # QuasarLF_BC band: every AGN's UV bolometric correction shifted by -/+ this many Shen+20 sigma (<= 0 = no band)
 
 # OIII Luminosity Function (OIIILF) - uses log10(LOIII [erg/s])
 Flag_OutputOIIILF          : 1      # Enable OIIILF calculation and output (0=disabled, 1=enabled)

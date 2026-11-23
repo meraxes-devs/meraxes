@@ -34,6 +34,12 @@ static float current_mwmsa(galaxy_t* gal, int i_snap)
     return 0;
 }
 
+/* M1450 (AB) of a quasar UV luminosity in 1e10 Lsun, exactly as stored in QuasarMag; 999.9 = no AGN */
+static float quasar_mag_from_luv(double luv)
+{
+  return (luv > 0.0) ? (float)(-19.07395 - 2.5 * log10(luv)) : 999.9f;
+}
+
 void prepare_galaxy_for_output(galaxy_t gal, galaxy_output_t* galout, int i_snap)
 {
   run_units_t* units = &(run_globals.units);
@@ -78,7 +84,7 @@ void prepare_galaxy_for_output(galaxy_t gal, galaxy_output_t* galout, int i_snap
   galout->BlackHoleMass = (float)(gal.BlackHoleMass);
   galout->FescBH = (float)(gal.FescBH);
   galout->BHemissivity = (float)(gal.BHemissivity);
-  galout->QuasarMag = (gal.QuasarLuv > 0.0) ? (float)(-19.07395 - 2.5 * log10(gal.QuasarLuv)) : 999.9f;
+  galout->QuasarMag = quasar_mag_from_luv(gal.QuasarLuv);
   galout->QuasarLX = (float)gal.QuasarLX;
   galout->NHbin = gal.NHbin;
   galout->BHXrayEmissivity = (float)gal.BHXrayEmissivity_hard;
@@ -1184,6 +1190,10 @@ void create_master_file()
       sprintf(source_ds, "Snap%03d/QuasarLF", run_globals.ListOutputSnaps[i_out]);
       H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "QuasarLF", H5P_DEFAULT, H5P_DEFAULT);
     }
+    if (run_globals.params.Flag_OutputQuasarLF && H5LTfind_dataset(source_group_id, "QuasarLF_BC")) {
+      sprintf(source_ds, "Snap%03d/QuasarLF_BC", run_globals.ListOutputSnaps[i_out]);
+      H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "QuasarLF_BC", H5P_DEFAULT, H5P_DEFAULT);
+    }
 
     if (run_globals.params.Flag_OutputOIIILF && H5LTfind_dataset(source_group_id, "OIIILF")) {
       sprintf(source_ds, "Snap%03d/OIIILF", run_globals.ListOutputSnaps[i_out]);
@@ -1300,6 +1310,70 @@ static inline void save_walk_indices(hid_t file_id,
   }
 }
 
+/* Writes Snap###/QuasarLF_BC, the Shen+20 bolometric-correction band of QuasarLF, one row per QuasarLF bin:
+ *   center, density_lo, density_hi, density_bright, density_faint        [per Mpc^3 per mag, as QuasarLF]
+ * density_bright / density_faint = QuasarLF recomputed with every AGN's UV bolometric correction (Shen+20 Eq. 5)
+ * lowered / raised by QuasarLFBCNSigma x its Shen+20 1-sigma uncertainty (Eq. 4, Table 1) at that AGN's own Lbol,
+ * all AGN in the same direction; same AGN, duty-cycle x quasar_fobs weights and bins as QuasarLF.
+ * density_lo / density_hi = the band to shade: per bin, the min / max of QuasarLF, density_bright, density_faint.
+ * The counting (Bernoulli) error is not included here; it is column 2 of QuasarLF. */
+static void write_quasarlf_bc_band(hid_t file_id,
+                                   const char* group_name,
+                                   const distribution_function_t* mid,
+                                   const distribution_function_t* bright,
+                                   const distribution_function_t* faint)
+{
+  const char* name = "QuasarLF_BC";
+  const char* columns = "center,density_lo,density_hi,density_bright,density_faint";
+  const char* description = "QuasarLF band from the Shen+20 1-sigma uncertainty of the UV bolometric correction: "
+                            "every AGN's correction shifted by -/+ nsigma x sigma(Lbol) (Eq. 4, Table 1); lo/hi = "
+                            "envelope of QuasarLF and the two shifted LFs";
+  hsize_t dims[2];
+  double* data;
+  double norm;
+  double p_mid;
+  double p_bright;
+  double p_faint;
+  hid_t group_id;
+  int ii;
+
+  group_id = H5Gopen(file_id, group_name, H5P_DEFAULT);
+  if (group_id < 0) {
+    mlog_error("Failed to open group %s for writing %s", group_name, name);
+    return;
+  }
+
+  dims[0] = (hsize_t)mid->n_bins;
+  dims[1] = 5;
+  data = (double*)malloc(sizeof(double) * 5 * (size_t)mid->n_bins);
+  assert(data != NULL);
+  norm = mid->volume * mid->bin_width;
+  for (ii = 0; ii < mid->n_bins; ii++) {
+    p_mid = mid->bin_counts[ii] / norm;
+    p_bright = bright->bin_counts[ii] / norm;
+    p_faint = faint->bin_counts[ii] / norm;
+    data[ii * 5 + 0] = mid->bins[ii].center;
+    data[ii * 5 + 1] = fmin(p_mid, fmin(p_bright, p_faint));
+    data[ii * 5 + 2] = fmax(p_mid, fmax(p_bright, p_faint));
+    data[ii * 5 + 3] = p_bright;
+    data[ii * 5 + 4] = p_faint;
+  }
+
+  H5LTmake_dataset_double(group_id, name, 2, dims, data);
+  H5LTset_attribute_int(group_id, name, "n_bins", (int*)&mid->n_bins, 1);
+  H5LTset_attribute_double(group_id, name, "x_min", (double*)&mid->x_min, 1);
+  H5LTset_attribute_double(group_id, name, "x_max", (double*)&mid->x_max, 1);
+  H5LTset_attribute_double(group_id, name, "bin_width", (double*)&mid->bin_width, 1);
+  H5LTset_attribute_double(group_id, name, "volume", (double*)&mid->volume, 1);
+  H5LTset_attribute_double(group_id, name, "nsigma", &(run_globals.params.QuasarLFBCNSigma), 1);
+  H5LTset_attribute_string(group_id, name, "description", (char*)description);
+  H5LTset_attribute_string(group_id, name, "units", (char*)"per Mpc^3 per mag");
+  H5LTset_attribute_string(group_id, name, "columns", (char*)columns);
+
+  H5Gclose(group_id);
+  free(data);
+}
+
 static inline bool pass_write_check(galaxy_t* gal, bool flag_merger)
 {
   if (
@@ -1338,6 +1412,8 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
   // Distribution function structures
   distribution_function_t hmf, smf;
   distribution_function_t quasarlf;
+  distribution_function_t quasarlf_bcbright, quasarlf_bcfaint; /* QuasarLF_BC band */
+  int do_quasarlf_bc;
   distribution_function_t oiiilf;
   distribution_function_t xraylf;
   distribution_function_t xraylf_obs;
@@ -1499,6 +1575,23 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
             run_globals.params.UVLF_BinsPerMag,
             "Quasar UV Luminosity Function");
     quasarlf.volume = df_volume;
+  }
+
+  // QuasarLF_BC: QuasarLF with every UV bolometric correction shifted by -/+ QuasarLFBCNSigma x Shen+20 sigma
+  do_quasarlf_bc = run_globals.params.Flag_OutputQuasarLF && (run_globals.params.QuasarLFBCNSigma > 0.0);
+  if (do_quasarlf_bc) {
+    df_init(&quasarlf_bcbright,
+            run_globals.params.UVLF_MinMag,
+            run_globals.params.UVLF_MaxMag,
+            run_globals.params.UVLF_BinsPerMag,
+            "Quasar UV LF, UV bolometric corrections lowered by QuasarLFBCNSigma sigma");
+    quasarlf_bcbright.volume = df_volume;
+    df_init(&quasarlf_bcfaint,
+            run_globals.params.UVLF_MinMag,
+            run_globals.params.UVLF_MaxMag,
+            run_globals.params.UVLF_BinsPerMag,
+            "Quasar UV LF, UV bolometric corrections raised by QuasarLFBCNSigma sigma");
+    quasarlf_bcfaint.volume = df_volume;
   }
 
   if (run_globals.params.Flag_OutputOIIILF) {
@@ -1665,6 +1758,7 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
   double val, weight;
   int bin_idx;
   double lx_int_lin, lx_obs_lin;
+  float bc_mag; /* QuasarLF_BC */
 
   int buffer_count = 0;
   while (gal != NULL) {
@@ -1727,6 +1821,26 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
           if (bin_idx >= 0) {
             quasarlf.bin_counts[bin_idx] += weight;                    // Weight by duty cycle
             quasarlf.bin_variance[bin_idx] += weight * (1.0 - weight); // Bernoulli variance
+          }
+        }
+      }
+
+      // QuasarLF_BC: the same AGN and weights as QuasarLF, at their band-shifted magnitudes
+      if (do_quasarlf_bc && !output_buffer[buffer_count].GhostFlag) {
+        val = output_buffer[buffer_count].QuasarMag;
+        weight = output_buffer[buffer_count].DutyCycleAGN * run_globals.params.physics.quasar_fobs;
+        if (val < 900.0 && weight > 0.0 && isfinite(val)) {
+          bc_mag = quasar_mag_from_luv(gal->QuasarLuvBCBright);
+          bin_idx = df_bin_index(&quasarlf_bcbright, bc_mag);
+          if (bin_idx >= 0) {
+            quasarlf_bcbright.bin_counts[bin_idx] += weight;
+            quasarlf_bcbright.bin_variance[bin_idx] += weight * (1.0 - weight);
+          }
+          bc_mag = quasar_mag_from_luv(gal->QuasarLuvBCFaint);
+          bin_idx = df_bin_index(&quasarlf_bcfaint, bc_mag);
+          if (bin_idx >= 0) {
+            quasarlf_bcfaint.bin_counts[bin_idx] += weight;
+            quasarlf_bcfaint.bin_variance[bin_idx] += weight * (1.0 - weight);
           }
         }
       }
@@ -1870,8 +1984,18 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
   // QuasarLF - uses weighted MPI reduce and write
   if (run_globals.params.Flag_OutputQuasarLF) {
     df_mpi_reduce(&quasarlf, run_globals.mpi_rank, run_globals.mpi_size);
+    if (do_quasarlf_bc) {
+      df_mpi_reduce(&quasarlf_bcbright, run_globals.mpi_rank, run_globals.mpi_size);
+      df_mpi_reduce(&quasarlf_bcfaint, run_globals.mpi_rank, run_globals.mpi_size);
+    }
     if (run_globals.mpi_rank == 0) {
       df_write_hdf5(file_id, target_group, &quasarlf, "QuasarLF", "per Mpc^3 per mag");
+      if (do_quasarlf_bc)
+        write_quasarlf_bc_band(file_id, target_group, &quasarlf, &quasarlf_bcbright, &quasarlf_bcfaint);
+    }
+    if (do_quasarlf_bc) {
+      df_free(&quasarlf_bcbright);
+      df_free(&quasarlf_bcfaint);
     }
     df_free(&quasarlf);
   }

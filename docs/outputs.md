@@ -335,6 +335,7 @@ Each distribution is directly under its snapshot group. For example, `Snap010/SM
 | `OIIILF` | `Flag_OutputOIIILF` | Log positive intrinsic [O III] luminosity in erg/s; excludes ghosts. | cMpc⁻³ dex⁻¹ |
 | `OIIIDustyLF` | `CALC_MAGS`, `Flag_OutputOIIILF` | Log positive attenuated [O III] luminosity; requires rest-band attenuation; excludes ghosts. | cMpc⁻³ dex⁻¹ |
 | `QuasarLF` | `Flag_OutputQuasarLF` | Finite UV magnitude below 900; duty-cycle and visibility weighting; excludes ghosts. | cMpc⁻³ mag⁻¹ |
+| `QuasarLF_BC` | `Flag_OutputQuasarLF`, `QuasarLFBCNSigma` > 0 | Band of `QuasarLF` from the Shen+20 1-sigma uncertainty of the UV bolometric correction (Eq. 4, Table 1): the same AGN and weights with every correction lowered / raised by `QuasarLFBCNSigma` x sigma(Lbol) (Shen+20 Eq. 4). Columns: center, density_lo, density_hi (envelope to shade), density_bright, density_faint. Counting error not included (it is `QuasarLF` column 2). | cMpc⁻³ mag⁻¹ |
 | `XrayLF` | `Flag_OutputXrayLF` | Log positive intrinsic 2–10 keV luminosity in erg/s; duty-cycle weighting. | cMpc⁻³ dex⁻¹ |
 | `XrayLF_obs` | `Flag_OutputXrayLF` | Obscured 2–10 keV luminosity with the same weighting. | cMpc⁻³ dex⁻¹ |
 

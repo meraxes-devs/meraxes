@@ -2,6 +2,7 @@
 #include "core/misc_tools.h"
 #include "meraxes.h"
 #include <assert.h>
+#include <gsl/gsl_cdf.h>
 #include <math.h>
 
 /* Morrison & McCammon (1983) photoelectric absorption cross-section, cm^2/H atom. */
@@ -194,6 +195,90 @@ void get_nh_fracs(double LX_1e10Lsun, double redshift, double f_out[5])
     f_out[k] = f[k];
 }
 
+/* ------------------------------------------------------------------------
+ * Shen et al. (2020) 1-sigma uncertainty of the bolometric corrections.
+ *
+ * Their Table 1 gives, per band, (sigma1, sigma2, logL0, sigma3) describing the
+ * 1-sigma uncertainty of log10(Lbol/Lband) via their Eq. 4:
+ *
+ *   sigma(logLbol) = sigma2 + sigma1 * [ 1/2 + 1/2 erf( (logLbol - logL0)
+ *                                                       / (sqrt(2) sigma3) ) ]
+ *
+ * with logLbol in erg/s. The shape is a double plateau: sigma -> sigma2 at low
+ * Lbol and sigma -> sigma2 + sigma1 at high Lbol. For the hard band that is
+ * 0.066 -> 0.259 dex (sigma GROWS toward bright); for the UV it is
+ * 0.405 -> 0.033 dex (sigma SHRINKS toward bright, because at high luminosity
+ * the UV carries most of Lbol and its correction is tightly pinned).
+ *
+ * Two uses: Flag_ShenBCScatter applies it per accretion episode as a random
+ * lognormal factor on the correction; QuasarLFBCNSigma shifts every UV correction
+ * by -/+ n sigma to give the QuasarLF_BC band written next to QuasarLF.
+ * ------------------------------------------------------------------------ */
+typedef struct shen_disp_t
+{
+  double sigma1;
+  double sigma2;
+  double logL0;
+  double sigma3;
+} shen_disp_t;
+
+/* Shen et al. (2020), Table 1, last column. */
+static const shen_disp_t SHEN_DISP_UV = { -0.372, 0.405, 42.31, 2.310 };
+static const shen_disp_t SHEN_DISP_HARD = { 0.193, 0.066, 42.99, 1.883 };
+static const shen_disp_t SHEN_DISP_SOFT = { 0.080, 0.180, 44.16, 1.496 };
+
+/* Shen et al. (2020) Eq. 4, in dex. */
+static double shen20_bc_sigma(const shen_disp_t* d, double logLbol_ergs)
+{
+  return d->sigma2 + d->sigma1 * (0.5 + 0.5 * erf((logLbol_ergs - d->logL0) / (sqrt(2.0) * d->sigma3)));
+}
+
+/* One standard-normal deviate from the run's GSL generator. */
+static double shen20_draw_gaussian(void)
+{
+  return gsl_cdf_ugaussian_Pinv(gsl_rng_uniform(run_globals.random_generator));
+}
+
+/* Lognormal factor to MULTIPLY a bolometric correction by, given a standard
+ * normal deviate g. Returns 1.0 (no change) if the scatter is switched off. */
+static double shen20_bc_scatter_factor(const shen_disp_t* d, double logLbol_ergs, double g)
+{
+  double sigma_dex;
+
+  sigma_dex = run_globals.params.physics.ShenBCScatterScale * shen20_bc_sigma(d, logLbol_ergs);
+  if (sigma_dex <= 0.0)
+    return 1.0;
+
+  return pow(10.0, sigma_dex * g);
+}
+
+/* Bolometric luminosity [1e10 Lsun] of an accretion episode, at the MIDDLE of its accretion time. Used by
+ * calculate_BHemissivity and by the QuasarLF_BC band, so both see the same Lbol. */
+static double quasar_lbol(double BlackHoleMass, double accreted_mass)
+{
+  return sqrt(1.0 + accreted_mass / BlackHoleMass) * run_globals.params.physics.EddingtonRatio * BlackHoleMass /
+         run_globals.params.Hubble_h * LUMINOSITY_CONVERTOR;
+}
+
+/* QuasarLF_BC band (output only; nothing in the model uses it). Returns 10^(QuasarLFBCNSigma * sigma_UV), with
+ * sigma_UV the Shen+20 1-sigma uncertainty of the UV bolometric correction log10(Lbol/L_UV) (their Eq. 4 with the
+ * Table 1 parameters sigma1, sigma2, logL0, sigma3) at this episode's Lbol. Since
+ * L_UV = Lbol / kb_uv, L_UV times this factor is the episode with kb_uv lowered by QuasarLFBCNSigma sigma (brighter)
+ * and L_UV divided by it the episode with kb_uv raised by the same amount (fainter). 1.0 when the band is off. */
+static double quasar_uv_bc_band_factor(double BlackHoleMass, double accreted_mass)
+{
+  double Lbol;
+  double nsigma;
+
+  nsigma = run_globals.params.QuasarLFBCNSigma;
+  if ((!run_globals.params.Flag_OutputQuasarLF) || (nsigma <= 0.0) || (BlackHoleMass <= 0.0))
+    return 1.0;
+  Lbol = quasar_lbol(BlackHoleMass, accreted_mass);
+  if (Lbol <= 0.0)
+    return 1.0;
+  return pow(10.0, nsigma * shen20_bc_sigma(&SHEN_DISP_UV, log10(Lbol) + 10.0 + LOG_10_SOLAR_LUM));
+}
+
 void calculate_BHemissivity(double BlackHoleMass,
                             double accreted_mass,
                             double* emissivity,
@@ -206,18 +291,37 @@ void calculate_BHemissivity(double BlackHoleMass,
   double kb_uv;
   double kb_hard;
   double kb_soft;
+  double logLbol_ergs;
+  double g_uv;
+  double g_hard;
+  double g_soft;
+  int shared_deviate;
   physics_params_t* physics = &(run_globals.params.physics);
 
   // Compute accretion_time directly in internal units using pre-computed EddingtonTimescale
   *accretion_time =
     log1p(accreted_mass / BlackHoleMass) * run_globals.EddingtonTimescale * ETA / physics->EddingtonRatio;
   // Bolometric luminosity in 1e10 Lsun at the MIDDLE of accretion time
-  Lbol = sqrt(1.0 + accreted_mass / BlackHoleMass) * physics->EddingtonRatio * BlackHoleMass /
-         run_globals.params.Hubble_h * LUMINOSITY_CONVERTOR;
+  Lbol = quasar_lbol(BlackHoleMass, accreted_mass);
   // bolometric correction from Shen et al. 2020
   kb_uv = 1.862 * pow(Lbol, -0.361) + 4.870 * pow(Lbol, -0.0063);
   kb_hard = 4.073 * pow(Lbol, -0.026) + 12.60 * pow(Lbol, 0.278);
   kb_soft = 5.712 * pow(Lbol, -0.026) + 17.67 * pow(Lbol, 0.278);
+
+  /* Optional Shen+20 Table 1 1-sigma uncertainty applied as random scatter. Off by default,
+   * so the fiducial model (and the unit tests) are bit-for-bit unchanged. */
+  if ((physics->Flag_ShenBCScatter != 0) && (Lbol > 0.0)) {
+    /* Shen's sigma is a function of Lbol in erg/s; Lbol here is in 1e10 Lsun.
+     * Same conversion as _NH_distribution uses for LX above. */
+    logLbol_ergs = log10(Lbol) + 10.0 + LOG_10_SOLAR_LUM;
+    shared_deviate = (physics->Flag_ShenBCScatter == 2);
+    g_uv = shen20_draw_gaussian();
+    g_hard = shared_deviate ? g_uv : shen20_draw_gaussian();
+    g_soft = shared_deviate ? g_uv : shen20_draw_gaussian();
+    kb_uv *= shen20_bc_scatter_factor(&SHEN_DISP_UV, logLbol_ergs, g_uv);
+    kb_hard *= shen20_bc_scatter_factor(&SHEN_DISP_HARD, logLbol_ergs, g_hard);
+    kb_soft *= shen20_bc_scatter_factor(&SHEN_DISP_SOFT, logLbol_ergs, g_soft);
+  }
 
   // Return UV luminosity LUV = Lbol/kb in 1e10 Lsun
   *quasar_luv = Lbol / kb_uv;
@@ -370,6 +474,7 @@ void previous_merger_driven_BH_growth(galaxy_t* gal, int snapshot)
   double accreted_mass;
   double BHemissivity, accretion_time, quasar_luv;
   double quasar_lx, quasar_lx_soft;
+  double bc_band_factor; /* QuasarLF_BC band, output only */
   double obs_fraction_hard;
   double obs_fraction_soft;
   int NH_bin;
@@ -415,6 +520,8 @@ void previous_merger_driven_BH_growth(galaxy_t* gal, int snapshot)
     // N_gamma,q * N_bh; later 1e60*BHemissivity * PROTONMASS/1e10/SOLAR_MASS will be N_gamma,q * M_bh
     calculate_BHemissivity(
       gal->BlackHoleMass, accreted_mass, &BHemissivity, &accretion_time, &quasar_luv, &quasar_lx, &quasar_lx_soft);
+    /* same BlackHoleMass as above, i.e. before this episode's growth is added */
+    bc_band_factor = quasar_uv_bc_band_factor(gal->BlackHoleMass, accreted_mass);
     apply_xray_obscuration(quasar_lx, run_globals.ZZ[snapshot], &obs_fraction_hard, &obs_fraction_soft, &NH_bin);
 
     gal->DutyCycleAGN = (accretion_time > 1e-30) ? (accretion_time / dt) : 0.0;
@@ -438,6 +545,8 @@ void previous_merger_driven_BH_growth(galaxy_t* gal, int snapshot)
 
     gal->BHemissivity += BHemissivity;
     gal->QuasarLuv += quasar_luv;
+    gal->QuasarLuvBCBright += quasar_luv * bc_band_factor;
+    gal->QuasarLuvBCFaint += quasar_luv / bc_band_factor;
     gal->QuasarLX += quasar_lx;
     gal->NHbin = NH_bin; /* -1 if no AGN activity this step */
     gal->BHXrayEmissivity_hard += quasar_lx * obs_fraction_hard;

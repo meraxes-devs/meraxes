@@ -199,6 +199,18 @@ typedef struct physics_params_t
                                * multiplier is DERIVED from this and SpecIndexUVAGNSoft. */
   int Flag_IncludeStarLya;    /* 0=off, 1=direct stellar UV continuum Lya pumping (Wouthuysen-Field) */
 
+  /* Shen et al. (2020) Table 1 1-sigma uncertainty of the bolometric corrections
+   * (their Eq. 4; Sec. 3.1.4 derives it from 1e5 sampled quasar SEDs). With this
+   * flag it is applied as a random lognormal factor on kb_uv/kb_hard/kb_soft,
+   * drawn once per accretion episode.
+   *   0 = off (default; corrections stay deterministic, fiducial behaviour)
+   *   1 = on, an independent deviate per band
+   *   2 = on, one deviate shared by UV/hard/soft (bands perfectly correlated)
+   * A single-band luminosity function is statistically identical for 1 and 2;
+   * the choice only matters for per-object band ratios such as L_X/L_UV. */
+  int Flag_ShenBCScatter;
+  double ShenBCScatterScale; /* multiplier on sigma: 1.0 = Shen+20, 2.0 = a 2-sigma test, 0 = off */
+
   double ReionMaxHeatingRedshift;
 
   double ReionGammaHaloBias;
@@ -380,6 +392,8 @@ typedef struct run_params_t
   int UVLF_BinsPerMag;     //!< Number of UVLF bins per magnitude (linear bins)
   int Flag_OutputDustyLF;  //!< Flag to enable/disable Dusty UV Luminosity Function output
   int Flag_OutputQuasarLF; //!< Flag to enable/disable Quasar UV Luminosity Function output
+  double QuasarLFBCNSigma; //!< Half-width, in Shen+20 sigma, of the UV bolometric-correction band written next to
+                           //!< QuasarLF (Snap###/QuasarLF_BC); <= 0 = no band. Default 1.0. Output only.
   int Flag_OutputOIIILF;   //!< Flag to enable/disable OIII Luminosity Function output
   double OIIILF_MinLogL;   //!< Minimum log10(LOIII [erg/s]) for OIIILF bins
   double OIIILF_MaxLogL;   //!< Maximum log10(LOIII [erg/s]) for OIIILF bins
@@ -755,10 +769,14 @@ typedef struct galaxy_t
   double BlackHoleMass;
   double FescBH;
   double BHemissivity;
-  double QuasarLuv; //!< UV luminosity LUV of quasar (1e10 Lsun, summable for mergers)
-  double QuasarLX;  //!< Intrinsic hard X-ray luminosity [1e10 Lsun]; 0 if inactive
-  int NHbin;        //!< Which of the 5 NH bins this snapshot's stochastic draw landed in (0-4; logNH
-                    //!< 20-21/21-22/22-23/23-24/24-26 CTK), or -1 if no AGN.
+  double QuasarLuv;         //!< UV luminosity LUV of quasar (1e10 Lsun, summable for mergers)
+  double QuasarLuvBCBright; //!< QuasarLuv with each UV bolometric correction lowered by QuasarLFBCNSigma x Shen+20
+                            //!< sigma (brighter); feeds QuasarLF_BC only [1e10 Lsun]
+  double QuasarLuvBCFaint;  //!< QuasarLuv with each UV bolometric correction raised by QuasarLFBCNSigma x Shen+20
+                            //!< sigma (fainter); feeds QuasarLF_BC only [1e10 Lsun]
+  double QuasarLX;          //!< Intrinsic hard X-ray luminosity [1e10 Lsun]; 0 if inactive
+  int NHbin;                //!< Which of the 5 NH bins this snapshot's stochastic draw landed in (0-4; logNH
+                            //!< 20-21/21-22/22-23/23-24/24-26 CTK), or -1 if no AGN.
   //!< This (bin, luminosity) pair replaces the old QuasarLX_obs0-4/NHfrac0-4 fields (5 mostly-zero doubles
   //!< each, every galaxy).
   double BHXrayEmissivity_hard; //!< Observed hard X-ray emissivity [1e10 Lsun], obscuration-weighted

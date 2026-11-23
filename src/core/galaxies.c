@@ -65,6 +65,8 @@ galaxy_t* new_galaxy(int snapshot, unsigned long halo_ID)
   gal->FescBH = 1.0;
   gal->BHemissivity = 0.0;
   gal->QuasarLuv = 0.0;
+  gal->QuasarLuvBCBright = 0.0;
+  gal->QuasarLuvBCFaint = 0.0;
   gal->QuasarLX = 0.0;
   gal->NHbin = -1;
   gal->BHXrayEmissivity_hard = 0.0;
@@ -209,6 +211,8 @@ void reset_galaxy_properties(galaxy_t* gal, int snapshot)
   // over the galaxy's history (initialised to 0 in new_galaxy).
   gal->BHemissivity = 0.0;
   gal->QuasarLuv = 0.0;
+  gal->QuasarLuvBCBright = 0.0;
+  gal->QuasarLuvBCFaint = 0.0;
   gal->QuasarLX = 0.0;
   gal->NHbin = -1;
   gal->BHXrayEmissivity_hard = 0.0;

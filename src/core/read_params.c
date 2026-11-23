@@ -586,6 +586,18 @@ void read_parameter_file(char* fname, int mode)
       params_type[n_param++] = PARAM_TYPE_INT;
       (run_params->physics).Flag_IncludeAGNLyaLine = 0;
 
+      strncpy(params_tag[n_param], "Flag_ShenBCScatter", tag_length);
+      params_addr[n_param] = &(run_params->physics.Flag_ShenBCScatter);
+      required_tag[n_param] = 0; /* optional: absent -> 0 (deterministic corrections) */
+      params_type[n_param++] = PARAM_TYPE_INT;
+      (run_params->physics).Flag_ShenBCScatter = 0;
+
+      strncpy(params_tag[n_param], "ShenBCScatterScale", tag_length);
+      params_addr[n_param] = &(run_params->physics.ShenBCScatterScale);
+      required_tag[n_param] = 0; /* optional: absent -> 1.0 (Shen+20 sigma as published) */
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      (run_params->physics).ShenBCScatterScale = 1.0;
+
       strncpy(params_tag[n_param], "Flag_IncludeStarLya", tag_length);
       params_addr[n_param] = &(run_params->physics.Flag_IncludeStarLya);
       required_tag[n_param] = 0; /* optional: absent -> 1 (previous behaviour) */
@@ -1570,6 +1582,12 @@ void read_parameter_file(char* fname, int mode)
       params_addr[n_param] = &(run_params->Flag_OutputQuasarLF);
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "QuasarLFBCNSigma", tag_length);
+      params_addr[n_param] = &(run_params->QuasarLFBCNSigma);
+      required_tag[n_param] = 0; /* optional: absent -> 1.0 (1-sigma Shen+20 band); <= 0 -> no QuasarLF_BC */
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      run_params->QuasarLFBCNSigma = 1.0;
 
       strncpy(params_tag[n_param], "Flag_OutputOIIILF", tag_length);
       params_addr[n_param] = &(run_params->Flag_OutputOIIILF);
