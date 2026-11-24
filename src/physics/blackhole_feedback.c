@@ -208,16 +208,20 @@ void get_nh_bin_edges(double lo[5], double hi[5])
 }
 
 /* ------------------------------------------------------------------------
- * Shen et al. (2020) Sec. 3.2: dust extinction of the AGN UV light, used for
- * the QuasarLF_dust output (save.c). Each AGN's N_H is converted to a dust
+ * Shen et al. (2020) Sec. 3.2: dust extinction of the AGN light, used instead
+ * of the quasar_open_angle cone when Flag_AGNDustExtinction = 1 (UV LF in
+ * save.c, ionising photons below) and for the QuasarLF_dust output. Each
+ * AGN's N_H is converted to a dust
  * column with a dust-to-gas ratio: locally A_B / N_H = 8.47e-22 mag cm^2
  * (following Hopkins et al. 2007), scaled with redshift like the gas-phase
  * metallicity fit of Ma et al. (2016) at fixed stellar mass,
  *   DGR(z) / DGR(0) = 10^(0.93 [exp(-0.43 z) - 1])   (0.15 at z = 5, 0.13 at z = 7),
  * and a Milky-Way extinction curve (Pei 1992) for the wavelength dependence:
  *   A_1450 = (A_B / N_H) * N_H * (A_1450 / A_B) * DGR(z) / DGR(0),   A_1450 / A_B = 2.09.
+ * The ionising photons are dimmed at the Lyman limit, A_912 / A_B = 4.04.
  * ------------------------------------------------------------------------ */
-#define SHEN20_AB_PER_NH 8.47e-22 /* A_B / N_H [mag cm^2], local value */
+#define SHEN20_AB_PER_NH 8.47e-22   /* A_B / N_H [mag cm^2], local value */
+#define SHEN20_LAMBDA_ION_UM 0.0912 /* Lyman limit [micron]: where the ionising photons are dimmed */
 
 /* Pei (1992) ApJ 395, 130, Table 4, Milky Way: xi(lambda) = A_lambda / A_B, lambda in micron. */
 static double pei92_mw_xi(double lambda_um)
@@ -235,13 +239,19 @@ static double pei92_mw_xi(double lambda_um)
   return xi;
 }
 
+/* Ma et al. (2016) gas-metallicity scaling of the dust-to-gas ratio at fixed stellar mass, DGR(z) / DGR(0). */
+static double shen20_dgr_ratio(double redshift)
+{
+  return pow(10.0, 0.93 * (exp(-0.43 * redshift) - 1.0));
+}
+
 double shen20_a1450_per_nh(double redshift, double* ab_per_nh, double* a1450_per_ab, double* dgr_ratio)
 {
   double r_curve;
   double r_dgr;
 
   r_curve = pei92_mw_xi(0.145) / pei92_mw_xi(0.44); /* 1450 A relative to the B band (4400 A) */
-  r_dgr = pow(10.0, 0.93 * (exp(-0.43 * redshift) - 1.0));
+  r_dgr = shen20_dgr_ratio(redshift);
   if (ab_per_nh != NULL)
     *ab_per_nh = SHEN20_AB_PER_NH;
   if (a1450_per_ab != NULL)
@@ -249,6 +259,36 @@ double shen20_a1450_per_nh(double redshift, double* ab_per_nh, double* a1450_per
   if (dgr_ratio != NULL)
     *dgr_ratio = r_dgr;
   return SHEN20_AB_PER_NH * r_curve * r_dgr;
+}
+
+/* Fraction of an AGN's ionising photons that escape when Flag_AGNDustExtinction = 1 (instead of the cone's
+ * quasar_fobs): the Shen+20 dust transmission at the Lyman limit, 10^(-0.4 A_912) with A_912 / A_B = 4.04 (Pei92 MW
+ * curve), averaged evenly in log N_H over the AGN's N_H bin (the bin drawn for its X-ray obscuration). Absorption by
+ * the gas itself is not included. Tabulated once per redshift. */
+static double agn_dust_escape_ionising(int nh_bin, double redshift)
+{
+  static double table_z = -1.0;
+  static double table[5];
+  double a_per_nh;
+  double sum;
+  int k;
+  int j;
+
+  if ((nh_bin < 0) || (nh_bin > 4))
+    return 1.0; /* no N_H bin: this episode emitted nothing (L_X <= 0) */
+  if (redshift != table_z) {
+    a_per_nh = SHEN20_AB_PER_NH * pei92_mw_xi(SHEN20_LAMBDA_ION_UM) / pei92_mw_xi(0.44) * shen20_dgr_ratio(redshift);
+    for (k = 0; k < 5; k++) {
+      sum = 0.0;
+      for (j = 0; j < AGN_DUST_NH_SAMPLES; j++)
+        sum += pow(10.0,
+                   -0.4 * a_per_nh *
+                     pow(10.0, LOG_NH_LO[k] + (j + 0.5) * (LOG_NH_HI[k] - LOG_NH_LO[k]) / AGN_DUST_NH_SAMPLES));
+      table[k] = sum / AGN_DUST_NH_SAMPLES;
+    }
+    table_z = redshift;
+  }
+  return table[nh_bin];
 }
 
 /* ------------------------------------------------------------------------
@@ -579,6 +619,10 @@ void previous_merger_driven_BH_growth(galaxy_t* gal, int snapshot)
     /* same BlackHoleMass as above, i.e. before this episode's growth is added */
     bc_band_factor = quasar_uv_bc_band_factor(gal->BlackHoleMass, accreted_mass);
     apply_xray_obscuration(quasar_lx, run_globals.ZZ[snapshot], &obs_fraction_hard, &obs_fraction_soft, &NH_bin);
+    /* Flag_AGNDustExtinction = 1: the AGN's own Shen+20 dust, not the quasar_open_angle cone, sets how many of its
+     * ionising photons escape (quasar_fobs = 1 then, so BHemissivity above is the unobscured value) */
+    if (run_globals.params.physics.Flag_AGNDustExtinction)
+      BHemissivity *= agn_dust_escape_ionising(NH_bin, run_globals.ZZ[snapshot]);
 
     gal->DutyCycleAGN = (accretion_time > 1e-30) ? (accretion_time / dt) : 0.0;
     CLAMP_0_1(gal->DutyCycleAGN);

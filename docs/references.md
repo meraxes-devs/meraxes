@@ -102,6 +102,15 @@
 (ref-shen2020)=
 **Shen et al. (2020).** *The bolometric quasar luminosity function at z = 0–7.* MNRAS, 495, 3252–3275. [doi:10.1093/mnras/staa1381](https://doi.org/10.1093/mnras/staa1381).
 
+(ref-hopkins2007)=
+**Hopkins, Richards & Hernquist (2007).** *An Observational Determination of the Bolometric Quasar Luminosity Function.* ApJ, 654, 731–753. [doi:10.1086/509629](https://doi.org/10.1086/509629).
+
+(ref-pei1992)=
+**Pei (1992).** *Interstellar dust from the Milky Way to the Magellanic Clouds.* ApJ, 395, 130. [doi:10.1086/171637](https://doi.org/10.1086/171637).
+
+(ref-ma2016)=
+**Ma et al. (2016).** *The origin and evolution of the galaxy mass–metallicity relation.* MNRAS, 456, 2140–2156. [doi:10.1093/mnras/stv2659](https://doi.org/10.1093/mnras/stv2659).
+
 ## Reionization and the 21-cm signal
 
 (ref-mesinger2011)=

@@ -302,7 +302,8 @@ $\exp[(\ln 10)^2\texttt{XrayScatterDex}^2/2]$.
 | `BlackHoleSeed` | `1e-7` | BH seed mass in internal mass units. |
 | `BlackHoleMassLimitReion` | `-1` | BH mass cutoff for ionizing sources; negative disables the cutoff. |
 | `quasar_mode_scaling` | `0.0` | Redshift scaling of quasar-mode BH growth. |
-| `quasar_open_angle` | `80.0` | Quasar opening angle, degrees. |
+| `quasar_open_angle` | `80.0` | Quasar opening angle, degrees. Not used when `Flag_AGNDustExtinction` = 1. |
+| `Flag_AGNDustExtinction` | `0` | AGN obscuration: 0 = the cone of `quasar_open_angle`; 1 = the Shen+20 dust of each AGN (its N_H times a dust-to-gas ratio) for the quasar UV luminosity function and the escaping ionising photons, see [Luminosity and escaping photons](formulas/galaxies.md#luminosity-and-escaping-photons). |
 
 </details>
 

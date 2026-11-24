@@ -217,6 +217,7 @@ BlackHoleSeed             : 1e-7
 BlackHoleMassLimitReion   : -1
 quasar_mode_scaling       : 0.0
 quasar_open_angle         : 80.0
+Flag_AGNDustExtinction    : 0     # AGN obscuration: 0 = the quasar_open_angle cone; 1 = the Shen+20 dust of each AGN (N_H x dust-to-gas ratio) for the UV LF and the ionising photons, quasar_open_angle not used
 
 
 #------------------------

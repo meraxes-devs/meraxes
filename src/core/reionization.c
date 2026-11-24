@@ -288,6 +288,15 @@ void set_quasar_fobs()
 {
   physics_params_t* params = &(run_globals.params.physics);
 
+  if (params->Flag_AGNDustExtinction) {
+    /* Shen+20 dust instead of the cone: quasar_open_angle is not used. Every AGN is counted in full and dimmed by
+     * its own dust in the quasar UV LF (save.c), and its ionising photons are reduced by the same dust at 912 A
+     * (blackhole_feedback.c). */
+    params->quasar_fobs = 1.0;
+    mlog("AGN obscuration: Shen+20 dust extinction (Flag_AGNDustExtinction = 1); quasar_open_angle is not used",
+         MLOG_MESG | MLOG_FLUSH);
+    return;
+  }
   params->quasar_fobs = 1. - cos(params->quasar_open_angle / 180. * M_PI / 2.);
   mlog("Quasar radiation open angle is set to be %g, corresponding to an obscure fraction of %g",
        MLOG_MESG | MLOG_FLUSH,

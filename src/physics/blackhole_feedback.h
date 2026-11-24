@@ -3,6 +3,10 @@
 
 #include "meraxes.h"
 
+/* Shen+20 dust (Flag_AGNDustExtinction and the QuasarLF_dust output): each AGN's N_H bin is sampled evenly in
+ * log N_H at this many values */
+#define AGN_DUST_NH_SAMPLES 20
+
 #define ETA 0.06
 // standard efficiency, 6% accreted mass is radiated
 

@@ -10,6 +10,11 @@ static void check_problem_params(run_params_t* run_params)
     mlog_error("The current version of the code only works if NSteps = 1. Sorry! Exiting...");
     ABORT(EXIT_FAILURE);
   }
+  if ((run_params->physics.Flag_AGNDustExtinction != 0) && (run_params->physics.Flag_AGNDustExtinction != 1)) {
+    mlog_error("Flag_AGNDustExtinction = %d: use 0 (the quasar_open_angle cone) or 1 (the Shen+20 dust).",
+               run_params->physics.Flag_AGNDustExtinction);
+    ABORT(EXIT_FAILURE);
+  }
   if (run_params->physics.Flag_UseXrayMetallicity && run_params->physics.XrayScatterDex > ABS_TOL) {
     mlog_error("Flag_UseXrayMetallicity and XrayScatterDex cannot be enabled together.");
     ABORT(EXIT_FAILURE);
@@ -1000,6 +1005,12 @@ void read_parameter_file(char* fname, int mode)
       params_addr[n_param] = &(run_params->physics).quasar_open_angle;
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "Flag_AGNDustExtinction", tag_length);
+      params_addr[n_param] = &(run_params->physics).Flag_AGNDustExtinction;
+      required_tag[n_param] = 0; /* optional: absent -> 0 (the quasar_open_angle cone) */
+      params_type[n_param++] = PARAM_TYPE_INT;
+      (run_params->physics).Flag_AGNDustExtinction = 0;
 
       strncpy(params_tag[n_param], "ReionSobacchi_Zre", tag_length);
       params_addr[n_param] = &(run_params->physics).ReionSobacchi_Zre;

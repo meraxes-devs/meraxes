@@ -113,6 +113,9 @@ typedef struct physics_params_t
   double quasar_mode_scaling;
   double quasar_open_angle;
   double quasar_fobs;
+  /* AGN obscuration: 0 = the quasar_open_angle cone (quasar_fobs) for every AGN; 1 = the Shen+20 dust of each
+   * AGN (its N_H x a dust-to-gas ratio) for the UV LF and the ionising photons, quasar_open_angle not used */
+  int Flag_AGNDustExtinction;
 
   double SfCriticalSDNorm_III;
   double SfEfficiency_III;
