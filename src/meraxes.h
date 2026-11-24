@@ -402,6 +402,9 @@ typedef struct run_params_t
   double XrayLF_MinLogL;   //!< Minimum log10(LX [erg/s]) for XrayLF bins (e.g. 40.0)
   double XrayLF_MaxLogL;   //!< Maximum log10(LX [erg/s]) for XrayLF bins (e.g. 48.0)
   int XrayLF_BinsPerDex;   //!< Number of XrayLF bins per dex
+  //! 1 = also write Snap###/QuasarLF_dust, the AGN UV LF with the Shen+20 dust extinction (N_H x dust-to-gas
+  //! ratio) instead of the quasar_fobs cone. Default 0. Output only.
+  int Flag_OutputQuasarLFDust;
   int FlagIgnoreProgIndex;
 } run_params_t;
 

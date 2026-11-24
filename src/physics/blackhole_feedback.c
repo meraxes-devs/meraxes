@@ -61,6 +61,9 @@ static double xray_transmission_at_NH(double log_NH, double E_min_keV, double E_
 
 /* log-midpoint NH for each of the 5 bins */
 static const double LOG_NH_MID[5] = { 20.5, 21.5, 22.5, 23.5, 25.0 };
+/* edges of the 5 bins in log10(N_H / cm^-2); the last (Compton-thick) bin spans 2 dex */
+static const double LOG_NH_LO[5] = { 20.0, 21.0, 22.0, 23.0, 24.0 };
+static const double LOG_NH_HI[5] = { 21.0, 22.0, 23.0, 24.0, 26.0 };
 static double s_T_hard[5];
 static double s_T_soft[5];
 static int s_T_init = 0;
@@ -193,6 +196,59 @@ void get_nh_fracs(double LX_1e10Lsun, double redshift, double f_out[5])
   _NH_distribution(LX_log_ergs, redshift, f);
   for (k = 0; k < 5; k++)
     f_out[k] = f[k];
+}
+
+void get_nh_bin_edges(double lo[5], double hi[5])
+{
+  int k;
+  for (k = 0; k < 5; k++) {
+    lo[k] = LOG_NH_LO[k];
+    hi[k] = LOG_NH_HI[k];
+  }
+}
+
+/* ------------------------------------------------------------------------
+ * Shen et al. (2020) Sec. 3.2: dust extinction of the AGN UV light, used for
+ * the QuasarLF_dust output (save.c). Each AGN's N_H is converted to a dust
+ * column with a dust-to-gas ratio: locally A_B / N_H = 8.47e-22 mag cm^2
+ * (following Hopkins et al. 2007), scaled with redshift like the gas-phase
+ * metallicity fit of Ma et al. (2016) at fixed stellar mass,
+ *   DGR(z) / DGR(0) = 10^(0.93 [exp(-0.43 z) - 1])   (0.15 at z = 5, 0.13 at z = 7),
+ * and a Milky-Way extinction curve (Pei 1992) for the wavelength dependence:
+ *   A_1450 = (A_B / N_H) * N_H * (A_1450 / A_B) * DGR(z) / DGR(0),   A_1450 / A_B = 2.09.
+ * ------------------------------------------------------------------------ */
+#define SHEN20_AB_PER_NH 8.47e-22 /* A_B / N_H [mag cm^2], local value */
+
+/* Pei (1992) ApJ 395, 130, Table 4, Milky Way: xi(lambda) = A_lambda / A_B, lambda in micron. */
+static double pei92_mw_xi(double lambda_um)
+{
+  static const double a[6] = { 165.0, 14.0, 0.045, 0.002, 0.002, 0.012 };
+  static const double l[6] = { 0.047, 0.08, 0.22, 9.7, 18.0, 25.0 };
+  static const double b[6] = { 90.0, 4.0, -1.95, -1.95, -1.80, 0.0 };
+  static const double n[6] = { 2.0, 6.5, 2.0, 2.0, 2.0, 2.0 };
+  double xi;
+  int i;
+
+  xi = 0.0;
+  for (i = 0; i < 6; i++)
+    xi += a[i] / (pow(lambda_um / l[i], n[i]) + pow(l[i] / lambda_um, n[i]) + b[i]);
+  return xi;
+}
+
+double shen20_a1450_per_nh(double redshift, double* ab_per_nh, double* a1450_per_ab, double* dgr_ratio)
+{
+  double r_curve;
+  double r_dgr;
+
+  r_curve = pei92_mw_xi(0.145) / pei92_mw_xi(0.44); /* 1450 A relative to the B band (4400 A) */
+  r_dgr = pow(10.0, 0.93 * (exp(-0.43 * redshift) - 1.0));
+  if (ab_per_nh != NULL)
+    *ab_per_nh = SHEN20_AB_PER_NH;
+  if (a1450_per_ab != NULL)
+    *a1450_per_ab = r_curve;
+  if (dgr_ratio != NULL)
+    *dgr_ratio = r_dgr;
+  return SHEN20_AB_PER_NH * r_curve * r_dgr;
 }
 
 /* ------------------------------------------------------------------------

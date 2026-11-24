@@ -424,6 +424,7 @@ and [source normalization](formulas/igm.md#source-normalization).
 | `UVLF_BinsPerMag` | `2` | UV magnitude bins per magnitude. |
 | `Flag_OutputDustyLF` | `1` | Write the dust-attenuated UV luminosity function; requires CALC_MAGS. |
 | `Flag_OutputQuasarLF` | `1` | Write the quasar UV luminosity function with AGN duty-cycle weighting. |
+| `Flag_OutputQuasarLFDust` | `0` | Also write `QuasarLF_dust`, the quasar UV luminosity function with the Shen+20 dust extinction (each AGN's N_H times a dust-to-gas ratio) instead of the visibility cone. Output only. |
 | `QuasarLFBCNSigma` | `1.0` | Half-width, in Shen+20 sigma, of the bolometric-correction band `QuasarLF_BC` written next to `QuasarLF`; `<= 0` writes no band. Output only. |
 | `Flag_OutputOIIILF` | `1` | Write the [O III] luminosity function. |
 | `OIIILF_MinLogL` | `38.0` | Lower log10 [O III] luminosity bound, luminosity in erg s⁻¹. |

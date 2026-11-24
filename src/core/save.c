@@ -17,6 +17,9 @@
 #include "metal_evo.h"
 #endif
 
+/* QuasarLF_dust: each AGN's N_H bin is spread evenly in log N_H over this many values */
+#define QUASAR_DUST_NH_SAMPLES 20
+
 static float current_mwmsa(galaxy_t* gal, int i_snap)
 {
   double* LTTime = run_globals.LTTime;
@@ -1194,6 +1197,10 @@ void create_master_file()
       sprintf(source_ds, "Snap%03d/QuasarLF_BC", run_globals.ListOutputSnaps[i_out]);
       H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "QuasarLF_BC", H5P_DEFAULT, H5P_DEFAULT);
     }
+    if (run_globals.params.Flag_OutputQuasarLF && H5LTfind_dataset(source_group_id, "QuasarLF_dust")) {
+      sprintf(source_ds, "Snap%03d/QuasarLF_dust", run_globals.ListOutputSnaps[i_out]);
+      H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "QuasarLF_dust", H5P_DEFAULT, H5P_DEFAULT);
+    }
 
     if (run_globals.params.Flag_OutputOIIILF && H5LTfind_dataset(source_group_id, "OIIILF")) {
       sprintf(source_ds, "Snap%03d/OIIILF", run_globals.ListOutputSnaps[i_out]);
@@ -1374,6 +1381,47 @@ static void write_quasarlf_bc_band(hid_t file_id,
   free(data);
 }
 
+/* Probability of each of the 5 N_H bins for one AGN in QuasarLF_dust: the bin Meraxes drew for its X-ray
+ * obscuration (NHbin), or, if it has none this snapshot (UV light inherited in a merger), the Ueda+14
+ * probabilities at its L_X. */
+static void quasar_nh_probabilities(int nh_bin, double lx_1e10Lsun, double redshift, double p[5])
+{
+  int k;
+
+  if ((nh_bin >= 0) && (nh_bin < 5)) {
+    for (k = 0; k < 5; k++)
+      p[k] = (k == nh_bin) ? 1.0 : 0.0;
+    return;
+  }
+  get_nh_fracs(lx_1e10Lsun, redshift, p);
+  p[4] *= 2.0; /* get_nh_fracs gives the Compton-thick bin (log N_H 24-26) per dex */
+}
+
+/* Adds the numbers of the Shen+20 dust model to Snap###/QuasarLF_dust (written by df_write_hdf5). */
+static void write_quasarlf_dust_attrs(hid_t file_id, const char* group_name, double redshift)
+{
+  const char* model =
+    "QuasarLF with each AGN dimmed by A_1450 = (A_B/N_H) N_H (A_1450/A_B) DGR(z)/DGR(0) (Shen+20 Sec "
+    "3.2; Pei92 MW curve; Ma+16 DGR scaling) instead of the quasar_fobs cone: weight DutyCycleAGN; N_H = "
+    "the bin drawn for the AGN's X-ray obscuration (Ueda+14), spread evenly in log N_H over the bin";
+  char path[64];
+  double ab_per_nh;
+  double a1450_per_ab;
+  double dgr_ratio;
+  double a1450_per_nh;
+  int n_samples;
+
+  n_samples = QUASAR_DUST_NH_SAMPLES;
+  a1450_per_nh = shen20_a1450_per_nh(redshift, &ab_per_nh, &a1450_per_ab, &dgr_ratio);
+  snprintf(path, sizeof(path), "%s/QuasarLF_dust", group_name);
+  H5LTset_attribute_double(file_id, path, "A_B_per_NH", &ab_per_nh, 1);
+  H5LTset_attribute_double(file_id, path, "A_1450_per_A_B", &a1450_per_ab, 1);
+  H5LTset_attribute_double(file_id, path, "DGR_ratio", &dgr_ratio, 1);
+  H5LTset_attribute_double(file_id, path, "A_1450_per_NH", &a1450_per_nh, 1);
+  H5LTset_attribute_int(file_id, path, "NH_samples_per_bin", &n_samples, 1);
+  H5LTset_attribute_string(file_id, path, "dust_model", (char*)model);
+}
+
 static inline bool pass_write_check(galaxy_t* gal, bool flag_merger)
 {
   if (
@@ -1414,6 +1462,17 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
   distribution_function_t quasarlf;
   distribution_function_t quasarlf_bcbright, quasarlf_bcfaint; /* QuasarLF_BC band */
   int do_quasarlf_bc;
+  distribution_function_t quasarlf_dust; /* QuasarLF_dust */
+  int do_quasarlf_dust;
+  double dust_z;
+  double dust_a_per_nh;
+  double dust_nh_lo[5], dust_nh_hi[5];
+  double dust_dmag[5][QUASAR_DUST_NH_SAMPLES];
+  double dust_p[5];
+  double* dust_pbin;
+  int* dust_touched;
+  int dust_n_touched;
+  int ik, js, it;
   distribution_function_t oiiilf;
   distribution_function_t xraylf;
   distribution_function_t xraylf_obs;
@@ -1592,6 +1651,31 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
             run_globals.params.UVLF_BinsPerMag,
             "Quasar UV LF, UV bolometric corrections raised by QuasarLFBCNSigma sigma");
     quasarlf_bcfaint.volume = df_volume;
+  }
+
+  // QuasarLF_dust: the Shen+20 dust extinction (N_H x dust-to-gas ratio) instead of the quasar_fobs cone. The dimming
+  // of every (N_H bin, sample) pair at this redshift is tabulated once: dust_dmag = A_1450 per unit N_H x N_H.
+  do_quasarlf_dust = run_globals.params.Flag_OutputQuasarLF && run_globals.params.Flag_OutputQuasarLFDust;
+  dust_z = run_globals.ZZ[run_globals.ListOutputSnaps[i_out]];
+  dust_pbin = NULL;
+  dust_touched = NULL;
+  if (do_quasarlf_dust) {
+    df_init(&quasarlf_dust,
+            run_globals.params.UVLF_MinMag,
+            run_globals.params.UVLF_MaxMag,
+            run_globals.params.UVLF_BinsPerMag,
+            "Quasar UV LF with the Shen+20 dust extinction (N_H x dust-to-gas ratio), no cone");
+    quasarlf_dust.volume = df_volume;
+    dust_a_per_nh = shen20_a1450_per_nh(dust_z, NULL, NULL, NULL);
+    get_nh_bin_edges(dust_nh_lo, dust_nh_hi);
+    for (ik = 0; ik < 5; ik++)
+      for (js = 0; js < QUASAR_DUST_NH_SAMPLES; js++)
+        dust_dmag[ik][js] =
+          dust_a_per_nh *
+          pow(10.0, dust_nh_lo[ik] + (js + 0.5) * (dust_nh_hi[ik] - dust_nh_lo[ik]) / QUASAR_DUST_NH_SAMPLES);
+    dust_pbin = calloc((size_t)quasarlf_dust.n_bins, sizeof(double));
+    dust_touched = malloc(sizeof(int) * (size_t)quasarlf_dust.n_bins);
+    assert((dust_pbin != NULL) && (dust_touched != NULL));
   }
 
   if (run_globals.params.Flag_OutputOIIILF) {
@@ -1845,6 +1929,35 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
         }
       }
 
+      // QuasarLF_dust: the same AGN as QuasarLF, weight DutyCycleAGN only (no cone), each dimmed by its dust. The AGN's
+      // share in every LF bin is summed first (dust_pbin), so its Bernoulli variance is p(1-p) per bin.
+      if (do_quasarlf_dust && !output_buffer[buffer_count].GhostFlag) {
+        val = output_buffer[buffer_count].QuasarMag;
+        weight = output_buffer[buffer_count].DutyCycleAGN;
+        if (val < 900.0 && weight > 0.0 && isfinite(val)) {
+          quasar_nh_probabilities(gal->NHbin, gal->QuasarLX, dust_z, dust_p);
+          dust_n_touched = 0;
+          for (ik = 0; ik < 5; ik++) {
+            if (dust_p[ik] <= 0.0)
+              continue;
+            for (js = 0; js < QUASAR_DUST_NH_SAMPLES; js++) {
+              bin_idx = df_bin_index(&quasarlf_dust, val + dust_dmag[ik][js]);
+              if (bin_idx < 0)
+                continue; /* dimmed beyond the faint end of the LF */
+              if (dust_pbin[bin_idx] == 0.0)
+                dust_touched[dust_n_touched++] = bin_idx;
+              dust_pbin[bin_idx] += weight * dust_p[ik] / QUASAR_DUST_NH_SAMPLES;
+            }
+          }
+          for (it = 0; it < dust_n_touched; it++) {
+            bin_idx = dust_touched[it];
+            quasarlf_dust.bin_counts[bin_idx] += dust_pbin[bin_idx];
+            quasarlf_dust.bin_variance[bin_idx] += dust_pbin[bin_idx] * (1.0 - dust_pbin[bin_idx]);
+            dust_pbin[bin_idx] = 0.0;
+          }
+        }
+      }
+
       if (run_globals.params.Flag_OutputOIIILF && !output_buffer[buffer_count].GhostFlag) {
         val = output_buffer[buffer_count].LOIII;
         if (val > 0.0 && isfinite(val)) {
@@ -1998,6 +2111,18 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
       df_free(&quasarlf_bcfaint);
     }
     df_free(&quasarlf);
+  }
+
+  // QuasarLF_dust - same reduce and write as QuasarLF, plus the dust-model numbers as attributes
+  if (do_quasarlf_dust) {
+    df_mpi_reduce(&quasarlf_dust, run_globals.mpi_rank, run_globals.mpi_size);
+    if (run_globals.mpi_rank == 0) {
+      df_write_hdf5(file_id, target_group, &quasarlf_dust, "QuasarLF_dust", "per Mpc^3 per mag");
+      write_quasarlf_dust_attrs(file_id, target_group, dust_z);
+    }
+    df_free(&quasarlf_dust);
+    free(dust_pbin);
+    free(dust_touched);
   }
 
   if (run_globals.params.Flag_OutputOIIILF) {

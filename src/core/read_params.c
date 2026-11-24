@@ -1589,6 +1589,12 @@ void read_parameter_file(char* fname, int mode)
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
       run_params->QuasarLFBCNSigma = 1.0;
 
+      strncpy(params_tag[n_param], "Flag_OutputQuasarLFDust", tag_length);
+      params_addr[n_param] = &(run_params->Flag_OutputQuasarLFDust);
+      required_tag[n_param] = 0; /* optional: absent -> 0 (no QuasarLF_dust) */
+      params_type[n_param++] = PARAM_TYPE_INT;
+      run_params->Flag_OutputQuasarLFDust = 0;
+
       strncpy(params_tag[n_param], "Flag_OutputOIIILF", tag_length);
       params_addr[n_param] = &(run_params->Flag_OutputOIIILF);
       required_tag[n_param] = 1;

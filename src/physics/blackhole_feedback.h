@@ -65,6 +65,11 @@ extern "C"
   void previous_merger_driven_BH_growth(struct galaxy_t* gal, int snapshot);
   void get_nh_transmission(double T_out[5]);
   void get_nh_fracs(double LX_1e10Lsun, double redshift, double f_out[5]);
+  /* Edges of the 5 N_H bins in log10(N_H / cm^-2); the last (Compton-thick) bin spans 24-26. */
+  void get_nh_bin_edges(double lo[5], double hi[5]);
+  /* Shen+20 Sec. 3.2: A_1450 per unit N_H [mag cm^2] at this redshift (dust-to-gas ratio x Pei92 MW curve);
+   * the three factors are also returned through the pointers that are not NULL. */
+  double shen20_a1450_per_nh(double redshift, double* ab_per_nh, double* a1450_per_ab, double* dgr_ratio);
   /* Builds the s_T_hard/s_T_soft NH-transmission tables once. Must be called during startup (init_meraxes(), after
    * params are loaded) */
   void init_xray_obscuration_tables(void);
