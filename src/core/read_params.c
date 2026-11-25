@@ -593,13 +593,13 @@ void read_parameter_file(char* fname, int mode)
 
       strncpy(params_tag[n_param], "Flag_ShenBCScatter", tag_length);
       params_addr[n_param] = &(run_params->physics.Flag_ShenBCScatter);
-      required_tag[n_param] = 0; /* optional: absent -> 0 (deterministic corrections) */
+      required_tag[n_param] = 0; /* optional: absent -> 0 */
       params_type[n_param++] = PARAM_TYPE_INT;
       (run_params->physics).Flag_ShenBCScatter = 0;
 
       strncpy(params_tag[n_param], "ShenBCScatterScale", tag_length);
       params_addr[n_param] = &(run_params->physics.ShenBCScatterScale);
-      required_tag[n_param] = 0; /* optional: absent -> 1.0 (Shen+20 sigma as published) */
+      required_tag[n_param] = 0; /* optional: absent -> 1.0 */
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
       (run_params->physics).ShenBCScatterScale = 1.0;
 
@@ -1008,7 +1008,7 @@ void read_parameter_file(char* fname, int mode)
 
       strncpy(params_tag[n_param], "Flag_AGNDustExtinction", tag_length);
       params_addr[n_param] = &(run_params->physics).Flag_AGNDustExtinction;
-      required_tag[n_param] = 0; /* optional: absent -> 0 (the quasar_open_angle cone) */
+      required_tag[n_param] = 0; /* optional: absent -> 0 */
       params_type[n_param++] = PARAM_TYPE_INT;
       (run_params->physics).Flag_AGNDustExtinction = 0;
 
@@ -1596,19 +1596,19 @@ void read_parameter_file(char* fname, int mode)
 
       strncpy(params_tag[n_param], "QuasarLFBCNSigma", tag_length);
       params_addr[n_param] = &(run_params->QuasarLFBCNSigma);
-      required_tag[n_param] = 0; /* optional: absent -> 1.0 (1-sigma Shen+20 band); <= 0 -> no QuasarLF_BC */
+      required_tag[n_param] = 0; /* optional: absent -> 1.0 */
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
       run_params->QuasarLFBCNSigma = 1.0;
 
       strncpy(params_tag[n_param], "Flag_OutputQuasarLFDust", tag_length);
       params_addr[n_param] = &(run_params->Flag_OutputQuasarLFDust);
-      required_tag[n_param] = 0; /* optional: absent -> 0 (no QuasarLF_dust) */
+      required_tag[n_param] = 0; /* optional: absent -> 0 */
       params_type[n_param++] = PARAM_TYPE_INT;
       run_params->Flag_OutputQuasarLFDust = 0;
 
       strncpy(params_tag[n_param], "XrayLFBCNSigma", tag_length);
       params_addr[n_param] = &(run_params->XrayLFBCNSigma);
-      required_tag[n_param] = 0; /* optional: absent -> 1.0 (1-sigma Shen+20 band); <= 0 -> no XrayLF_BC */
+      required_tag[n_param] = 0; /* optional: absent -> 1.0 */
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
       run_params->XrayLFBCNSigma = 1.0;
 

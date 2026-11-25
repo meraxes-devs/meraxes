@@ -113,8 +113,7 @@ typedef struct physics_params_t
   double quasar_mode_scaling;
   double quasar_open_angle;
   double quasar_fobs;
-  /* AGN obscuration: 0 = the quasar_open_angle cone (quasar_fobs) for every AGN; 1 = the Shen+20 dust of each
-   * AGN (its N_H x a dust-to-gas ratio) for the UV LF and the ionising photons, quasar_open_angle not used */
+  /* 1 = Shen+20 dust instead of the quasar_open_angle cone */
   int Flag_AGNDustExtinction;
 
   double SfCriticalSDNorm_III;
@@ -202,17 +201,9 @@ typedef struct physics_params_t
                                * multiplier is DERIVED from this and SpecIndexUVAGNSoft. */
   int Flag_IncludeStarLya;    /* 0=off, 1=direct stellar UV continuum Lya pumping (Wouthuysen-Field) */
 
-  /* Shen et al. (2020) Table 1 1-sigma uncertainty of the bolometric corrections
-   * (their Eq. 4; Sec. 3.1.4 derives it from 1e5 sampled quasar SEDs). With this
-   * flag it is applied as a random lognormal factor on kb_uv/kb_hard/kb_soft,
-   * drawn once per accretion episode.
-   *   0 = off (default; corrections stay deterministic, fiducial behaviour)
-   *   1 = on, an independent deviate per band
-   *   2 = on, one deviate shared by UV/hard/soft (bands perfectly correlated)
-   * A single-band luminosity function is statistically identical for 1 and 2;
-   * the choice only matters for per-object band ratios such as L_X/L_UV. */
+  /* Shen+20 random scatter of the bolometric corrections: 0 off, 1 one deviate per band, 2 one shared */
   int Flag_ShenBCScatter;
-  double ShenBCScatterScale; /* multiplier on sigma: 1.0 = Shen+20, 2.0 = a 2-sigma test, 0 = off */
+  double ShenBCScatterScale; /* multiplier on the Shen+20 sigma */
 
   double ReionMaxHeatingRedshift;
 
@@ -395,8 +386,7 @@ typedef struct run_params_t
   int UVLF_BinsPerMag;     //!< Number of UVLF bins per magnitude (linear bins)
   int Flag_OutputDustyLF;  //!< Flag to enable/disable Dusty UV Luminosity Function output
   int Flag_OutputQuasarLF; //!< Flag to enable/disable Quasar UV Luminosity Function output
-  double QuasarLFBCNSigma; //!< Half-width, in Shen+20 sigma, of the UV bolometric-correction band written next to
-                           //!< QuasarLF (Snap###/QuasarLF_BC); <= 0 = no band. Default 1.0. Output only.
+  double QuasarLFBCNSigma; //!< QuasarLF_BC band half-width in Shen+20 sigma; <= 0 = no band
   int Flag_OutputOIIILF;   //!< Flag to enable/disable OIII Luminosity Function output
   double OIIILF_MinLogL;   //!< Minimum log10(LOIII [erg/s]) for OIIILF bins
   double OIIILF_MaxLogL;   //!< Maximum log10(LOIII [erg/s]) for OIIILF bins
@@ -405,11 +395,9 @@ typedef struct run_params_t
   double XrayLF_MinLogL;   //!< Minimum log10(LX [erg/s]) for XrayLF bins (e.g. 40.0)
   double XrayLF_MaxLogL;   //!< Maximum log10(LX [erg/s]) for XrayLF bins (e.g. 48.0)
   int XrayLF_BinsPerDex;   //!< Number of XrayLF bins per dex
-  //! 1 = also write Snap###/QuasarLF_dust, the AGN UV LF with the Shen+20 dust extinction (N_H x dust-to-gas
-  //! ratio) instead of the quasar_fobs cone. Default 0. Output only.
+  //! 1 = also write QuasarLF_dust (Shen+20 dust, no cone)
   int Flag_OutputQuasarLFDust;
-  //! Half-width, in Shen+20 sigma, of the hard X-ray bolometric-correction band written next to XrayLF
-  //! (Snap###/XrayLF_BC); <= 0 = no band. Default 1.0. Output only.
+  //! XrayLF_BC band half-width in Shen+20 sigma; <= 0 = no band
   double XrayLFBCNSigma;
   int FlagIgnoreProgIndex;
 } run_params_t;
@@ -779,15 +767,11 @@ typedef struct galaxy_t
   double FescBH;
   double BHemissivity;
   double QuasarLuv;         //!< UV luminosity LUV of quasar (1e10 Lsun, summable for mergers)
-  double QuasarLuvBCBright; //!< QuasarLuv with each UV bolometric correction lowered by QuasarLFBCNSigma x Shen+20
-                            //!< sigma (brighter); feeds QuasarLF_BC only [1e10 Lsun]
-  double QuasarLuvBCFaint;  //!< QuasarLuv with each UV bolometric correction raised by QuasarLFBCNSigma x Shen+20
-                            //!< sigma (fainter); feeds QuasarLF_BC only [1e10 Lsun]
+  double QuasarLuvBCBright; //!< QuasarLuv, bright edge of the QuasarLF_BC band [1e10 Lsun]
+  double QuasarLuvBCFaint;  //!< QuasarLuv, faint edge of the QuasarLF_BC band [1e10 Lsun]
   double QuasarLX;          //!< Intrinsic hard X-ray luminosity [1e10 Lsun]; 0 if inactive
-  double QuasarLXBCBright;  //!< QuasarLX with each hard X-ray bolometric correction lowered by XrayLFBCNSigma x
-                            //!< Shen+20 sigma (brighter); feeds XrayLF_BC only [1e10 Lsun]
-  double QuasarLXBCFaint;   //!< QuasarLX with each hard X-ray bolometric correction raised by XrayLFBCNSigma x
-                            //!< Shen+20 sigma (fainter); feeds XrayLF_BC only [1e10 Lsun]
+  double QuasarLXBCBright;  //!< QuasarLX, bright edge of the XrayLF_BC band [1e10 Lsun]
+  double QuasarLXBCFaint;   //!< QuasarLX, faint edge of the XrayLF_BC band [1e10 Lsun]
   int NHbin;                //!< Which of the 5 NH bins this snapshot's stochastic draw landed in (0-4; logNH
                             //!< 20-21/21-22/22-23/23-24/24-26 CTK), or -1 if no AGN.
   //!< This (bin, luminosity) pair replaces the old QuasarLX_obs0-4/NHfrac0-4 fields (5 mostly-zero doubles

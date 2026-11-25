@@ -61,7 +61,7 @@ static double xray_transmission_at_NH(double log_NH, double E_min_keV, double E_
 
 /* log-midpoint NH for each of the 5 bins */
 static const double LOG_NH_MID[5] = { 20.5, 21.5, 22.5, 23.5, 25.0 };
-/* edges of the 5 bins in log10(N_H / cm^-2); the last (Compton-thick) bin spans 2 dex */
+/* log10(N_H) bin edges */
 static const double LOG_NH_LO[5] = { 20.0, 21.0, 22.0, 23.0, 24.0 };
 static const double LOG_NH_HI[5] = { 21.0, 22.0, 23.0, 24.0, 26.0 };
 static double s_T_hard[5];
@@ -207,23 +207,11 @@ void get_nh_bin_edges(double lo[5], double hi[5])
   }
 }
 
-/* ------------------------------------------------------------------------
- * Shen et al. (2020) Sec. 3.2: dust extinction of the AGN light, used instead
- * of the quasar_open_angle cone when Flag_AGNDustExtinction = 1 (UV LF in
- * save.c, ionising photons below) and for the QuasarLF_dust output. Each
- * AGN's N_H is converted to a dust
- * column with a dust-to-gas ratio: locally A_B / N_H = 8.47e-22 mag cm^2
- * (following Hopkins et al. 2007), scaled with redshift like the gas-phase
- * metallicity fit of Ma et al. (2016) at fixed stellar mass,
- *   DGR(z) / DGR(0) = 10^(0.93 [exp(-0.43 z) - 1])   (0.15 at z = 5, 0.13 at z = 7),
- * and a Milky-Way extinction curve (Pei 1992) for the wavelength dependence:
- *   A_1450 = (A_B / N_H) * N_H * (A_1450 / A_B) * DGR(z) / DGR(0),   A_1450 / A_B = 2.09.
- * The ionising photons are dimmed at the Lyman limit, A_912 / A_B = 4.04.
- * ------------------------------------------------------------------------ */
-#define SHEN20_AB_PER_NH 8.47e-22   /* A_B / N_H [mag cm^2], local value */
-#define SHEN20_LAMBDA_ION_UM 0.0912 /* Lyman limit [micron]: where the ionising photons are dimmed */
+/* Shen et al. (2020) Sec. 3.2 dust: A_lambda = (A_B/N_H) N_H (A_lambda/A_B) DGR(z)/DGR(0) */
+#define SHEN20_AB_PER_NH 8.47e-22   /* A_B / N_H [mag cm^2] */
+#define SHEN20_LAMBDA_ION_UM 0.0912 /* Lyman limit [micron] */
 
-/* Pei (1992) ApJ 395, 130, Table 4, Milky Way: xi(lambda) = A_lambda / A_B, lambda in micron. */
+/* Pei (1992) Milky-Way curve: A_lambda / A_B, lambda in micron */
 static double pei92_mw_xi(double lambda_um)
 {
   static const double a[6] = { 165.0, 14.0, 0.045, 0.002, 0.002, 0.012 };
@@ -239,7 +227,7 @@ static double pei92_mw_xi(double lambda_um)
   return xi;
 }
 
-/* Ma et al. (2016) gas-metallicity scaling of the dust-to-gas ratio at fixed stellar mass, DGR(z) / DGR(0). */
+/* DGR(z) / DGR(0) (Ma et al. 2016) */
 static double shen20_dgr_ratio(double redshift)
 {
   return pow(10.0, 0.93 * (exp(-0.43 * redshift) - 1.0));
@@ -250,7 +238,7 @@ double shen20_a1450_per_nh(double redshift, double* ab_per_nh, double* a1450_per
   double r_curve;
   double r_dgr;
 
-  r_curve = pei92_mw_xi(0.145) / pei92_mw_xi(0.44); /* 1450 A relative to the B band (4400 A) */
+  r_curve = pei92_mw_xi(0.145) / pei92_mw_xi(0.44);
   r_dgr = shen20_dgr_ratio(redshift);
   if (ab_per_nh != NULL)
     *ab_per_nh = SHEN20_AB_PER_NH;
@@ -261,10 +249,7 @@ double shen20_a1450_per_nh(double redshift, double* ab_per_nh, double* a1450_per
   return SHEN20_AB_PER_NH * r_curve * r_dgr;
 }
 
-/* Fraction of an AGN's ionising photons that escape when Flag_AGNDustExtinction = 1 (instead of the cone's
- * quasar_fobs): the Shen+20 dust transmission at the Lyman limit, 10^(-0.4 A_912) with A_912 / A_B = 4.04 (Pei92 MW
- * curve), averaged evenly in log N_H over the AGN's N_H bin (the bin drawn for its X-ray obscuration). Absorption by
- * the gas itself is not included. Tabulated once per redshift. */
+/* Dust transmission at 912 A averaged over an N_H bin (Flag_AGNDustExtinction) */
 static double agn_dust_escape_ionising(int nh_bin, double redshift)
 {
   static double table_z = -1.0;
@@ -275,7 +260,7 @@ static double agn_dust_escape_ionising(int nh_bin, double redshift)
   int j;
 
   if ((nh_bin < 0) || (nh_bin > 4))
-    return 1.0; /* no N_H bin: this episode emitted nothing (L_X <= 0) */
+    return 1.0;
   if (redshift != table_z) {
     a_per_nh = SHEN20_AB_PER_NH * pei92_mw_xi(SHEN20_LAMBDA_ION_UM) / pei92_mw_xi(0.44) * shen20_dgr_ratio(redshift);
     for (k = 0; k < 5; k++) {
@@ -291,25 +276,7 @@ static double agn_dust_escape_ionising(int nh_bin, double redshift)
   return table[nh_bin];
 }
 
-/* ------------------------------------------------------------------------
- * Shen et al. (2020) 1-sigma uncertainty of the bolometric corrections.
- *
- * Their Table 1 gives, per band, (sigma1, sigma2, logL0, sigma3) describing the
- * 1-sigma uncertainty of log10(Lbol/Lband) via their Eq. 4:
- *
- *   sigma(logLbol) = sigma2 + sigma1 * [ 1/2 + 1/2 erf( (logLbol - logL0)
- *                                                       / (sqrt(2) sigma3) ) ]
- *
- * with logLbol in erg/s. The shape is a double plateau: sigma -> sigma2 at low
- * Lbol and sigma -> sigma2 + sigma1 at high Lbol. For the hard band that is
- * 0.066 -> 0.259 dex (sigma GROWS toward bright); for the UV it is
- * 0.405 -> 0.033 dex (sigma SHRINKS toward bright, because at high luminosity
- * the UV carries most of Lbol and its correction is tightly pinned).
- *
- * Two uses: Flag_ShenBCScatter applies it per accretion episode as a random
- * lognormal factor on the correction; QuasarLFBCNSigma shifts every UV correction
- * by -/+ n sigma to give the QuasarLF_BC band written next to QuasarLF.
- * ------------------------------------------------------------------------ */
+/* Shen et al. (2020) 1-sigma uncertainty of the bolometric corrections (Eq. 4, Table 1) */
 typedef struct shen_disp_t
 {
   double sigma1;
@@ -329,14 +296,12 @@ static double shen20_bc_sigma(const shen_disp_t* d, double logLbol_ergs)
   return d->sigma2 + d->sigma1 * (0.5 + 0.5 * erf((logLbol_ergs - d->logL0) / (sqrt(2.0) * d->sigma3)));
 }
 
-/* One standard-normal deviate from the run's GSL generator. */
 static double shen20_draw_gaussian(void)
 {
   return gsl_cdf_ugaussian_Pinv(gsl_rng_uniform(run_globals.random_generator));
 }
 
-/* Lognormal factor to MULTIPLY a bolometric correction by, given a standard
- * normal deviate g. Returns 1.0 (no change) if the scatter is switched off. */
+/* Lognormal factor on a bolometric correction for the standard normal deviate g */
 static double shen20_bc_scatter_factor(const shen_disp_t* d, double logLbol_ergs, double g)
 {
   double sigma_dex;
@@ -348,19 +313,14 @@ static double shen20_bc_scatter_factor(const shen_disp_t* d, double logLbol_ergs
   return pow(10.0, sigma_dex * g);
 }
 
-/* Bolometric luminosity [1e10 Lsun] of an accretion episode, at the MIDDLE of its accretion time. Used by
- * calculate_BHemissivity and by the QuasarLF_BC band, so both see the same Lbol. */
+/* Bolometric luminosity [1e10 Lsun] at the middle of the accretion time */
 static double quasar_lbol(double BlackHoleMass, double accreted_mass)
 {
   return sqrt(1.0 + accreted_mass / BlackHoleMass) * run_globals.params.physics.EddingtonRatio * BlackHoleMass /
          run_globals.params.Hubble_h * LUMINOSITY_CONVERTOR;
 }
 
-/* QuasarLF_BC band (output only; nothing in the model uses it). Returns 10^(QuasarLFBCNSigma * sigma_UV), with
- * sigma_UV the Shen+20 1-sigma uncertainty of the UV bolometric correction log10(Lbol/L_UV) (their Eq. 4 with the
- * Table 1 parameters sigma1, sigma2, logL0, sigma3) at this episode's Lbol. Since
- * L_UV = Lbol / kb_uv, L_UV times this factor is the episode with kb_uv lowered by QuasarLFBCNSigma sigma (brighter)
- * and L_UV divided by it the episode with kb_uv raised by the same amount (fainter). 1.0 when the band is off. */
+/* 10^(QuasarLFBCNSigma sigma_UV): factor on L_UV for the QuasarLF_BC band */
 static double quasar_uv_bc_band_factor(double BlackHoleMass, double accreted_mass)
 {
   double Lbol;
@@ -375,10 +335,7 @@ static double quasar_uv_bc_band_factor(double BlackHoleMass, double accreted_mas
   return pow(10.0, nsigma * shen20_bc_sigma(&SHEN_DISP_UV, log10(Lbol) + 10.0 + LOG_10_SOLAR_LUM));
 }
 
-/* XrayLF_BC band (output only), the hard X-ray counterpart of quasar_uv_bc_band_factor: 10^(XrayLFBCNSigma *
- * sigma_hard), with sigma_hard the Shen+20 1-sigma uncertainty of the 2-10 keV bolometric correction log10(Lbol/L_X)
- * (Eq. 4, Table 1) at this episode's Lbol. L_X times / divided by it is the episode with kb_hard lowered / raised by
- * XrayLFBCNSigma sigma. 1.0 when the band is off. */
+/* 10^(XrayLFBCNSigma sigma_hard): factor on L_X for the XrayLF_BC band */
 static double quasar_hard_bc_band_factor(double BlackHoleMass, double accreted_mass)
 {
   double Lbol;
@@ -422,11 +379,8 @@ void calculate_BHemissivity(double BlackHoleMass,
   kb_hard = 4.073 * pow(Lbol, -0.026) + 12.60 * pow(Lbol, 0.278);
   kb_soft = 5.712 * pow(Lbol, -0.026) + 17.67 * pow(Lbol, 0.278);
 
-  /* Optional Shen+20 Table 1 1-sigma uncertainty applied as random scatter. Off by default,
-   * so the fiducial model (and the unit tests) are bit-for-bit unchanged. */
+  // optional random scatter of the corrections (Flag_ShenBCScatter)
   if ((physics->Flag_ShenBCScatter != 0) && (Lbol > 0.0)) {
-    /* Shen's sigma is a function of Lbol in erg/s; Lbol here is in 1e10 Lsun.
-     * Same conversion as _NH_distribution uses for LX above. */
     logLbol_ergs = log10(Lbol) + 10.0 + LOG_10_SOLAR_LUM;
     shared_deviate = (physics->Flag_ShenBCScatter == 2);
     g_uv = shen20_draw_gaussian();
@@ -588,8 +542,8 @@ void previous_merger_driven_BH_growth(galaxy_t* gal, int snapshot)
   double accreted_mass;
   double BHemissivity, accretion_time, quasar_luv;
   double quasar_lx, quasar_lx_soft;
-  double bc_band_factor; /* QuasarLF_BC band, output only */
-  double xr_band_factor; /* XrayLF_BC band, output only */
+  double bc_band_factor;
+  double xr_band_factor;
   double obs_fraction_hard;
   double obs_fraction_soft;
   int NH_bin;
@@ -635,12 +589,10 @@ void previous_merger_driven_BH_growth(galaxy_t* gal, int snapshot)
     // N_gamma,q * N_bh; later 1e60*BHemissivity * PROTONMASS/1e10/SOLAR_MASS will be N_gamma,q * M_bh
     calculate_BHemissivity(
       gal->BlackHoleMass, accreted_mass, &BHemissivity, &accretion_time, &quasar_luv, &quasar_lx, &quasar_lx_soft);
-    /* same BlackHoleMass as above, i.e. before this episode's growth is added */
     bc_band_factor = quasar_uv_bc_band_factor(gal->BlackHoleMass, accreted_mass);
     xr_band_factor = quasar_hard_bc_band_factor(gal->BlackHoleMass, accreted_mass);
     apply_xray_obscuration(quasar_lx, run_globals.ZZ[snapshot], &obs_fraction_hard, &obs_fraction_soft, &NH_bin);
-    /* Flag_AGNDustExtinction = 1: the AGN's own Shen+20 dust, not the quasar_open_angle cone, sets how many of its
-     * ionising photons escape (quasar_fobs = 1 then, so BHemissivity above is the unobscured value) */
+    // dust instead of the opening angle (quasar_fobs = 1)
     if (run_globals.params.physics.Flag_AGNDustExtinction)
       BHemissivity *= agn_dust_escape_ionising(NH_bin, run_globals.ZZ[snapshot]);
 
