@@ -375,6 +375,24 @@ static double quasar_uv_bc_band_factor(double BlackHoleMass, double accreted_mas
   return pow(10.0, nsigma * shen20_bc_sigma(&SHEN_DISP_UV, log10(Lbol) + 10.0 + LOG_10_SOLAR_LUM));
 }
 
+/* XrayLF_BC band (output only), the hard X-ray counterpart of quasar_uv_bc_band_factor: 10^(XrayLFBCNSigma *
+ * sigma_hard), with sigma_hard the Shen+20 1-sigma uncertainty of the 2-10 keV bolometric correction log10(Lbol/L_X)
+ * (Eq. 4, Table 1) at this episode's Lbol. L_X times / divided by it is the episode with kb_hard lowered / raised by
+ * XrayLFBCNSigma sigma. 1.0 when the band is off. */
+static double quasar_hard_bc_band_factor(double BlackHoleMass, double accreted_mass)
+{
+  double Lbol;
+  double nsigma;
+
+  nsigma = run_globals.params.XrayLFBCNSigma;
+  if ((!run_globals.params.Flag_OutputXrayLF) || (nsigma <= 0.0) || (BlackHoleMass <= 0.0))
+    return 1.0;
+  Lbol = quasar_lbol(BlackHoleMass, accreted_mass);
+  if (Lbol <= 0.0)
+    return 1.0;
+  return pow(10.0, nsigma * shen20_bc_sigma(&SHEN_DISP_HARD, log10(Lbol) + 10.0 + LOG_10_SOLAR_LUM));
+}
+
 void calculate_BHemissivity(double BlackHoleMass,
                             double accreted_mass,
                             double* emissivity,
@@ -571,6 +589,7 @@ void previous_merger_driven_BH_growth(galaxy_t* gal, int snapshot)
   double BHemissivity, accretion_time, quasar_luv;
   double quasar_lx, quasar_lx_soft;
   double bc_band_factor; /* QuasarLF_BC band, output only */
+  double xr_band_factor; /* XrayLF_BC band, output only */
   double obs_fraction_hard;
   double obs_fraction_soft;
   int NH_bin;
@@ -618,6 +637,7 @@ void previous_merger_driven_BH_growth(galaxy_t* gal, int snapshot)
       gal->BlackHoleMass, accreted_mass, &BHemissivity, &accretion_time, &quasar_luv, &quasar_lx, &quasar_lx_soft);
     /* same BlackHoleMass as above, i.e. before this episode's growth is added */
     bc_band_factor = quasar_uv_bc_band_factor(gal->BlackHoleMass, accreted_mass);
+    xr_band_factor = quasar_hard_bc_band_factor(gal->BlackHoleMass, accreted_mass);
     apply_xray_obscuration(quasar_lx, run_globals.ZZ[snapshot], &obs_fraction_hard, &obs_fraction_soft, &NH_bin);
     /* Flag_AGNDustExtinction = 1: the AGN's own Shen+20 dust, not the quasar_open_angle cone, sets how many of its
      * ionising photons escape (quasar_fobs = 1 then, so BHemissivity above is the unobscured value) */
@@ -648,6 +668,8 @@ void previous_merger_driven_BH_growth(galaxy_t* gal, int snapshot)
     gal->QuasarLuvBCBright += quasar_luv * bc_band_factor;
     gal->QuasarLuvBCFaint += quasar_luv / bc_band_factor;
     gal->QuasarLX += quasar_lx;
+    gal->QuasarLXBCBright += quasar_lx * xr_band_factor;
+    gal->QuasarLXBCFaint += quasar_lx / xr_band_factor;
     gal->NHbin = NH_bin; /* -1 if no AGN activity this step */
     gal->BHXrayEmissivity_hard += quasar_lx * obs_fraction_hard;
     gal->BHXrayEmissivity_soft += quasar_lx_soft * obs_fraction_soft;

@@ -1212,6 +1212,10 @@ void create_master_file()
       sprintf(source_ds, "Snap%03d/XrayLF_obs", run_globals.ListOutputSnaps[i_out]);
       H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "XrayLF_obs", H5P_DEFAULT, H5P_DEFAULT);
     }
+    if (run_globals.params.Flag_OutputXrayLF && H5LTfind_dataset(source_group_id, "XrayLF_BC")) {
+      sprintf(source_ds, "Snap%03d/XrayLF_BC", run_globals.ListOutputSnaps[i_out]);
+      H5Lcreate_external(relative_source_file, source_ds, snap_group_id, "XrayLF_BC", H5P_DEFAULT, H5P_DEFAULT);
+    }
     H5Gclose(source_group_id);
     H5Fclose(source_file_id);
 
@@ -1314,24 +1318,25 @@ static inline void save_walk_indices(hid_t file_id,
   }
 }
 
-/* Writes Snap###/QuasarLF_BC, the Shen+20 bolometric-correction band of QuasarLF, one row per QuasarLF bin:
- *   center, density_lo, density_hi, density_bright, density_faint        [per Mpc^3 per mag, as QuasarLF]
+/* Writes Snap###/<name>, the Shen+20 bolometric-correction band of a luminosity function, one row per LF bin:
+ *   center, density_lo, density_hi, density_bright, density_faint        [units of the LF]
+ * Used for QuasarLF_BC (UV, below) and XrayLF_BC (hard X-ray: the same with kb_hard and XrayLFBCNSigma).
  * density_bright / density_faint = QuasarLF recomputed with every AGN's UV bolometric correction (Shen+20 Eq. 5)
  * lowered / raised by QuasarLFBCNSigma x its Shen+20 1-sigma uncertainty (Eq. 4, Table 1) at that AGN's own Lbol,
  * all AGN in the same direction; same AGN, duty-cycle x quasar_fobs weights and bins as QuasarLF.
  * density_lo / density_hi = the band to shade: per bin, the min / max of QuasarLF, density_bright, density_faint.
  * The counting (Bernoulli) error is not included here; it is column 2 of QuasarLF. */
-static void write_quasarlf_bc_band(hid_t file_id,
-                                   const char* group_name,
-                                   const distribution_function_t* mid,
-                                   const distribution_function_t* bright,
-                                   const distribution_function_t* faint)
+static void write_lf_bc_band(hid_t file_id,
+                             const char* group_name,
+                             const char* name,
+                             const char* units,
+                             const char* description,
+                             double nsigma,
+                             const distribution_function_t* mid,
+                             const distribution_function_t* bright,
+                             const distribution_function_t* faint)
 {
-  const char* name = "QuasarLF_BC";
   const char* columns = "center,density_lo,density_hi,density_bright,density_faint";
-  const char* description = "QuasarLF band from the Shen+20 1-sigma uncertainty of the UV bolometric correction: "
-                            "every AGN's correction shifted by -/+ nsigma x sigma(Lbol) (Eq. 4, Table 1); lo/hi = "
-                            "envelope of QuasarLF and the two shifted LFs";
   hsize_t dims[2];
   double* data;
   double norm;
@@ -1369,9 +1374,9 @@ static void write_quasarlf_bc_band(hid_t file_id,
   H5LTset_attribute_double(group_id, name, "x_max", (double*)&mid->x_max, 1);
   H5LTset_attribute_double(group_id, name, "bin_width", (double*)&mid->bin_width, 1);
   H5LTset_attribute_double(group_id, name, "volume", (double*)&mid->volume, 1);
-  H5LTset_attribute_double(group_id, name, "nsigma", &(run_globals.params.QuasarLFBCNSigma), 1);
+  H5LTset_attribute_double(group_id, name, "nsigma", &nsigma, 1);
   H5LTset_attribute_string(group_id, name, "description", (char*)description);
-  H5LTset_attribute_string(group_id, name, "units", (char*)"per Mpc^3 per mag");
+  H5LTset_attribute_string(group_id, name, "units", (char*)units);
   H5LTset_attribute_string(group_id, name, "columns", (char*)columns);
 
   H5Gclose(group_id);
@@ -1514,6 +1519,8 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
   distribution_function_t oiiilf;
   distribution_function_t xraylf;
   distribution_function_t xraylf_obs;
+  distribution_function_t xraylf_bcbright, xraylf_bcfaint; /* XrayLF_BC band */
+  int do_xraylf_bc;
 #ifdef CALC_MAGS
   distribution_function_t uvlf, dustylf, oiiidustylf;
 #endif
@@ -1772,6 +1779,23 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
             run_globals.params.XrayLF_BinsPerDex,
             "X-ray Luminosity Function (2-10 keV, observed after obscuration)");
     xraylf_obs.volume = df_volume;
+  }
+
+  // XrayLF_BC: XrayLF with every hard X-ray bolometric correction shifted by -/+ XrayLFBCNSigma x Shen+20 sigma
+  do_xraylf_bc = run_globals.params.Flag_OutputXrayLF && (run_globals.params.XrayLFBCNSigma > 0.0);
+  if (do_xraylf_bc) {
+    df_init(&xraylf_bcbright,
+            run_globals.params.XrayLF_MinLogL,
+            run_globals.params.XrayLF_MaxLogL,
+            run_globals.params.XrayLF_BinsPerDex,
+            "X-ray LF (2-10 keV, intrinsic), hard bolometric corrections lowered by XrayLFBCNSigma sigma");
+    xraylf_bcbright.volume = df_volume;
+    df_init(&xraylf_bcfaint,
+            run_globals.params.XrayLF_MinLogL,
+            run_globals.params.XrayLF_MaxLogL,
+            run_globals.params.XrayLF_BinsPerDex,
+            "X-ray LF (2-10 keV, intrinsic), hard bolometric corrections raised by XrayLFBCNSigma sigma");
+    xraylf_bcfaint.volume = df_volume;
   }
 
   // If the immediately preceding snapshot was also written, then save the
@@ -2045,6 +2069,21 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
               xraylf.bin_counts[bin_idx] += weight;
               xraylf.bin_variance[bin_idx] += weight * (1.0 - weight); /* Bernoulli */
             }
+            // XrayLF_BC: the same AGN and weights, at their band-shifted luminosities (float, as QuasarLX is stored)
+            if (do_xraylf_bc && (gal->QuasarLXBCBright > 0.0) && (gal->QuasarLXBCFaint > 0.0)) {
+              val = log10((double)(float)gal->QuasarLXBCBright) + LOG_10_SOLAR_LUM + 10;
+              bin_idx = df_bin_index(&xraylf_bcbright, val);
+              if (bin_idx >= 0) {
+                xraylf_bcbright.bin_counts[bin_idx] += weight;
+                xraylf_bcbright.bin_variance[bin_idx] += weight * (1.0 - weight);
+              }
+              val = log10((double)(float)gal->QuasarLXBCFaint) + LOG_10_SOLAR_LUM + 10;
+              bin_idx = df_bin_index(&xraylf_bcfaint, val);
+              if (bin_idx >= 0) {
+                xraylf_bcfaint.bin_counts[bin_idx] += weight;
+                xraylf_bcfaint.bin_variance[bin_idx] += weight * (1.0 - weight);
+              }
+            }
           }
 
           if (lx_obs_lin > 0.0) {
@@ -2157,7 +2196,17 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
       if (dust_mode)
         write_quasarlf_dust_attrs(file_id, target_group, "QuasarLF", dust_z);
       if (do_quasarlf_bc) {
-        write_quasarlf_bc_band(file_id, target_group, &quasarlf, &quasarlf_bcbright, &quasarlf_bcfaint);
+        write_lf_bc_band(file_id,
+                         target_group,
+                         "QuasarLF_BC",
+                         "per Mpc^3 per mag",
+                         "QuasarLF band from the Shen+20 1-sigma uncertainty of the UV bolometric correction: every "
+                         "AGN's correction shifted by -/+ nsigma x sigma(Lbol) (Eq. 4, Table 1); lo/hi = envelope of "
+                         "QuasarLF and the two shifted LFs",
+                         run_globals.params.QuasarLFBCNSigma,
+                         &quasarlf,
+                         &quasarlf_bcbright,
+                         &quasarlf_bcfaint);
         if (dust_mode)
           write_quasarlf_dust_attrs(file_id, target_group, "QuasarLF_BC", dust_z);
       }
@@ -2204,9 +2253,29 @@ void write_snapshot(int n_write, int i_out, int* last_n_write)
   if (run_globals.params.Flag_OutputXrayLF) {
     df_mpi_reduce(&xraylf, run_globals.mpi_rank, run_globals.mpi_size);
     df_mpi_reduce(&xraylf_obs, run_globals.mpi_rank, run_globals.mpi_size);
+    if (do_xraylf_bc) {
+      df_mpi_reduce(&xraylf_bcbright, run_globals.mpi_rank, run_globals.mpi_size);
+      df_mpi_reduce(&xraylf_bcfaint, run_globals.mpi_rank, run_globals.mpi_size);
+    }
     if (run_globals.mpi_rank == 0) {
       df_write_hdf5(file_id, target_group, &xraylf, "XrayLF", "per Mpc^3 per dex");
       df_write_hdf5(file_id, target_group, &xraylf_obs, "XrayLF_obs", "per Mpc^3 per dex");
+      if (do_xraylf_bc)
+        write_lf_bc_band(file_id,
+                         target_group,
+                         "XrayLF_BC",
+                         "per Mpc^3 per dex",
+                         "XrayLF band from the Shen+20 1-sigma uncertainty of the hard X-ray (2-10 keV) bolometric "
+                         "correction: every AGN's correction shifted by -/+ nsigma x sigma(Lbol) (Eq. 4, Table 1); "
+                         "lo/hi = envelope of XrayLF and the two shifted LFs",
+                         run_globals.params.XrayLFBCNSigma,
+                         &xraylf,
+                         &xraylf_bcbright,
+                         &xraylf_bcfaint);
+    }
+    if (do_xraylf_bc) {
+      df_free(&xraylf_bcbright);
+      df_free(&xraylf_bcfaint);
     }
     df_free(&xraylf);
     df_free(&xraylf_obs);

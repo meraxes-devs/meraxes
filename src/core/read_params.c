@@ -1606,6 +1606,12 @@ void read_parameter_file(char* fname, int mode)
       params_type[n_param++] = PARAM_TYPE_INT;
       run_params->Flag_OutputQuasarLFDust = 0;
 
+      strncpy(params_tag[n_param], "XrayLFBCNSigma", tag_length);
+      params_addr[n_param] = &(run_params->XrayLFBCNSigma);
+      required_tag[n_param] = 0; /* optional: absent -> 1.0 (1-sigma Shen+20 band); <= 0 -> no XrayLF_BC */
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      run_params->XrayLFBCNSigma = 1.0;
+
       strncpy(params_tag[n_param], "Flag_OutputOIIILF", tag_length);
       params_addr[n_param] = &(run_params->Flag_OutputOIIILF);
       required_tag[n_param] = 1;

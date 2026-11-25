@@ -427,6 +427,7 @@ and [source normalization](formulas/igm.md#source-normalization).
 | `Flag_OutputQuasarLF` | `1` | Write the quasar UV luminosity function with AGN duty-cycle weighting. |
 | `Flag_OutputQuasarLFDust` | `0` | Also write `QuasarLF_dust`, the quasar UV luminosity function with the Shen+20 dust extinction (each AGN's N_H times a dust-to-gas ratio) instead of the visibility cone. Output only. |
 | `QuasarLFBCNSigma` | `1.0` | Half-width, in Shen+20 sigma, of the bolometric-correction band `QuasarLF_BC` written next to `QuasarLF`; `<= 0` writes no band. Output only. |
+| `XrayLFBCNSigma` | `1.0` | Half-width, in Shen+20 sigma, of the hard X-ray bolometric-correction band `XrayLF_BC` written next to `XrayLF` (needs `Flag_OutputXrayLF`); `<= 0` writes no band. Output only. |
 | `Flag_OutputOIIILF` | `1` | Write the [O III] luminosity function. |
 | `OIIILF_MinLogL` | `38.0` | Lower log10 [O III] luminosity bound, luminosity in erg s⁻¹. |
 | `OIIILF_MaxLogL` | `45.0` | Upper log10 [O III] luminosity bound, luminosity in erg s⁻¹. |

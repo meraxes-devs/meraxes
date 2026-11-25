@@ -333,6 +333,7 @@ Flag_OutputDustyLF         : 1      # Enable DustyLF calculation and output (0=d
 Flag_OutputQuasarLF        : 1      # Enable QuasarLF calculation and output (0=disabled, 1=enabled)
 QuasarLFBCNSigma           : 1.0    # QuasarLF_BC band: every AGN's UV bolometric correction shifted by -/+ this many Shen+20 sigma (<= 0 = no band)
 Flag_OutputQuasarLFDust    : 0      # 1 = also write QuasarLF_dust: AGN UV LF dimmed by the Shen+20 dust (each AGN's N_H x dust-to-gas ratio), no cone
+XrayLFBCNSigma             : 1.0    # XrayLF_BC band (needs Flag_OutputXrayLF): every AGN's hard X-ray bolometric correction shifted by -/+ this many Shen+20 sigma (<= 0 = no band)
 
 # OIII Luminosity Function (OIIILF) - uses log10(LOIII [erg/s])
 Flag_OutputOIIILF          : 1      # Enable OIIILF calculation and output (0=disabled, 1=enabled)

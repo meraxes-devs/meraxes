@@ -408,6 +408,9 @@ typedef struct run_params_t
   //! 1 = also write Snap###/QuasarLF_dust, the AGN UV LF with the Shen+20 dust extinction (N_H x dust-to-gas
   //! ratio) instead of the quasar_fobs cone. Default 0. Output only.
   int Flag_OutputQuasarLFDust;
+  //! Half-width, in Shen+20 sigma, of the hard X-ray bolometric-correction band written next to XrayLF
+  //! (Snap###/XrayLF_BC); <= 0 = no band. Default 1.0. Output only.
+  double XrayLFBCNSigma;
   int FlagIgnoreProgIndex;
 } run_params_t;
 
@@ -781,6 +784,10 @@ typedef struct galaxy_t
   double QuasarLuvBCFaint;  //!< QuasarLuv with each UV bolometric correction raised by QuasarLFBCNSigma x Shen+20
                             //!< sigma (fainter); feeds QuasarLF_BC only [1e10 Lsun]
   double QuasarLX;          //!< Intrinsic hard X-ray luminosity [1e10 Lsun]; 0 if inactive
+  double QuasarLXBCBright;  //!< QuasarLX with each hard X-ray bolometric correction lowered by XrayLFBCNSigma x
+                            //!< Shen+20 sigma (brighter); feeds XrayLF_BC only [1e10 Lsun]
+  double QuasarLXBCFaint;   //!< QuasarLX with each hard X-ray bolometric correction raised by XrayLFBCNSigma x
+                            //!< Shen+20 sigma (fainter); feeds XrayLF_BC only [1e10 Lsun]
   int NHbin;                //!< Which of the 5 NH bins this snapshot's stochastic draw landed in (0-4; logNH
                             //!< 20-21/21-22/22-23/23-24/24-26 CTK), or -1 if no AGN.
   //!< This (bin, luminosity) pair replaces the old QuasarLX_obs0-4/NHfrac0-4 fields (5 mostly-zero doubles
