@@ -302,7 +302,8 @@ $\exp[(\ln 10)^2\texttt{XrayScatterDex}^2/2]$.
 | `BlackHoleSeed` | `1e-7` | BH seed mass in internal mass units. |
 | `BlackHoleMassLimitReion` | `-1` | BH mass cutoff for ionizing sources; negative disables the cutoff. |
 | `quasar_mode_scaling` | `0.0` | Redshift scaling of quasar-mode BH growth. |
-| `quasar_open_angle` | `80.0` | Quasar opening angle, degrees. |
+| `quasar_open_angle` | `80.0` | Quasar opening angle, degrees. Not used when `Flag_AGNDustExtinction` = 1. |
+| `Flag_AGNDustExtinction` | `0` | AGN obscuration: 0 = the cone of `quasar_open_angle`; 1 = the Shen+20 dust of each AGN (its N_H times a dust-to-gas ratio) for the quasar UV luminosity function and the escaping ionising photons, see [Luminosity and escaping photons](formulas/galaxies.md#luminosity-and-escaping-photons). |
 
 </details>
 
@@ -424,6 +425,9 @@ and [source normalization](formulas/igm.md#source-normalization).
 | `UVLF_BinsPerMag` | `2` | UV magnitude bins per magnitude. |
 | `Flag_OutputDustyLF` | `1` | Write the dust-attenuated UV luminosity function; requires CALC_MAGS. |
 | `Flag_OutputQuasarLF` | `1` | Write the quasar UV luminosity function with AGN duty-cycle weighting. |
+| `Flag_OutputQuasarLFDust` | `0` | Also write `QuasarLF_dust`, the quasar UV luminosity function with the Shen+20 dust extinction (each AGN's N_H times a dust-to-gas ratio) instead of the visibility cone. Output only. |
+| `QuasarLFBCNSigma` | `1.0` | Half-width, in Shen+20 sigma, of the bolometric-correction band `QuasarLF_BC` written next to `QuasarLF`; `<= 0` writes no band. Output only. |
+| `XrayLFBCNSigma` | `1.0` | Half-width, in Shen+20 sigma, of the hard X-ray bolometric-correction band `XrayLF_BC` written next to `XrayLF` (needs `Flag_OutputXrayLF`); `<= 0` writes no band. Output only. |
 | `Flag_OutputOIIILF` | `1` | Write the [O III] luminosity function. |
 | `OIIILF_MinLogL` | `38.0` | Lower log10 [O III] luminosity bound, luminosity in erg s⁻¹. |
 | `OIIILF_MaxLogL` | `45.0` | Upper log10 [O III] luminosity bound, luminosity in erg s⁻¹. |

@@ -10,6 +10,11 @@ static void check_problem_params(run_params_t* run_params)
     mlog_error("The current version of the code only works if NSteps = 1. Sorry! Exiting...");
     ABORT(EXIT_FAILURE);
   }
+  if ((run_params->physics.Flag_AGNDustExtinction != 0) && (run_params->physics.Flag_AGNDustExtinction != 1)) {
+    mlog_error("Flag_AGNDustExtinction = %d: use 0 (the quasar_open_angle cone) or 1 (the Shen+20 dust).",
+               run_params->physics.Flag_AGNDustExtinction);
+    ABORT(EXIT_FAILURE);
+  }
   if (run_params->physics.Flag_UseXrayMetallicity && run_params->physics.XrayScatterDex > ABS_TOL) {
     mlog_error("Flag_UseXrayMetallicity and XrayScatterDex cannot be enabled together.");
     ABORT(EXIT_FAILURE);
@@ -586,6 +591,18 @@ void read_parameter_file(char* fname, int mode)
       params_type[n_param++] = PARAM_TYPE_INT;
       (run_params->physics).Flag_IncludeAGNLyaLine = 0;
 
+      strncpy(params_tag[n_param], "Flag_ShenBCScatter", tag_length);
+      params_addr[n_param] = &(run_params->physics.Flag_ShenBCScatter);
+      required_tag[n_param] = 0; /* optional: absent -> 0 */
+      params_type[n_param++] = PARAM_TYPE_INT;
+      (run_params->physics).Flag_ShenBCScatter = 0;
+
+      strncpy(params_tag[n_param], "ShenBCScatterScale", tag_length);
+      params_addr[n_param] = &(run_params->physics.ShenBCScatterScale);
+      required_tag[n_param] = 0; /* optional: absent -> 1.0 */
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      (run_params->physics).ShenBCScatterScale = 1.0;
+
       strncpy(params_tag[n_param], "Flag_IncludeStarLya", tag_length);
       params_addr[n_param] = &(run_params->physics.Flag_IncludeStarLya);
       required_tag[n_param] = 0; /* optional: absent -> 1 (previous behaviour) */
@@ -988,6 +1005,12 @@ void read_parameter_file(char* fname, int mode)
       params_addr[n_param] = &(run_params->physics).quasar_open_angle;
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_DOUBLE;
+
+      strncpy(params_tag[n_param], "Flag_AGNDustExtinction", tag_length);
+      params_addr[n_param] = &(run_params->physics).Flag_AGNDustExtinction;
+      required_tag[n_param] = 0; /* optional: absent -> 0 */
+      params_type[n_param++] = PARAM_TYPE_INT;
+      (run_params->physics).Flag_AGNDustExtinction = 0;
 
       strncpy(params_tag[n_param], "ReionSobacchi_Zre", tag_length);
       params_addr[n_param] = &(run_params->physics).ReionSobacchi_Zre;
@@ -1570,6 +1593,24 @@ void read_parameter_file(char* fname, int mode)
       params_addr[n_param] = &(run_params->Flag_OutputQuasarLF);
       required_tag[n_param] = 1;
       params_type[n_param++] = PARAM_TYPE_INT;
+
+      strncpy(params_tag[n_param], "QuasarLFBCNSigma", tag_length);
+      params_addr[n_param] = &(run_params->QuasarLFBCNSigma);
+      required_tag[n_param] = 0; /* optional: absent -> 1.0 */
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      run_params->QuasarLFBCNSigma = 1.0;
+
+      strncpy(params_tag[n_param], "Flag_OutputQuasarLFDust", tag_length);
+      params_addr[n_param] = &(run_params->Flag_OutputQuasarLFDust);
+      required_tag[n_param] = 0; /* optional: absent -> 0 */
+      params_type[n_param++] = PARAM_TYPE_INT;
+      run_params->Flag_OutputQuasarLFDust = 0;
+
+      strncpy(params_tag[n_param], "XrayLFBCNSigma", tag_length);
+      params_addr[n_param] = &(run_params->XrayLFBCNSigma);
+      required_tag[n_param] = 0; /* optional: absent -> 1.0 */
+      params_type[n_param++] = PARAM_TYPE_DOUBLE;
+      run_params->XrayLFBCNSigma = 1.0;
 
       strncpy(params_tag[n_param], "Flag_OutputOIIILF", tag_length);
       params_addr[n_param] = &(run_params->Flag_OutputOIIILF);

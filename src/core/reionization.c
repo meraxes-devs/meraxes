@@ -288,6 +288,12 @@ void set_quasar_fobs()
 {
   physics_params_t* params = &(run_globals.params.physics);
 
+  if (params->Flag_AGNDustExtinction) {
+    params->quasar_fobs = 1.0;
+    mlog("AGN obscuration: Shen+20 dust extinction (Flag_AGNDustExtinction = 1); quasar_open_angle is not used",
+         MLOG_MESG | MLOG_FLUSH);
+    return;
+  }
   params->quasar_fobs = 1. - cos(params->quasar_open_angle / 180. * M_PI / 2.);
   mlog("Quasar radiation open angle is set to be %g, corresponding to an obscure fraction of %g",
        MLOG_MESG | MLOG_FLUSH,

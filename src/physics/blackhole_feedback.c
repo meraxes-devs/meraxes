@@ -2,6 +2,7 @@
 #include "core/misc_tools.h"
 #include "meraxes.h"
 #include <assert.h>
+#include <gsl/gsl_cdf.h>
 #include <math.h>
 
 /* Morrison & McCammon (1983) photoelectric absorption cross-section, cm^2/H atom. */
@@ -60,6 +61,9 @@ static double xray_transmission_at_NH(double log_NH, double E_min_keV, double E_
 
 /* log-midpoint NH for each of the 5 bins */
 static const double LOG_NH_MID[5] = { 20.5, 21.5, 22.5, 23.5, 25.0 };
+/* log10(N_H) bin edges */
+static const double LOG_NH_LO[5] = { 20.0, 21.0, 22.0, 23.0, 24.0 };
+static const double LOG_NH_HI[5] = { 21.0, 22.0, 23.0, 24.0, 26.0 };
 static double s_T_hard[5];
 static double s_T_soft[5];
 static int s_T_init = 0;
@@ -194,6 +198,158 @@ void get_nh_fracs(double LX_1e10Lsun, double redshift, double f_out[5])
     f_out[k] = f[k];
 }
 
+void get_nh_bin_edges(double lo[5], double hi[5])
+{
+  int k;
+  for (k = 0; k < 5; k++) {
+    lo[k] = LOG_NH_LO[k];
+    hi[k] = LOG_NH_HI[k];
+  }
+}
+
+/* Shen et al. (2020) Sec. 3.2 dust: A_lambda = (A_B/N_H) N_H (A_lambda/A_B) DGR(z)/DGR(0) */
+#define SHEN20_AB_PER_NH 8.47e-22   /* A_B / N_H [mag cm^2] */
+#define SHEN20_LAMBDA_ION_UM 0.0912 /* Lyman limit [micron] */
+
+/* Pei (1992) Milky-Way curve: A_lambda / A_B, lambda in micron */
+static double pei92_mw_xi(double lambda_um)
+{
+  static const double a[6] = { 165.0, 14.0, 0.045, 0.002, 0.002, 0.012 };
+  static const double l[6] = { 0.047, 0.08, 0.22, 9.7, 18.0, 25.0 };
+  static const double b[6] = { 90.0, 4.0, -1.95, -1.95, -1.80, 0.0 };
+  static const double n[6] = { 2.0, 6.5, 2.0, 2.0, 2.0, 2.0 };
+  double xi;
+  int i;
+
+  xi = 0.0;
+  for (i = 0; i < 6; i++)
+    xi += a[i] / (pow(lambda_um / l[i], n[i]) + pow(l[i] / lambda_um, n[i]) + b[i]);
+  return xi;
+}
+
+/* DGR(z) / DGR(0) (Ma et al. 2016) */
+static double shen20_dgr_ratio(double redshift)
+{
+  return pow(10.0, 0.93 * (exp(-0.43 * redshift) - 1.0));
+}
+
+double shen20_a1450_per_nh(double redshift, double* ab_per_nh, double* a1450_per_ab, double* dgr_ratio)
+{
+  double r_curve;
+  double r_dgr;
+
+  r_curve = pei92_mw_xi(0.145) / pei92_mw_xi(0.44);
+  r_dgr = shen20_dgr_ratio(redshift);
+  if (ab_per_nh != NULL)
+    *ab_per_nh = SHEN20_AB_PER_NH;
+  if (a1450_per_ab != NULL)
+    *a1450_per_ab = r_curve;
+  if (dgr_ratio != NULL)
+    *dgr_ratio = r_dgr;
+  return SHEN20_AB_PER_NH * r_curve * r_dgr;
+}
+
+/* Dust transmission at 912 A averaged over an N_H bin (Flag_AGNDustExtinction) */
+static double agn_dust_escape_ionising(int nh_bin, double redshift)
+{
+  static double table_z = -1.0;
+  static double table[5];
+  double a_per_nh;
+  double sum;
+  int k;
+  int j;
+
+  if ((nh_bin < 0) || (nh_bin > 4))
+    return 1.0;
+  if (redshift != table_z) {
+    a_per_nh = SHEN20_AB_PER_NH * pei92_mw_xi(SHEN20_LAMBDA_ION_UM) / pei92_mw_xi(0.44) * shen20_dgr_ratio(redshift);
+    for (k = 0; k < 5; k++) {
+      sum = 0.0;
+      for (j = 0; j < AGN_DUST_NH_SAMPLES; j++)
+        sum += pow(10.0,
+                   -0.4 * a_per_nh *
+                     pow(10.0, LOG_NH_LO[k] + (j + 0.5) * (LOG_NH_HI[k] - LOG_NH_LO[k]) / AGN_DUST_NH_SAMPLES));
+      table[k] = sum / AGN_DUST_NH_SAMPLES;
+    }
+    table_z = redshift;
+  }
+  return table[nh_bin];
+}
+
+/* Shen et al. (2020) 1-sigma uncertainty of the bolometric corrections (Eq. 4, Table 1) */
+typedef struct shen_disp_t
+{
+  double sigma1;
+  double sigma2;
+  double logL0;
+  double sigma3;
+} shen_disp_t;
+
+/* Shen et al. (2020), Table 1, last column. */
+static const shen_disp_t SHEN_DISP_UV = { -0.372, 0.405, 42.31, 2.310 };
+static const shen_disp_t SHEN_DISP_HARD = { 0.193, 0.066, 42.99, 1.883 };
+static const shen_disp_t SHEN_DISP_SOFT = { 0.080, 0.180, 44.16, 1.496 };
+
+/* Shen et al. (2020) Eq. 4, in dex. */
+static double shen20_bc_sigma(const shen_disp_t* d, double logLbol_ergs)
+{
+  return d->sigma2 + d->sigma1 * (0.5 + 0.5 * erf((logLbol_ergs - d->logL0) / (sqrt(2.0) * d->sigma3)));
+}
+
+static double shen20_draw_gaussian(void)
+{
+  return gsl_cdf_ugaussian_Pinv(gsl_rng_uniform(run_globals.random_generator));
+}
+
+/* Lognormal factor on a bolometric correction for the standard normal deviate g */
+static double shen20_bc_scatter_factor(const shen_disp_t* d, double logLbol_ergs, double g)
+{
+  double sigma_dex;
+
+  sigma_dex = run_globals.params.physics.ShenBCScatterScale * shen20_bc_sigma(d, logLbol_ergs);
+  if (sigma_dex <= 0.0)
+    return 1.0;
+
+  return pow(10.0, sigma_dex * g);
+}
+
+/* Bolometric luminosity [1e10 Lsun] at the middle of the accretion time */
+static double quasar_lbol(double BlackHoleMass, double accreted_mass)
+{
+  return sqrt(1.0 + accreted_mass / BlackHoleMass) * run_globals.params.physics.EddingtonRatio * BlackHoleMass /
+         run_globals.params.Hubble_h * LUMINOSITY_CONVERTOR;
+}
+
+/* 10^(QuasarLFBCNSigma sigma_UV): factor on L_UV for the QuasarLF_BC band */
+static double quasar_uv_bc_band_factor(double BlackHoleMass, double accreted_mass)
+{
+  double Lbol;
+  double nsigma;
+
+  nsigma = run_globals.params.QuasarLFBCNSigma;
+  if ((!run_globals.params.Flag_OutputQuasarLF) || (nsigma <= 0.0) || (BlackHoleMass <= 0.0))
+    return 1.0;
+  Lbol = quasar_lbol(BlackHoleMass, accreted_mass);
+  if (Lbol <= 0.0)
+    return 1.0;
+  return pow(10.0, nsigma * shen20_bc_sigma(&SHEN_DISP_UV, log10(Lbol) + 10.0 + LOG_10_SOLAR_LUM));
+}
+
+/* 10^(XrayLFBCNSigma sigma_hard): factor on L_X for the XrayLF_BC band */
+static double quasar_hard_bc_band_factor(double BlackHoleMass, double accreted_mass)
+{
+  double Lbol;
+  double nsigma;
+
+  nsigma = run_globals.params.XrayLFBCNSigma;
+  if ((!run_globals.params.Flag_OutputXrayLF) || (nsigma <= 0.0) || (BlackHoleMass <= 0.0))
+    return 1.0;
+  Lbol = quasar_lbol(BlackHoleMass, accreted_mass);
+  if (Lbol <= 0.0)
+    return 1.0;
+  return pow(10.0, nsigma * shen20_bc_sigma(&SHEN_DISP_HARD, log10(Lbol) + 10.0 + LOG_10_SOLAR_LUM));
+}
+
 void calculate_BHemissivity(double BlackHoleMass,
                             double accreted_mass,
                             double* emissivity,
@@ -206,18 +362,34 @@ void calculate_BHemissivity(double BlackHoleMass,
   double kb_uv;
   double kb_hard;
   double kb_soft;
+  double logLbol_ergs;
+  double g_uv;
+  double g_hard;
+  double g_soft;
+  int shared_deviate;
   physics_params_t* physics = &(run_globals.params.physics);
 
   // Compute accretion_time directly in internal units using pre-computed EddingtonTimescale
   *accretion_time =
     log1p(accreted_mass / BlackHoleMass) * run_globals.EddingtonTimescale * ETA / physics->EddingtonRatio;
   // Bolometric luminosity in 1e10 Lsun at the MIDDLE of accretion time
-  Lbol = sqrt(1.0 + accreted_mass / BlackHoleMass) * physics->EddingtonRatio * BlackHoleMass /
-         run_globals.params.Hubble_h * LUMINOSITY_CONVERTOR;
+  Lbol = quasar_lbol(BlackHoleMass, accreted_mass);
   // bolometric correction from Shen et al. 2020
   kb_uv = 1.862 * pow(Lbol, -0.361) + 4.870 * pow(Lbol, -0.0063);
   kb_hard = 4.073 * pow(Lbol, -0.026) + 12.60 * pow(Lbol, 0.278);
   kb_soft = 5.712 * pow(Lbol, -0.026) + 17.67 * pow(Lbol, 0.278);
+
+  // optional random scatter of the corrections (Flag_ShenBCScatter)
+  if ((physics->Flag_ShenBCScatter != 0) && (Lbol > 0.0)) {
+    logLbol_ergs = log10(Lbol) + 10.0 + LOG_10_SOLAR_LUM;
+    shared_deviate = (physics->Flag_ShenBCScatter == 2);
+    g_uv = shen20_draw_gaussian();
+    g_hard = shared_deviate ? g_uv : shen20_draw_gaussian();
+    g_soft = shared_deviate ? g_uv : shen20_draw_gaussian();
+    kb_uv *= shen20_bc_scatter_factor(&SHEN_DISP_UV, logLbol_ergs, g_uv);
+    kb_hard *= shen20_bc_scatter_factor(&SHEN_DISP_HARD, logLbol_ergs, g_hard);
+    kb_soft *= shen20_bc_scatter_factor(&SHEN_DISP_SOFT, logLbol_ergs, g_soft);
+  }
 
   // Return UV luminosity LUV = Lbol/kb in 1e10 Lsun
   *quasar_luv = Lbol / kb_uv;
@@ -370,6 +542,8 @@ void previous_merger_driven_BH_growth(galaxy_t* gal, int snapshot)
   double accreted_mass;
   double BHemissivity, accretion_time, quasar_luv;
   double quasar_lx, quasar_lx_soft;
+  double bc_band_factor;
+  double xr_band_factor;
   double obs_fraction_hard;
   double obs_fraction_soft;
   int NH_bin;
@@ -415,7 +589,12 @@ void previous_merger_driven_BH_growth(galaxy_t* gal, int snapshot)
     // N_gamma,q * N_bh; later 1e60*BHemissivity * PROTONMASS/1e10/SOLAR_MASS will be N_gamma,q * M_bh
     calculate_BHemissivity(
       gal->BlackHoleMass, accreted_mass, &BHemissivity, &accretion_time, &quasar_luv, &quasar_lx, &quasar_lx_soft);
+    bc_band_factor = quasar_uv_bc_band_factor(gal->BlackHoleMass, accreted_mass);
+    xr_band_factor = quasar_hard_bc_band_factor(gal->BlackHoleMass, accreted_mass);
     apply_xray_obscuration(quasar_lx, run_globals.ZZ[snapshot], &obs_fraction_hard, &obs_fraction_soft, &NH_bin);
+    // dust instead of the opening angle (quasar_fobs = 1)
+    if (run_globals.params.physics.Flag_AGNDustExtinction)
+      BHemissivity *= agn_dust_escape_ionising(NH_bin, run_globals.ZZ[snapshot]);
 
     gal->DutyCycleAGN = (accretion_time > 1e-30) ? (accretion_time / dt) : 0.0;
     CLAMP_0_1(gal->DutyCycleAGN);
@@ -438,7 +617,11 @@ void previous_merger_driven_BH_growth(galaxy_t* gal, int snapshot)
 
     gal->BHemissivity += BHemissivity;
     gal->QuasarLuv += quasar_luv;
+    gal->QuasarLuvBCBright += quasar_luv * bc_band_factor;
+    gal->QuasarLuvBCFaint += quasar_luv / bc_band_factor;
     gal->QuasarLX += quasar_lx;
+    gal->QuasarLXBCBright += quasar_lx * xr_band_factor;
+    gal->QuasarLXBCFaint += quasar_lx / xr_band_factor;
     gal->NHbin = NH_bin; /* -1 if no AGN activity this step */
     gal->BHXrayEmissivity_hard += quasar_lx * obs_fraction_hard;
     gal->BHXrayEmissivity_soft += quasar_lx_soft * obs_fraction_soft;

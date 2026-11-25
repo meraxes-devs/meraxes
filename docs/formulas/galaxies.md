@@ -644,6 +644,23 @@ f_{\rm esc,BH}=\operatorname{clip}_{[0,1]}
 
 *References:* {ref}`Qin et al. (2017b), §§2.3 and 4.1 <ref-qin2017x>`; [Meraxes source implementation](https://github.com/meraxes-devs/meraxes/blob/e0a73833d180264711c40ab70abaec2320e3c2bd/src/core/reionization.c#L98-L115).
 
+With `Flag_AGNDustExtinction` = 1 the cone is not used ($f_{\rm open}=1$; `quasar_open_angle` is ignored). Each AGN is instead obscured by dust in proportion to its hydrogen column $N_{\rm H}$, the bin drawn for its X-ray obscuration, sampled evenly in $\log N_{\rm H}$ over the bin. Its ionising photons are dimmed at the Lyman limit and its magnitude in the quasar UV luminosity function at 1450 Å, where it is counted with weight $f_{\rm duty}$:
+
+```{math}
+:label: bh-dust-extinction
+\begin{gathered}
+A_\lambda=\left(\frac{A_B}{N_{\rm H}}\right)_0 N_{\rm H}\,\frac{\xi(\lambda)}{\xi(B)}\,10^{0.93\,[\exp(-0.43z)-1]},
+\\
+\Delta N_{\gamma,\rm esc}=\left\langle10^{-0.4A_{912}}\right\rangle_{N_{\rm H}}f_{\rm esc,BH}\dot N_{\gamma,\rm int}t_{\rm acc},
+\qquad
+M_{1450}\rightarrow M_{1450}+A_{1450}.
+\end{gathered}
+```
+
+$(A_B/N_{\rm H})_0=8.47\times10^{-22}$ mag cm$^2$ is the local dust-to-gas ratio, $\xi$ the Milky-Way extinction curve ($A_{1450}/A_B=2.09$, $A_{912}/A_B=4.04$), and the last factor the redshift dependence of the dust-to-gas ratio, which follows the gas-phase metallicity at fixed stellar mass. Absorption of the ionising photons by the gas itself is not modelled.
+
+*References:* {ref}`Shen et al. (2020), §3.2 <ref-shen2020>`; {ref}`Ueda et al. (2014) <ref-ueda2014>`; {ref}`Hopkins et al. (2007) <ref-hopkins2007>`; {ref}`Pei (1992) <ref-pei1992>`; {ref}`Ma et al. (2016) <ref-ma2016>`.
+
 ```{math}
 :label: bh-equivalent-sources
 \begin{gathered}

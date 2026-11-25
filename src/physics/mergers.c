@@ -236,7 +236,11 @@ void merge_with_target(galaxy_t* gal, int* dead_gals, int snapshot)
     parent->t_resp = gal->t_resp;
   }
   parent->QuasarLuv += gal->QuasarLuv;
+  parent->QuasarLuvBCBright += gal->QuasarLuvBCBright;
+  parent->QuasarLuvBCFaint += gal->QuasarLuvBCFaint;
   parent->QuasarLX += gal->QuasarLX;
+  parent->QuasarLXBCBright += gal->QuasarLXBCBright;
+  parent->QuasarLXBCFaint += gal->QuasarLXBCFaint;
   parent->BHXrayEmissivity_hard += gal->BHXrayEmissivity_hard;
   parent->BHXrayEmissivity_soft += gal->BHXrayEmissivity_soft;
 
